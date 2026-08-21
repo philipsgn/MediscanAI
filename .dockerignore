@@ -1,0 +1,35 @@
+# Dependencies
+node_modules
+.venv
+venv
+
+# Build artifacts
+.next
+out
+dist
+__pycache__
+*.pyc
+*.pyo
+*.tsbuildinfo
+.pytest_cache
+
+# Env & secrets (KHÔNG BAO GIỜ đóng gói .env vào image)
+.env
+.env.*
+!.env.example
+
+# IDE / OS
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Misc
+*.log
+frontend_old
+.antigravity
+setup_windows.ps1

@@ -1,0 +1,902 @@
+[
+  {
+    "id": "DRUG_001",
+    "brand_name": "Panadol Extra",
+    "active_ingredient": "Paracetamol / Caffeine",
+    "strength": "500mg / 65mg",
+    "max_daily_dosage": "4000mg Paracetamol",
+    "category": "Giảm đau - Hạ sốt",
+    "warnings_contraindications": ["Suy gan nặng", "Dùng cùng sản phẩm chứa Paracetamol khác"]
+  },
+  {
+    "id": "DRUG_002",
+    "brand_name": "Efferalgan 500mg",
+    "active_ingredient": "Paracetamol",
+    "strength": "500mg",
+    "max_daily_dosage": "4000mg",
+    "category": "Giảm đau - Hạ sốt",
+    "warnings_contraindications": ["Suy gan nặng", "Suy thận nặng"]
+  },
+  {
+    "id": "DRUG_003",
+    "brand_name": "Hapacol 650",
+    "active_ingredient": "Paracetamol",
+    "strength": "650mg",
+    "max_daily_dosage": "4000mg",
+    "category": "Giảm đau - Hạ sốt",
+    "warnings_contraindications": ["Suy gan nặng"]
+  },
+  {
+    "id": "DRUG_004",
+    "brand_name": "Tylenol 500mg",
+    "active_ingredient": "Paracetamol",
+    "strength": "500mg",
+    "max_daily_dosage": "4000mg",
+    "category": "Giảm đau - Hạ sốt",
+    "warnings_contraindications": ["Suy gan nặng"]
+  },
+  {
+    "id": "DRUG_005",
+    "brand_name": "Efferalgan Codeine",
+    "active_ingredient": "Paracetamol / Codeine",
+    "strength": "500mg / 30mg",
+    "max_daily_dosage": "240mg Codeine",
+    "category": "Giảm đau phối hợp Opioid",
+    "warnings_contraindications": ["Suy hô hấp", "Trẻ em dưới 12 tuổi", "Phụ nữ cho con bú"]
+  },
+  {
+    "id": "DRUG_006",
+    "brand_name": "Ultracet",
+    "active_ingredient": "Paracetamol / Tramadol",
+    "strength": "325mg / 37.5mg",
+    "max_daily_dosage": "300mg Tramadol",
+    "category": "Giảm đau trung ương",
+    "warnings_contraindications": ["Suy gan nặng", "Động kinh chưa kiểm soát"]
+  },
+  {
+    "id": "DRUG_007",
+    "brand_name": "Augmentin 1g",
+    "active_ingredient": "Amoxicillin / Clavulanic acid",
+    "strength": "875mg / 125mg",
+    "max_daily_dosage": "3000mg Amoxicillin",
+    "category": "Kháng sinh Beta-lactam",
+    "warnings_contraindications": ["Dị ứng Penicillin", "Tiền sử vàng da do Augmentin"]
+  },
+  {
+    "id": "DRUG_008",
+    "brand_name": "Augmentin 625mg",
+    "active_ingredient": "Amoxicillin / Clavulanic acid",
+    "strength": "500mg / 125mg",
+    "max_daily_dosage": "3000mg Amoxicillin",
+    "category": "Kháng sinh Beta-lactam",
+    "warnings_contraindications": ["Dị ứng Penicillin"]
+  },
+  {
+    "id": "DRUG_009",
+    "brand_name": "Amoxicillin 500mg",
+    "active_ingredient": "Amoxicillin",
+    "strength": "500mg",
+    "max_daily_dosage": "3000mg",
+    "category": "Kháng sinh Penicillin",
+    "warnings_contraindications": ["Dị ứng Penicillin"]
+  },
+  {
+    "id": "DRUG_010",
+    "brand_name": "Klacid 500mg",
+    "active_ingredient": "Clarithromycin",
+    "strength": "500mg",
+    "max_daily_dosage": "1000mg",
+    "category": "Kháng sinh Macrolide",
+    "warnings_contraindications": ["Tương tác với Simvastatin", "Bệnh nhân kéo dài khoảng QT"]
+  },
+  {
+    "id": "DRUG_011",
+    "brand_name": "Zithromax 500mg",
+    "active_ingredient": "Azithromycin",
+    "strength": "500mg",
+    "max_daily_dosage": "500mg",
+    "category": "Kháng sinh Macrolide",
+    "warnings_contraindications": ["Suy gan nặng", "Rối loạn nhịp tim"]
+  },
+  {
+    "id": "DRUG_012",
+    "brand_name": "Ciprobay 500mg",
+    "active_ingredient": "Ciprofloxacin",
+    "strength": "500mg",
+    "max_daily_dosage": "1500mg",
+    "category": "Kháng sinh Quinolone",
+    "warnings_contraindications": ["Trẻ em đang phát triển", "Uống cùng Canxi/Sắt (giảm hấp thu)"]
+  },
+  {
+    "id": "DRUG_013",
+    "brand_name": "Tavanic 500mg",
+    "active_ingredient": "Levofloxacin",
+    "strength": "500mg",
+    "max_daily_dosage": "1000mg",
+    "category": "Kháng sinh Quinolone",
+    "warnings_contraindications": ["Viêm gân Achille", "Bệnh nhược cơ"]
+  },
+  {
+    "id": "DRUG_014",
+    "brand_name": "Zinnat 500mg",
+    "active_ingredient": "Cefuroxime axetil",
+    "strength": "500mg",
+    "max_daily_dosage": "1000mg",
+    "category": "Kháng sinh Cephalosporin thế hệ 2",
+    "warnings_contraindications": ["Dị ứng Cephalosporin"]
+  },
+  {
+    "id": "DRUG_015",
+    "brand_name": "Cefadroxil 500mg",
+    "active_ingredient": "Cefadroxil",
+    "strength": "500mg",
+    "max_daily_dosage": "2000mg",
+    "category": "Kháng sinh Cephalosporin thế hệ 1",
+    "warnings_contraindications": ["Dị ứng Cephalosporin"]
+  },
+  {
+    "id": "DRUG_016",
+    "brand_name": "Cefixim 200mg",
+    "active_ingredient": "Cefixime",
+    "strength": "200mg",
+    "max_daily_dosage": "400mg",
+    "category": "Kháng sinh Cephalosporin thế hệ 3",
+    "warnings_contraindications": ["Dị ứng Cephalosporin", "Suy thận nặng cần chỉnh liều"]
+  },
+  {
+    "id": "DRUG_017",
+    "brand_name": "Flagyl 250mg",
+    "active_ingredient": "Metronidazole",
+    "strength": "250mg",
+    "max_daily_dosage": "1500mg",
+    "category": "Kháng sinh Kháng khuẩn/Ký sinh trùng",
+    "warnings_contraindications": ["Tuyệt đối không uống rượu bia trong thời gian dùng thuốc"]
+  },
+  {
+    "id": "DRUG_018",
+    "brand_name": "Voltaren 50mg",
+    "active_ingredient": "Diclofenac",
+    "strength": "50mg",
+    "max_daily_dosage": "150mg",
+    "category": "Kháng viêm NSAID",
+    "warnings_contraindications": ["Loét dạ dày tiến triển", "Suy tim nặng", "Suy thận"]
+  },
+  {
+    "id": "DRUG_019",
+    "brand_name": "Cataflam 50mg",
+    "active_ingredient": "Diclofenac potassium",
+    "strength": "50mg",
+    "max_daily_dosage": "150mg",
+    "category": "Kháng viêm NSAID",
+    "warnings_contraindications": ["Loét dạ dày tá tràng", "Tiền sử hen do NSAID"]
+  },
+  {
+    "id": "DRUG_020",
+    "brand_name": "Brufen 400mg",
+    "active_ingredient": "Ibuprofen",
+    "strength": "400mg",
+    "max_daily_dosage": "2400mg",
+    "category": "Kháng viêm NSAID",
+    "warnings_contraindications": ["Loét dạ dày", "Suy gan/thận nặng", "Dùng cùng Aspirin"]
+  },
+  {
+    "id": "DRUG_021",
+    "brand_name": "Gupisone 400mg",
+    "active_ingredient": "Ibuprofen",
+    "strength": "400mg",
+    "max_daily_dosage": "2400mg",
+    "category": "Kháng viêm NSAID",
+    "warnings_contraindications": ["Loét dạ dày tiến triển"]
+  },
+  {
+    "id": "DRUG_022",
+    "brand_name": "Celebrex 200mg",
+    "active_ingredient": "Celecoxib",
+    "strength": "200mg",
+    "max_daily_dosage": "400mg",
+    "category": "Kháng viêm NSAID (Ức chế COX-2)",
+    "warnings_contraindications": ["Dị ứng Sulfonamide", "Bệnh tim cục bộ", "Tai biến mạch máu não"]
+  },
+  {
+    "id": "DRUG_023",
+    "brand_name": "Arcoxia 90mg",
+    "active_ingredient": "Etoricoxib",
+    "strength": "90mg",
+    "max_daily_dosage": "120mg",
+    "category": "Kháng viêm NSAID (Ức chế COX-2)",
+    "warnings_contraindications": ["Tăng huyết áp chưa kiểm soát (>140/90 mmHg)", "Bệnh tim thiếu máu cục bộ"]
+  },
+  {
+    "id": "DRUG_024",
+    "brand_name": "Mobic 7.5mg",
+    "active_ingredient": "Meloxicam",
+    "strength": "7.5mg",
+    "max_daily_dosage": "15mg",
+    "category": "Kháng viêm NSAID",
+    "warnings_contraindications": ["Loét dạ dày tiến triển", "Suy gan/thận nặng"]
+  },
+  {
+    "id": "DRUG_025",
+    "brand_name": "Tilcotil 20mg",
+    "active_ingredient": "Tenoxicam",
+    "strength": "20mg",
+    "max_daily_dosage": "20mg",
+    "category": "Kháng viêm NSAID",
+    "warnings_contraindications": ["Loét dạ dày tá tràng", "Suy tim nặng"]
+  },
+  {
+    "id": "DRUG_026",
+    "brand_name": "Nexium 40mg",
+    "active_ingredient": "Esomeprazole",
+    "strength": "40mg",
+    "max_daily_dosage": "80mg",
+    "category": "Ức chế bơm Proton (Dạ dày)",
+    "warnings_contraindications": ["Không dùng chung với Nelfinavir", "Tương tác Clopidogrel"]
+  },
+  {
+    "id": "DRUG_027",
+    "brand_name": "Nexium 20mg",
+    "active_ingredient": "Esomeprazole",
+    "strength": "20mg",
+    "max_daily_dosage": "40mg",
+    "category": "Ức chế bơm Proton (Dạ dày)",
+    "warnings_contraindications": ["Tương tác với Clopidogrel"]
+  },
+  {
+    "id": "DRUG_028",
+    "brand_name": "Pariet 20mg",
+    "active_ingredient": "Rabeprazole",
+    "strength": "20mg",
+    "max_daily_dosage": "40mg",
+    "category": "Ức chế bơm Proton (Dạ dày)",
+    "warnings_contraindications": ["Mẫn cảm với Rabeprazole"]
+  },
+  {
+    "id": "DRUG_029",
+    "brand_name": "Pantiloc 40mg",
+    "active_ingredient": "Pantoprazole",
+    "strength": "40mg",
+    "max_daily_dosage": "80mg",
+    "category": "Ức chế bơm Proton (Dạ dày)",
+    "warnings_contraindications": ["Suy gan nặng (cần theo dõi enzym gan)"]
+  },
+  {
+    "id": "DRUG_030",
+    "brand_name": "Losec 20mg",
+    "active_ingredient": "Omeprazole",
+    "strength": "20mg",
+    "max_daily_dosage": "40mg",
+    "category": "Ức chế bơm Proton (Dạ dày)",
+    "warnings_contraindications": ["Tương tác làm giảm tác dụng Clopidogrel"]
+  },
+  {
+    "id": "DRUG_031",
+    "brand_name": "Gaviscon Dual Action",
+    "active_ingredient": "Sodium alginate / Antacid",
+    "strength": "500mg / 325mg",
+    "max_daily_dosage": "80ml (8 gói)",
+    "category": "Bảo vệ niêm mạc dạ dày - Trào ngược",
+    "warnings_contraindications": ["Bệnh nhân ăn kiêng muối nghiêm ngặt"]
+  },
+  {
+    "id": "DRUG_032",
+    "brand_name": "Yumangel",
+    "active_ingredient": "Almagate",
+    "strength": "1.00g",
+    "max_daily_dosage": "4 gói",
+    "category": "Thuốc trung hòa acid dạ dày",
+    "warnings_contraindications": ["Uống cách xa các thuốc khác ít nhất 1-2 giờ"]
+  },
+  {
+    "id": "DRUG_033",
+    "brand_name": "Glucophage 850mg",
+    "active_ingredient": "Metformin",
+    "strength": "850mg",
+    "max_daily_dosage": "2550mg",
+    "category": "Đái tháo đường (Biguanide)",
+    "warnings_contraindications": ["Suy thận (eGFR < 30 mL/min)", "Nhiễm toan lactic", "Ngừng trước khi chụp X-quang cản quang"]
+  },
+  {
+    "id": "DRUG_034",
+    "brand_name": "Glucophage XR 500mg",
+    "active_ingredient": "Metformin",
+    "strength": "500mg",
+    "max_daily_dosage": "2000mg",
+    "category": "Đái tháo đường (Biguanide)",
+    "warnings_contraindications": ["Suy thận nặng"]
+  },
+  {
+    "id": "DRUG_035",
+    "brand_name": "Amaryl 2mg",
+    "active_ingredient": "Glimepiride",
+    "strength": "2mg",
+    "max_daily_dosage": "8mg",
+    "category": "Đái tháo đường (Sulfonylurea)",
+    "warnings_contraindications": ["Nguy cơ hạ đường huyết", "Suy gan/thận nặng"]
+  },
+  {
+    "id": "DRUG_036",
+    "brand_name": "Diamicron MR 60mg",
+    "active_ingredient": "Gliclazide",
+    "strength": "60mg",
+    "max_daily_dosage": "120mg",
+    "category": "Đái tháo đường (Sulfonylurea)",
+    "warnings_contraindications": ["Hạ đường huyết", "Suy thận nặng"]
+  },
+  {
+    "id": "DRUG_037",
+    "brand_name": "Januvia 100mg",
+    "active_ingredient": "Sitagliptin",
+    "strength": "100mg",
+    "max_daily_dosage": "100mg",
+    "category": "Đái tháo đường (DPP-4 Inhibitor)",
+    "warnings_contraindications": ["Tiền sử viêm tụy cấp"]
+  },
+  {
+    "id": "DRUG_038",
+    "brand_name": "Janumet 50/1000",
+    "active_ingredient": "Sitagliptin / Metformin",
+    "strength": "50mg / 1000mg",
+    "max_daily_dosage": "100mg Sitagliptin + 2000mg Metformin",
+    "category": "Đái tháo đường phối hợp",
+    "warnings_contraindications": ["Suy thận eGFR < 30"]
+  },
+  {
+    "id": "DRUG_039",
+    "brand_name": "Forxiga 10mg",
+    "active_ingredient": "Dapagliflozin",
+    "strength": "10mg",
+    "max_daily_dosage": "10mg",
+    "category": "Đái tháo đường (SGLT2 Inhibitor)",
+    "warnings_contraindications": ["Nhiễm toan ceton đái tháo đường", "Nhiễm trùng đường tiết niệu tái phát"]
+  },
+  {
+    "id": "DRUG_040",
+    "brand_name": "Jardiance 10mg",
+    "active_ingredient": "Empagliflozin",
+    "strength": "10mg",
+    "max_daily_dosage": "25mg",
+    "category": "Đái tháo đường (SGLT2 Inhibitor)",
+    "warnings_contraindications": ["Nhiễm toan ceton"]
+  },
+  {
+    "id": "DRUG_041",
+    "brand_name": "Amlor 5mg",
+    "active_ingredient": "Amlodipine",
+    "strength": "5mg",
+    "max_daily_dosage": "10mg",
+    "category": "Huyết áp (Chẹn kênh Canxi)",
+    "warnings_contraindications": ["Phù chân", "Hạ huyết áp nghiêm trọng"]
+  },
+  {
+    "id": "DRUG_042",
+    "brand_name": "Amlodipin 10mg",
+    "active_ingredient": "Amlodipine",
+    "strength": "10mg",
+    "max_daily_dosage": "10mg",
+    "category": "Huyết áp (Chẹn kênh Canxi)",
+    "warnings_contraindications": ["Suy tim nồng độ cao"]
+  },
+  {
+    "id": "DRUG_043",
+    "brand_name": "Coveram 5/5",
+    "active_ingredient": "Perindopril / Amlodipine",
+    "strength": "5mg / 5mg",
+    "max_daily_dosage": "10mg / 10mg",
+    "category": "Huyết áp phối hợp",
+    "warnings_contraindications": ["Tiền sử phù mạch do ACEi", "Phụ nữ mang thai"]
+  },
+  {
+    "id": "DRUG_044",
+    "brand_name": "Coversyl 5mg",
+    "active_ingredient": "Perindopril",
+    "strength": "5mg",
+    "max_daily_dosage": "10mg",
+    "category": "Huyết áp (Ức chế men chuyển ACEi)",
+    "warnings_contraindications": ["Ho khô kịch phát", "Tăng Kali máu", "Mang thai"]
+  },
+  {
+    "id": "DRUG_045",
+    "brand_name": "Concor 5mg",
+    "active_ingredient": "Bisoprolol",
+    "strength": "5mg",
+    "max_daily_dosage": "10mg",
+    "category": "Tim mạch (Chẹn Beta)",
+    "warnings_contraindications": ["Hen suyễn nặng", "Nhịp chậm < 50 nhịp/phút", "Block nhĩ thất độ II-III"]
+  },
+  {
+    "id": "DRUG_046",
+    "brand_name": "Concor COR 2.5mg",
+    "active_ingredient": "Bisoprolol",
+    "strength": "2.5mg",
+    "max_daily_dosage": "10mg",
+    "category": "Suy tim (Chẹn Beta)",
+    "warnings_contraindications": ["Nhịp tim chậm"]
+  },
+  {
+    "id": "DRUG_047",
+    "brand_name": "Betaloc ZOK 50mg",
+    "active_ingredient": "Metoprolol succinate",
+    "strength": "50mg",
+    "max_daily_dosage": "200mg",
+    "category": "Tim mạch (Chẹn Beta)",
+    "warnings_contraindications": ["Hen suyễn", "Nhịp chậm"]
+  },
+  {
+    "id": "DRUG_048",
+    "brand_name": "Diovan 80mg",
+    "active_ingredient": "Valsartan",
+    "strength": "80mg",
+    "max_daily_dosage": "320mg",
+    "category": "Huyết áp (Thụ thể ARB)",
+    "warnings_contraindications": ["Phụ nữ mang thai", "Tăng Kali máu"]
+  },
+  {
+    "id": "DRUG_049",
+    "brand_name": "Co-Diovan 160/12.5",
+    "active_ingredient": "Valsartan / Hydrochlorothiazide",
+    "strength": "160mg / 12.5mg",
+    "max_daily_dosage": "320mg Valsartan",
+    "category": "Huyết áp phối hợp Lợi tiểu",
+    "warnings_contraindications": ["Phụ nữ mang thai", "Gút / Tăng acid uric"]
+  },
+  {
+    "id": "DRUG_050",
+    "brand_name": "Micardis 40mg",
+    "active_ingredient": "Telmisartan",
+    "strength": "40mg",
+    "max_daily_dosage": "80mg",
+    "category": "Huyết áp (Thụ thể ARB)",
+    "warnings_contraindications": ["Phụ nữ mang thai", "Hẹp động mạch thận hai bên"]
+  },
+  {
+    "id": "DRUG_051",
+    "brand_name": "Micardis Plus 80/12.5",
+    "active_ingredient": "Telmisartan / Hydrochlorothiazide",
+    "strength": "80mg / 12.5mg",
+    "max_daily_dosage": "80mg Telmisartan",
+    "category": "Huyết áp phối hợp Lợi tiểu",
+    "warnings_contraindications": ["Mang thai", "Vô niệu"]
+  },
+  {
+    "id": "DRUG_052",
+    "brand_name": "Natrilix SR 1.5mg",
+    "active_ingredient": "Indapamide",
+    "strength": "1.5mg",
+    "max_daily_dosage": "1.5mg",
+    "category": "Huyết áp (Lợi tiểu thiazide-like)",
+    "warnings_contraindications": ["Hạ Kali máu", "Suy gan nặng"]
+  },
+  {
+    "id": "DRUG_053",
+    "brand_name": "Crestor 10mg",
+    "active_ingredient": "Rosuvastatin",
+    "strength": "10mg",
+    "max_daily_dosage": "40mg",
+    "category": "Hạ mỡ máu (Statin)",
+    "warnings_contraindications": ["Bệnh gan tiến triển", "Tương tác gây tiêu cơ vân với Gemfibrozil"]
+  },
+  {
+    "id": "DRUG_054",
+    "brand_name": "Crestor 20mg",
+    "active_ingredient": "Rosuvastatin",
+    "strength": "20mg",
+    "max_daily_dosage": "40mg",
+    "category": "Hạ mỡ máu (Statin)",
+    "warnings_contraindications": ["Suy gan", "Tổn thương cơ"]
+  },
+  {
+    "id": "DRUG_055",
+    "brand_name": "Lipitor 20mg",
+    "active_ingredient": "Atorvastatin",
+    "strength": "20mg",
+    "max_daily_dosage": "80mg",
+    "category": "Hạ mỡ máu (Statin)",
+    "warnings_contraindications": ["Bệnh gan hoạt động", "Mang thai / Cho con bú"]
+  },
+  {
+    "id": "DRUG_056",
+    "brand_name": "Lipitor 10mg",
+    "active_ingredient": "Atorvastatin",
+    "strength": "10mg",
+    "max_daily_dosage": "80mg",
+    "category": "Hạ mỡ máu (Statin)",
+    "warnings_contraindications": ["Bệnh gan"]
+  },
+  {
+    "id": "DRUG_057",
+    "brand_name": "Zocor 20mg",
+    "active_ingredient": "Simvastatin",
+    "strength": "20mg",
+    "max_daily_dosage": "40mg",
+    "category": "Hạ mỡ máu (Statin)",
+    "warnings_contraindications": ["Dùng chung với Clarithromycin / Ketoconazole"]
+  },
+  {
+    "id": "DRUG_058",
+    "brand_name": "Lipanthyl 200M",
+    "active_ingredient": "Fenofibrate",
+    "strength": "200mg",
+    "max_daily_dosage": "200mg",
+    "category": "Hạ Triglyceride (Fibrate)",
+    "warnings_contraindications": ["Suy thận nặng", "Bệnh túi mật"]
+  },
+  {
+    "id": "DRUG_059",
+    "brand_name": "Plavix 75mg",
+    "active_ingredient": "Clopidogrel",
+    "strength": "75mg",
+    "max_daily_dosage": "75mg",
+    "category": "Chống kết tập tiểu cầu",
+    "warnings_contraindications": ["Đang chảy máu cấp (loét dạ dày, xuất huyết não)", "Tương tác Omeprazole"]
+  },
+  {
+    "id": "DRUG_060",
+    "brand_name": "Aspenter 81mg",
+    "active_ingredient": "Aspirin",
+    "strength": "81mg",
+    "max_daily_dosage": "325mg",
+    "category": "Chống kết tập tiểu cầu / Giảm đau",
+    "warnings_contraindications": ["Loét dạ dày", "Hen suyễn", "Sốt xuất huyết"]
+  },
+  {
+    "id": "DRUG_061",
+    "brand_name": "Aspirin pH8 500mg",
+    "active_ingredient": "Aspirin",
+    "strength": "500mg",
+    "max_daily_dosage": "3000mg",
+    "category": "Giảm đau - Kháng viêm",
+    "warnings_contraindications": ["Loét dạ dày tá tràng"]
+  },
+  {
+    "id": "DRUG_062",
+    "brand_name": "Brilinta 90mg",
+    "active_ingredient": "Ticagrelor",
+    "strength": "90mg",
+    "max_daily_dosage": "180mg",
+    "category": "Chống kết tập tiểu cầu",
+    "warnings_contraindications": ["Tiền sử xuất huyết nội sọ"]
+  },
+  {
+    "id": "DRUG_063",
+    "brand_name": "Sintrom 4mg",
+    "active_ingredient": "Acenocoumarol",
+    "strength": "4mg",
+    "max_daily_dosage": "Theo chỉ số INR",
+    "category": "Thuốc chống đông máu VKAs",
+    "warnings_contraindications": ["Nguy cơ xuất huyết cao", "Theo dõi INR định kỳ nghiêm ngặt"]
+  },
+  {
+    "id": "DRUG_064",
+    "brand_name": "Xarelto 15mg",
+    "active_ingredient": "Rivaroxaban",
+    "strength": "15mg",
+    "max_daily_dosage": "20mg",
+    "category": "Thuốc chống đông máu NOACs",
+    "warnings_contraindications": ["Chảy máu lâm sàng quan trọng"]
+  },
+  {
+    "id": "DRUG_065",
+    "brand_name": "Singulair 10mg",
+    "active_ingredient": "Montelukast",
+    "strength": "10mg",
+    "max_daily_dosage": "10mg",
+    "category": "Dự phòng Hen / Dị ứng",
+    "warnings_contraindications": ["Theo dõi biến đổi tâm thần / hành vi"]
+  },
+  {
+    "id": "DRUG_066",
+    "brand_name": "Telfast 180mg",
+    "active_ingredient": "Fexofenadine",
+    "strength": "180mg",
+    "max_daily_dosage": "180mg",
+    "category": "Kháng Histamine dị ứng",
+    "warnings_contraindications": ["Uống cùng thuốc kháng acid chứa Nhôm/Magie"]
+  },
+  {
+    "id": "DRUG_067",
+    "brand_name": "Telfast 60mg",
+    "active_ingredient": "Fexofenadine",
+    "strength": "60mg",
+    "max_daily_dosage": "120mg",
+    "category": "Kháng Histamine dị ứng",
+    "warnings_contraindications": ["Suy thận cần chỉnh liều"]
+  },
+  {
+    "id": "DRUG_068",
+    "brand_name": "Zyrtec 10mg",
+    "active_ingredient": "Cetirizine",
+    "strength": "10mg",
+    "max_daily_dosage": "10mg",
+    "category": "Kháng Histamine dị ứng",
+    "warnings_contraindications": ["Gây buồn ngủ nhẹ", "Suy thận nặng"]
+  },
+  {
+    "id": "DRUG_069",
+    "brand_name": "Clarityne 10mg",
+    "active_ingredient": "Loratadine",
+    "strength": "10mg",
+    "max_daily_dosage": "10mg",
+    "category": "Kháng Histamine dị ứng",
+    "warnings_contraindications": ["Suy gan nặng"]
+  },
+  {
+    "id": "DRUG_070",
+    "brand_name": "Bisolvon 8mg",
+    "active_ingredient": "Bromhexine",
+    "strength": "8mg",
+    "max_daily_dosage": "48mg",
+    "category": "Thuốc long đờm",
+    "warnings_contraindications": ["Loét dạ dày (thận trọng)"]
+  },
+  {
+    "id": "DRUG_071",
+    "brand_name": "Exoderil 200mg",
+    "active_ingredient": "Acetylcysteine",
+    "strength": "200mg",
+    "max_daily_dosage": "600mg",
+    "category": "Thuốc tiêu nhầy đờm",
+    "warnings_contraindications": ["Tiền sử hen phế quản"]
+  },
+  {
+    "id": "DRUG_072",
+    "brand_name": "Fluimucil 600mg",
+    "active_ingredient": "Acetylcysteine",
+    "strength": "600mg",
+    "max_daily_dosage": "600mg",
+    "category": "Thuốc tiêu nhầy đờm / Giải độc Paracetamol",
+    "warnings_contraindications": ["Trẻ em dưới 2 tuổi"]
+  },
+  {
+    "id": "DRUG_073",
+    "brand_name": "Medrol 16mg",
+    "active_ingredient": "Methylprednisolone",
+    "strength": "16mg",
+    "max_daily_dosage": "64mg",
+    "category": "Corticosteroid kháng viêm",
+    "warnings_contraindications": ["Nhiễm nấm toàn thân", "Loét dạ dày tiến triển", "Không ngừng đột ngột"]
+  },
+  {
+    "id": "DRUG_074",
+    "brand_name": "Medrol 4mg",
+    "active_ingredient": "Methylprednisolone",
+    "strength": "4mg",
+    "max_daily_dosage": "48mg",
+    "category": "Corticosteroid kháng viêm",
+    "warnings_contraindications": ["Loét dạ dày", "Tăng đường huyết"]
+  },
+  {
+    "id": "DRUG_075",
+    "brand_name": "Prednisolone 5mg",
+    "active_ingredient": "Prednisolone",
+    "strength": "5mg",
+    "max_daily_dosage": "60mg",
+    "category": "Corticosteroid kháng viêm",
+    "warnings_contraindications": ["Nhiễm khuẩn nặng chưa kiểm soát"]
+  },
+  {
+    "id": "DRUG_076",
+    "brand_name": "Dexa 0.5mg",
+    "active_ingredient": "Dexamethasone",
+    "strength": "0.5mg",
+    "max_daily_dosage": "15mg",
+    "category": "Corticosteroid mạnh",
+    "warnings_contraindications": ["Nhiễm vi rút/nấm chưa điều trị"]
+  },
+  {
+    "id": "DRUG_077",
+    "brand_name": "Symbicort Turbuhaler 160/4.5",
+    "active_ingredient": "Budesonide / Formoterol",
+    "strength": "160mcg / 4.5mcg",
+    "max_daily_dosage": "8 nhát xịt/ngày",
+    "category": "Hen / COPD (ICS + LABA)",
+    "warnings_contraindications": ["Súc miệng sau khi xịt để tránh nấm họng"]
+  },
+  {
+    "id": "DRUG_078",
+    "brand_name": "Seretide Evohaler 25/125",
+    "active_ingredient": "Salmeterol / Fluticasone propionate",
+    "strength": "25mcg / 125mcg",
+    "max_daily_dosage": "4 nhát xịt",
+    "category": "Hen / COPD (ICS + LABA)",
+    "warnings_contraindications": ["Súc miệng bằng nước sạch sau khi xịt"]
+  },
+  {
+    "id": "DRUG_079",
+    "brand_name": "Ventolin Evohaler 100mcg",
+    "active_ingredient": "Salmeterol / Salbutamol",
+    "strength": "100mcg",
+    "max_daily_dosage": "8 nhát xịt (Cắt cơn nhanh)",
+    "category": "Cắt cơn hen phế quản (SABA)",
+    "warnings_contraindications": ["Nhịp tim nhanh", "Run tay"]
+  },
+  {
+    "id": "DRUG_080",
+    "brand_name": "Berodual Inhaler",
+    "active_ingredient": "Ipratropium / Fenoterol",
+    "strength": "20mcg / 50mcg",
+    "max_daily_dosage": "8 nhát xịt",
+    "category": "Dãn phế quản cắt cơn",
+    "warnings_contraindications": ["Glocom góc đóng"]
+  },
+  {
+    "id": "DRUG_081",
+    "brand_name": "Spiriva Respimat 2.5mcg",
+    "active_ingredient": "Tiotropium",
+    "strength": "2.5mcg",
+    "max_daily_dosage": "2 nhát xịt/ngày",
+    "category": "Duy trì COPD (LAMA)",
+    "warnings_contraindications": ["Cân nhắc khi suy thận trung bình-nặng"]
+  },
+  {
+    "id": "DRUG_082",
+    "brand_name": "Decolgen Forte",
+    "active_ingredient": "Paracetamol / Phenylephrine / Chlorpheniramine",
+    "strength": "500mg / 10mg / 2mg",
+    "max_daily_dosage": "4000mg Paracetamol",
+    "category": "Thuốc cảm cúm tổng hợp",
+    "warnings_contraindications": ["Tăng huyết áp nặng", "Bệnh mạch vành", "Glocom góc đóng", "Gây buồn ngủ"]
+  },
+  {
+    "id": "DRUG_083",
+    "brand_name": "Tiffy Dey",
+    "active_ingredient": "Paracetamol / Phenylephrine / Chlorpheniramine",
+    "strength": "500mg / 10mg / 2mg",
+    "max_daily_dosage": "4000mg Paracetamol",
+    "category": "Thuốc cảm cúm tổng hợp",
+    "warnings_contraindications": ["Suy gan", "Tăng huyết áp", "Buồn ngủ"]
+  },
+  {
+    "id": "DRUG_084",
+    "brand_name": "Ameflu Daytime",
+    "active_ingredient": "Paracetamol / Phenylephrine / Dextromethorphan",
+    "strength": "500mg / 5mg / 15mg",
+    "max_daily_dosage": "4000mg Paracetamol",
+    "category": "Cảm cúm không gây buồn ngủ",
+    "warnings_contraindications": ["Dùng chung với thuốc MAOI"]
+  },
+  {
+    "id": "DRUG_085",
+    "brand_name": "Boganic",
+    "active_ingredient": "Cao Bìm bìm / Cao Rau đắng đất / Cao Actisô",
+    "strength": "Thảo dược",
+    "max_daily_dosage": "6 viên",
+    "category": "Bổ gan - Tiêu độc",
+    "warnings_contraindications": ["Viêm tắc mật"]
+  },
+  {
+    "id": "DRUG_086",
+    "brand_name": "Silyparin 140mg",
+    "active_ingredient": "Silymarin",
+    "strength": "140mg",
+    "max_daily_dosage": "420mg",
+    "category": "Bảo vệ tế bào gan",
+    "warnings_contraindications": ["Vàng da tắc mật nặng"]
+  },
+  {
+    "id": "DRUG_087",
+    "brand_name": "Esson 300mg",
+    "active_ingredient": "Essential Phospholipids",
+    "strength": "300mg",
+    "max_daily_dosage": "1800mg",
+    "category": "Bổ gan",
+    "warnings_contraindications": ["Mẫn cảm với đậu đậu nành"]
+  },
+  {
+    "id": "DRUG_088",
+    "brand_name": "Smecta 3g",
+    "active_ingredient": "Dioctahedral smectite",
+    "strength": "3g",
+    "max_daily_dosage": "6 gói",
+    "category": "Thuốc cầm tiêu chảy",
+    "warnings_contraindications": ["Uống cách xa các thuốc khác 2 giờ để tránh hấp phụ thuốc"]
+  },
+  {
+    "id": "DRUG_089",
+    "brand_name": "Hydrite",
+    "active_ingredient": "Oresol (Bù nước & Điện giải)",
+    "strength": "Gói pha 200ml",
+    "max_daily_dosage": "Theo nhu cầu mất nước",
+    "category": "Bù nước điện giải",
+    "warnings_contraindications": ["Pha đúng tỷ lệ thể tích nước theo hướng dẫn"]
+  },
+  {
+    "id": "DRUG_090",
+    "brand_name": "Enterogermina 2 billion/5ml",
+    "active_ingredient": "Bacillus clausii spores",
+    "strength": "2 tỷ bào tử",
+    "max_daily_dosage": "3 ống",
+    "category": "Men vi sinh đường ruột",
+    "warnings_contraindications": ["Uống xen kẽ giữa các liều kháng sinh"]
+  },
+  {
+    "id": "DRUG_091",
+    "brand_name": "Bio-Acimin Gold",
+    "active_ingredient": "Lactobacillus / Bifidobacterium / L-Lysine",
+    "strength": "Men vi sinh + Vi chất",
+    "max_daily_dosage": "3 gói",
+    "category": "Men vi sinh",
+    "warnings_contraindications": ["Không pha với nước sôi > 40°C"]
+  },
+  {
+    "id": "DRUG_092",
+    "brand_name": "Motilium-M 10mg",
+    "active_ingredient": "Domperidone",
+    "strength": "10mg",
+    "max_daily_dosage": "30mg",
+    "category": "Thuốc chống nôn - Đầy bụng",
+    "warnings_contraindications": ["Xuất huyết tiêu hóa", "Kéo dài khoảng QT tim"]
+  },
+  {
+    "id": "DRUG_093",
+    "brand_name": "Primperan 10mg",
+    "active_ingredient": "Metoclopramide",
+    "strength": "10mg",
+    "max_daily_dosage": "30mg",
+    "category": "Chống nôn",
+    "warnings_contraindications": ["Biểu hiện ngoại tháp", "U tủy thượng thận"]
+  },
+  {
+    "id": "DRUG_094",
+    "brand_name": "Duphalac 15ml",
+    "active_ingredient": "Lactulose",
+    "strength": "10g / 15ml",
+    "max_daily_dosage": "45ml",
+    "category": "Thuốc trị táo bón thẩm thấu",
+    "warnings_contraindications": ["Tắc ruột", "Bệnh Galactose máu"]
+  },
+  {
+    "id": "DRUG_095",
+    "brand_name": "Seduxen 5mg",
+    "active_ingredient": "Diazepam",
+    "strength": "5mg",
+    "max_daily_dosage": "10mg",
+    "category": "An thần - Thuốc hướng tâm thần (Benzodiazepine)",
+    "warnings_contraindications": ["Suy hô hấp nặng", "Hội chứng ngưng thở khi ngủ", "Nghiện thuốc"]
+  },
+  {
+    "id": "DRUG_096",
+    "brand_name": "Stilnox 10mg",
+    "active_ingredient": "Zolpidem",
+    "strength": "10mg",
+    "max_daily_dosage": "10mg",
+    "category": "Thuốc ngủ ngon",
+    "warnings_contraindications": ["Nhược cơ nặng", "Suy gan nặng"]
+  },
+  {
+    "id": "DRUG_097",
+    "brand_name": "Magne B6 Corbiere",
+    "active_ingredient": "Magnesium / Pyridoxine (Vit B6)",
+    "strength": "470mg / 5mg",
+    "max_daily_dosage": "6 viên",
+    "category": "Bổ sung khoáng chất & Vitamin",
+    "warnings_contraindications": ["Suy thận nặng (ClCr < 30 ml/phút)"]
+  },
+  {
+    "id": "DRUG_098",
+    "brand_name": "Neurobion",
+    "active_ingredient": "Vitamin B1 / B6 / B12",
+    "strength": "100mg / 200mg / 200mcg",
+    "max_daily_dosage": "3 viên",
+    "category": "Vitamin nhóm B bổ thần kinh",
+    "warnings_contraindications": ["U ác tính (do B12 kích thích tăng trưởng mô)"]
+  },
+  {
+    "id": "DRUG_099",
+    "brand_name": "Calcium Corbiere 5ml",
+    "active_ingredient": "Calcium glucoheptonate / Vitamin C / PP",
+    "strength": "550mg Canxi",
+    "max_daily_dosage": "2 ống",
+    "category": "Bổ sung Canxi",
+    "warnings_contraindications": ["Tăng Canxi máu", "Sỏi thận Canxi"]
+  },
+  {
+    "id": "DRUG_100",
+    "brand_name": "Berberin 50mg",
+    "active_ingredient": "Berberin chloride",
+    "strength": "50mg",
+    "max_daily_dosage": "500mg",
+    "category": "Thuốc trị tiêu chảy thảo dược",
+    "warnings_contraindications": ["Phụ nữ mang thai (kích thích co bóp tử cung)"]
+  }
+]

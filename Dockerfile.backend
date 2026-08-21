@@ -1,0 +1,66 @@
+# ============================================================
+# Mediscan AI - Dockerfile.backend (FastAPI)
+# Multi-stage build: Builder (compile wheels) -> Runtime (slim)
+# ============================================================
+
+# ---------- STAGE 1: Builder ----------
+FROM python:3.12-slim AS builder
+
+WORKDIR /build
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Build toolchain cho Pillow & các package cần compile
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        gcc g++ libjpeg-dev zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements trước để tận dụng Docker layer caching
+COPY backend/requirements.txt ./requirements.txt
+
+# Biên dịch sẵn toàn bộ wheels (giảm dung lượng & tăng tốc runtime stage)
+RUN pip wheel --wheel-dir /build/wheels -r requirements.txt
+
+# ---------- STAGE 2: Runtime ----------
+FROM python:3.12-slim AS runtime
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    APP_HOST=0.0.0.0 \
+    APP_PORT=8000
+
+# Security: chạy với user không có quyền root
+RUN addgroup --system appgroup \
+    && adduser --system --ingroup appgroup appuser
+
+# Runtime libs cần thiết cho Pillow
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libjpeg62-turbo zlib1g \
+    && rm -rf /var/lib/apt/lists/*
+
+# Cài đặt wheels từ builder stage (không cần toolchain build)
+COPY --from=builder /build/wheels /wheels
+RUN pip install --no-cache-dir /wheels/* \
+    && rm -rf /wheels
+
+# Copy mã nguồn ứng dụng
+COPY --chown=appuser:appgroup backend/app ./app
+COPY --chown=appuser:appgroup backend/requirements.txt ./requirements.txt
+
+USER appuser
+
+EXPOSE 8000
+
+# Healthcheck cho phép docker-compose `depends_on: condition: service_healthy`
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/', timeout=4)" || exit 1
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]

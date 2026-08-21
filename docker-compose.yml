@@ -1,0 +1,60 @@
+# ============================================================
+# Mediscan AI - Docker Compose (Local Production)
+# 1 lệnh chạy toàn bộ hệ thống: docker compose up --build
+# ============================================================
+
+name: mediscan-ai
+
+services:
+  # ---------- Backend: FastAPI (Port 8000) ----------
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: mediscan-backend
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: production
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8000
+      # Truyền API Keys từ file .env ở root / biến môi trường của host
+      # (KHÔNG hardcode key trực tiếp trong file này)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # Local LLM (for Clinical Assessment) - Ollama hoặc tương tự
+      LOCAL_LLM_BASE_URL: ${LOCAL_LLM_BASE_URL:-http://localhost:11434}
+      LOCAL_LLM_MODEL: ${LOCAL_LLM_MODEL:-qwen2.5:0.5b}
+      # OpenFDA Drug Database API
+      OPENFDA_API_KEY: ${OPENFDA_API_KEY:-}
+      OPENFDA_BASE_URL: ${OPENFDA_BASE_URL:-https://api.fda.gov/drug}
+    env_file:
+      - path: backend/.env
+        required: false
+    networks:
+      - mediscan-network
+    restart: unless-stopped
+
+  # ---------- Frontend: Next.js (Port 3000) ----------
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        # Browser gọi Backend qua cổng publish 8000 của host.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
+    container_name: mediscan-frontend
+    ports:
+      - "${FRONTEND_PORT:-3001}:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
+    depends_on:
+      - backend
+    networks:
+      - mediscan-network
+    restart: unless-stopped
+
+# ---------- Network Bridge nội bộ ----------
+networks:
+  mediscan-network:
+    driver: bridge

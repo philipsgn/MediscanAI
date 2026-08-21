@@ -1,0 +1,31 @@
+# ─── Environment & Secrets ───
+.env
+.env.local
+.env.*.local
+*.env
+
+# ─── Python ───
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.tsbuildinfo
+
+# ─── Node / Next.js ───
+node_modules/
+.next/
+out/
+dist/
+build/
+
+# ─── IDE / OS ───
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ─── Temporary files ───
+*.log

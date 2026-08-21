@@ -1,0 +1,297 @@
+# Endpoint OCR + Clinical Assessment Pipeline (Pure Local, No External VLM)
+import time
+from pathlib import Path
+from typing import Any, Optional
+
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from fastapi.concurrency import run_in_threadpool
+from pydantic import BaseModel, Field, ConfigDict
+from pydantic.alias_generators import to_camel
+
+from app.services.clinical_service import ClinicalAssessmentRequest, clinical_service
+from app.services.drug_database import drug_database
+from app.services.normalization_service import NormalizationService
+from app.services.ocr_engine import ocr_engine
+
+router = APIRouter(prefix="/ocr", tags=["OCR + Clinical Assessment Pipeline"])
+
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Response Schemas (Full Pipeline Output)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class OCRItem(BaseModel):
+    text: str
+    confidence: float
+    box: list[float] = []
+
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+
+class MappedDrugItem(BaseModel):
+    """Thuốc đã được map từ OCR raw text -> Drug Database."""
+    drug_id: Optional[str] = None
+    brand_name: str
+    active_ingredient: Optional[str] = None
+    strength: str
+    dosage_instruction: Optional[str] = None
+    category: Optional[str] = None
+    max_daily_dosage: Optional[str] = None
+    warnings: list[str] = []
+    confidence_score: float
+    is_verified: bool
+    match_method: Optional[str] = None  # exact, fuzzy, ingredient_fallback
+
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+
+class ClinicalAlertSummary(BaseModel):
+    """Tóm tắt cảnh báo lâm sàng từ LLM."""
+    total_alerts: int
+    high_count: int
+    medium_count: int
+    low_count: int
+    drug_drug_interactions: int
+    drug_condition_interactions: int
+    overdose_duplication: int
+
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+
+class FullScanResponse(BaseModel):
+    """Full Pipeline Response: Raw OCR + Mapped Drugs + Clinical Assessment."""
+    # Raw OCR
+    engine: str
+    source_type: str
+    raw_ocr_items: list[OCRItem]
+    ocr_latency_ms: int
+    sla_exceeded: bool
+    image_width: int
+    image_height: int
+    # Normalized/Mapped Drugs
+    mapped_drugs: list[MappedDrugItem]
+    # Clinical Assessment (LLM)
+    clinical_assessment: Optional[Any] = None  # ClinicalAssessmentResponse
+    clinical_summary: Optional[ClinicalAlertSummary] = None
+    # Pipeline timing
+    total_latency_ms: int
+    normalization_latency_ms: int
+    clinical_latency_ms: int
+
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _convert_ocr_items(raw_items: list) -> list[OCRItem]:
+    """Convert OCRItem from ocr_schema to API OCRItem."""
+    return [
+        OCRItem(text=item.text, confidence=item.confidence, box=item.box)
+        for item in raw_items
+    ]
+
+
+def _ocr_items_to_drug_items(raw_items: list, source_type: str) -> list:
+    """Convert raw OCR text lines to DrugItem objects for normalization."""
+    from app.schemas import DrugItem
+
+    drug_items = []
+    for item in raw_items:
+        text = item.text.strip()
+        if not text or len(text) < 2:
+            continue
+        # Heuristic: if text looks like a drug name (contains letters, not just numbers)
+        if any(c.isalpha() for c in text):
+            drug_items.append(
+                DrugItem(
+                    brand_name=text,
+                    strength="",  # sẽ được fill bởi normalization
+                    confidence_score=item.confidence,
+                    dosage_instruction=None,
+                )
+            )
+    return drug_items
+
+
+def _map_drug_items(normalized: list) -> list[MappedDrugItem]:
+    """Convert normalized DrugItem to MappedDrugItem for API response."""
+    mapped = []
+    for drug in normalized:
+        mapped.append(
+            MappedDrugItem(
+                drug_id=getattr(drug, "drug_id", None),
+                brand_name=drug.brand_name,
+                active_ingredient=drug.active_ingredient,
+                strength=drug.strength,
+                dosage_instruction=drug.dosage_instruction,
+                category=getattr(drug, "category", None),
+                max_daily_dosage=getattr(drug, "max_daily_dosage", None),
+                warnings=getattr(drug, "warnings", []),
+                confidence_score=drug.confidence_score,
+                is_verified=drug.is_verified,
+                match_method=getattr(drug, "_match_method", None),
+            )
+        )
+    return mapped
+
+
+def _summarize_clinical(assessment) -> ClinicalAlertSummary:
+    """Tạo summary từ ClinicalAssessmentResponse."""
+    dd = len(assessment.drug_drug_interactions)
+    dc = len(assessment.drug_condition_interactions)
+    od = len(assessment.overdose_duplication_alerts)
+    total = dd + dc + od
+    high = sum(1 for a in assessment.drug_drug_interactions if a.severity == "HIGH")
+    high += sum(1 for a in assessment.drug_condition_interactions if a.severity == "HIGH")
+    high += sum(1 for a in assessment.overdose_duplication_alerts if a.severity == "HIGH")
+    medium = sum(1 for a in assessment.drug_drug_interactions if a.severity == "MEDIUM")
+    medium += sum(1 for a in assessment.drug_condition_interactions if a.severity == "MEDIUM")
+    medium += sum(1 for a in assessment.overdose_duplication_alerts if a.severity == "MEDIUM")
+    low = total - high - medium
+    return ClinicalAlertSummary(
+        total_alerts=total,
+        high_count=high,
+        medium_count=medium,
+        low_count=low,
+        drug_drug_interactions=dd,
+        drug_condition_interactions=dc,
+        overdose_duplication=od,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main Endpoint
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.post("/scan", response_model=FullScanResponse)
+async def ocr_scan(
+    file: UploadFile = File(...),
+    source_type: str = Form("prescription", description="'prescription' (Toa thuốc/Receipt) hoặc 'packaging' (Vỏ hộp/Lọ)"),
+    run_clinical: bool = Form(True, description="Chạy Clinical Assessment LLM (mặc định: true)"),
+    user_age: Optional[int] = Form(None, description="Tuổi bệnh nhân (cho clinical assessment)"),
+    user_conditions: Optional[str] = Form(None, description="Bệnh nền, phân cách bằng dấu phẩy"),
+    user_allergies: Optional[str] = Form(None, description="Dị ứng hoạt chất, phân cách bằng dấu phẩy"),
+) -> FullScanResponse:
+    """
+    Full Pipeline: OCR → Normalization → Clinical Assessment (LLM)
+
+    1. OCR: Dual Pipeline (Prescription vs Packaging) - PP-OCRv6 ONNX CPU
+    2. Normalization: rapidfuzz map OCR text -> Drug Database (Local + OpenFDA)
+    3. Clinical Assessment: LLM (Local Qwen2.5/Phi-3 hoặc OpenAI) phân tích:
+       - Drug-Drug Interactions
+       - Drug-Condition Interactions  
+       - Overdose/Duplication
+       - Clinical Recommendations & Monitoring
+
+    Trả về: Raw OCR + Mapped Drugs + Clinical Alerts (JSON Structured)
+    """
+    # Validate input
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tệp tải lên phải là định dạng hình ảnh (JPEG, PNG, WEBP).",
+        )
+
+    suffix = Path(file.filename or "").suffix.lower()
+    if suffix not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Định dạng '{suffix or 'trống'}' không được hỗ trợ. Chấp nhận: {sorted(ALLOWED_EXTENSIONS)}",
+        )
+
+    if source_type not in {"prescription", "packaging"}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="source_type chỉ nhận 'prescription' hoặc 'packaging'.",
+        )
+
+    try:
+        image_bytes = await file.read()
+        if not image_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File ảnh rỗng, không có dữ liệu để xử lý.",
+            )
+
+        # ═══════════════════════════════════════════════════════════════
+        # STEP 1: OCR (Dual Pipeline)
+        # ═══════════════════════════════════════════════════════════════
+        ocr_started = time.perf_counter()
+        if source_type == "packaging":
+            ocr_result = await run_in_threadpool(ocr_engine.extract_packaging_label, image_bytes)
+        else:
+            ocr_result = await run_in_threadpool(ocr_engine.extract_prescription_receipt, image_bytes)
+        ocr_latency_ms = int(round((time.perf_counter() - ocr_started) * 1000))
+
+        raw_ocr_items = _convert_ocr_items(ocr_result.items)
+
+        # ═══════════════════════════════════════════════════════════════
+        # STEP 2: Normalization (OCR Text -> Drug Database)
+        # ═══════════════════════════════════════════════════════════════
+        norm_started = time.perf_counter()
+        drug_items = _ocr_items_to_drug_items(ocr_result.items, source_type)
+        normalization_service = NormalizationService()
+        normalized_drugs = normalization_service.normalize_ocr_items(drug_items)
+        normalization_latency_ms = int(round((time.perf_counter() - norm_started) * 1000))
+
+        mapped_drugs = _map_drug_items(normalized_drugs)
+
+        # ═══════════════════════════════════════════════════════════════
+        # STEP 3: Clinical Assessment (LLM)
+        # ═══════════════════════════════════════════════════════════════
+        clinical_assessment = None
+        clinical_summary = None
+        clinical_latency_ms = 0
+
+        if run_clinical and normalized_drugs:
+            clinical_started = time.perf_counter()
+            # Build UserProfile from form data
+            user_profile = None
+            if any([user_age, user_conditions, user_allergies]):
+                from app.schemas import UserProfile
+                user_profile = UserProfile(
+                    age=user_age or 0,
+                    conditions=[c.strip() for c in user_conditions.split(",")] if user_conditions else [],
+                    allergies=[a.strip() for a in user_allergies.split(",")] if user_allergies else [],
+                )
+
+            assessment_request = ClinicalAssessmentRequest(
+                drugs=normalized_drugs,
+                user_profile=user_profile,
+            )
+            clinical_assessment = await clinical_service.assess(assessment_request)
+            clinical_summary = _summarize_clinical(clinical_assessment)
+            clinical_latency_ms = int(round((time.perf_counter() - clinical_started) * 1000))
+
+        # ═══════════════════════════════════════════════════════════════
+        # RESPONSE
+        # ═══════════════════════════════════════════════════════════════
+        total_latency_ms = ocr_latency_ms + normalization_latency_ms + clinical_latency_ms
+
+        return FullScanResponse(
+            engine=ocr_result.engine,
+            source_type=ocr_result.source_type,
+            raw_ocr_items=raw_ocr_items,
+            ocr_latency_ms=ocr_latency_ms,
+            sla_exceeded=ocr_latency_ms > 15000,  # OCR SLA
+            image_width=ocr_result.image_width,
+            image_height=ocr_result.image_height,
+            mapped_drugs=mapped_drugs,
+            clinical_assessment=clinical_assessment,
+            clinical_summary=clinical_summary,
+            total_latency_ms=total_latency_ms,
+            normalization_latency_ms=normalization_latency_ms,
+            clinical_latency_ms=clinical_latency_ms,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi pipeline OCR+Clinical: {exc}",
+        ) from exc

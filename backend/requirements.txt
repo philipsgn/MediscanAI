@@ -1,0 +1,17 @@
+# Thư viện cần thiết cho FastAPI, Pydantic, CORS, Pillow (Xử lý ảnh).
+# Lưu ý: Không có SDK VLM thương mại (Gemini/OpenAI Vision) — OCR chạy 100% On-Premise (ONNX).
+# openai được giữ lại làm LLM văn bản dự phòng (fallback text-only), không dùng Vision.
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+python-dotenv>=1.0.1
+python-multipart>=0.0.9
+requests>=2.31.0
+pillow>=10.2.0
+rapidfuzz>=3.6.0
+openai>=1.14.0
+# Local ONNX OCR (PP-OCRv6, chạy CPU, không cần paddlepaddle)
+paddleocr>=3.7.0
+onnxruntime>=1.19.0
+opencv-python>=4.9.0.80

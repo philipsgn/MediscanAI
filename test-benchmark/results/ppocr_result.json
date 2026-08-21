@@ -1,0 +1,84 @@
+{
+  "engine": "PP-OCRv6",
+  "benchmark_type": "CPU",
+  "preprocessing": {
+    "max_dim": 1600,
+    "doc_orientation": false,
+    "doc_unwarping": false
+  },
+  "summary": {
+    "total_time_seconds": 33.5316,
+    "avg_latency_seconds": 5.5886,
+    "slowest_image": "toa-thuoc-5.webp",
+    "max_ram_mb": 1782.7,
+    "num_images": 6
+  },
+  "results": [
+    {
+      "engine": "PP-OCRv6",
+      "image_name": "hop-thuoc-1.jpg",
+      "latency_seconds": 3.3591,
+      "min_latency_seconds": 3.2783,
+      "max_latency_seconds": 3.4671,
+      "max_ram_mb": 1322.1,
+      "avg_confidence": 0.8563,
+      "num_lines": 7,
+      "status": "PASS_SLA"
+    },
+    {
+      "engine": "PP-OCRv6",
+      "image_name": "hop-thuoc-2.jpg",
+      "latency_seconds": 3.9896,
+      "min_latency_seconds": 3.8557,
+      "max_latency_seconds": 4.1591,
+      "max_ram_mb": 1540.0,
+      "avg_confidence": 0.712,
+      "num_lines": 7,
+      "status": "PASS_SLA"
+    },
+    {
+      "engine": "PP-OCRv6",
+      "image_name": "hop-thuoc-3.jpg",
+      "latency_seconds": 4.3532,
+      "min_latency_seconds": 4.324,
+      "max_latency_seconds": 4.3782,
+      "max_ram_mb": 1541.0,
+      "avg_confidence": 0.9868,
+      "num_lines": 11,
+      "status": "PASS_SLA"
+    },
+    {
+      "engine": "PP-OCRv6",
+      "image_name": "hop-thuoc-4.JPG",
+      "latency_seconds": 3.8467,
+      "min_latency_seconds": 3.8224,
+      "max_latency_seconds": 3.8644,
+      "max_ram_mb": 1547.0,
+      "avg_confidence": 0.9787,
+      "num_lines": 6,
+      "status": "PASS_SLA"
+    },
+    {
+      "engine": "PP-OCRv6",
+      "image_name": "hop-thuoc-6.jpg",
+      "latency_seconds": 6.0038,
+      "min_latency_seconds": 5.5416,
+      "max_latency_seconds": 6.3956,
+      "max_ram_mb": 1590.8,
+      "avg_confidence": 0.9788,
+      "num_lines": 10,
+      "status": "PASS_SLA"
+    },
+    {
+      "engine": "PP-OCRv6",
+      "image_name": "toa-thuoc-5.webp",
+      "latency_seconds": 11.9792,
+      "min_latency_seconds": 11.8238,
+      "max_latency_seconds": 12.0678,
+      "max_ram_mb": 1782.7,
+      "avg_confidence": 0.9558,
+      "num_lines": 51,
+      "status": "PASS_SLA"
+    }
+  ]
+}
