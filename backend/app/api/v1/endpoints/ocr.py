@@ -1,14 +1,19 @@
 # Endpoint OCR + Clinical Assessment Pipeline (Pure Local, No External VLM)
 import time
+from collections import Counter
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
-from pydantic import BaseModel, Field, ConfigDict
-from pydantic.alias_generators import to_camel
 
 from app.core.config import OCR_PROCESSING_SLA_MS
+from app.schemas import (  # Canonical response models — single source of truth [P0/F3.1]
+    ClinicalAlertSummary,
+    FullScanResponse,
+    MappedDrugItem,
+    OCRItem,
+)
 from app.services.clinical_service import ClinicalAssessmentRequest, clinical_service
 from app.services.drug_database import drug_database
 from app.services.normalization_service import NormalizationService
@@ -19,69 +24,10 @@ router = APIRouter(prefix="/ocr", tags=["OCR + Clinical Assessment Pipeline"])
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Response Schemas (Full Pipeline Output)
-# ─────────────────────────────────────────────────────────────────────────────
-
-class OCRItem(BaseModel):
-    text: str
-    confidence: float
-    box: list[float] = []
-
-    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
-
-
-class MappedDrugItem(BaseModel):
-    """Thuốc đã được map từ OCR raw text -> Drug Database."""
-    drug_id: Optional[str] = None
-    brand_name: str
-    active_ingredient: Optional[str] = None
-    strength: str
-    dosage_instruction: Optional[str] = None
-    category: Optional[str] = None
-    max_daily_dosage: Optional[str] = None
-    warnings: list[str] = []
-    confidence_score: float
-    is_verified: bool
-    match_method: Optional[str] = None  # exact, fuzzy, ingredient_fallback
-
-    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
-
-
-class ClinicalAlertSummary(BaseModel):
-    """Tóm tắt cảnh báo lâm sàng từ LLM."""
-    total_alerts: int
-    high_count: int
-    medium_count: int
-    low_count: int
-    drug_drug_interactions: int
-    drug_condition_interactions: int
-    overdose_duplication: int
-
-    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
-
-
-class FullScanResponse(BaseModel):
-    """Full Pipeline Response: Raw OCR + Mapped Drugs + Clinical Assessment."""
-    # Raw OCR
-    engine: str
-    source_type: str
-    raw_ocr_items: list[OCRItem]
-    ocr_latency_ms: int
-    sla_exceeded: bool
-    image_width: int
-    image_height: int
-    # Normalized/Mapped Drugs
-    mapped_drugs: list[MappedDrugItem]
-    # Clinical Assessment (LLM)
-    clinical_assessment: Optional[Any] = None  # ClinicalAssessmentResponse
-    clinical_summary: Optional[ClinicalAlertSummary] = None
-    # Pipeline timing
-    total_latency_ms: int
-    normalization_latency_ms: int
-    clinical_latency_ms: int
-
-    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+# [P0/F3.1] Bộ Response models (OCRItem, MappedDrugItem, ClinicalAlertSummary,
+# FullScanResponse) đã hợp nhất về canonical `app.schemas.ocr_schema`
+# (Task 1.2 — một schema, một nguồn sự thật). Xóa bản định nghĩa cục bộ trùng
+# tên tại đây; endpoint giờ import trực tiếp từ app.schemas.
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -149,27 +95,27 @@ def _map_drug_items(normalized: list) -> list[MappedDrugItem]:
     return mapped
 
 
-def _summarize_clinical(assessment) -> ClinicalAlertSummary:
-    """Tạo summary từ ClinicalAssessmentResponse."""
-    dd = len(assessment.drug_drug_interactions)
-    dc = len(assessment.drug_condition_interactions)
-    od = len(assessment.overdose_duplication_alerts)
-    total = dd + dc + od
-    high = sum(1 for a in assessment.drug_drug_interactions if a.severity == "HIGH")
-    high += sum(1 for a in assessment.drug_condition_interactions if a.severity == "HIGH")
-    high += sum(1 for a in assessment.overdose_duplication_alerts if a.severity == "HIGH")
-    medium = sum(1 for a in assessment.drug_drug_interactions if a.severity == "MEDIUM")
-    medium += sum(1 for a in assessment.drug_condition_interactions if a.severity == "MEDIUM")
-    medium += sum(1 for a in assessment.overdose_duplication_alerts if a.severity == "MEDIUM")
-    low = total - high - medium
+def _summarize_clinical(assessment: ClinicalAssessmentResponse) -> ClinicalAlertSummary:
+    """Tạo summary từ ClinicalAssessmentResponse.
+
+    [P1/F3.2] Đếm TRỰC TIẾP theo severity đã được clamp bởi schema.
+    Loại bỏ công thức suy luận `low = total - high - medium` — nguồn gốc bug
+    đếm lệch khi LLM từng trả severity ngoài 3 mức chuẩn (alert "CRITICAL"
+    bị nhét nhầm vào bucket LOW)."""
+    all_alerts = [
+        *assessment.drug_drug_interactions,
+        *assessment.drug_condition_interactions,
+        *assessment.overdose_duplication_alerts,
+    ]
+    counts = Counter(alert.severity for alert in all_alerts)
     return ClinicalAlertSummary(
-        total_alerts=total,
-        high_count=high,
-        medium_count=medium,
-        low_count=low,
-        drug_drug_interactions=dd,
-        drug_condition_interactions=dc,
-        overdose_duplication=od,
+        total_alerts=len(all_alerts),
+        high_count=counts["HIGH"],
+        medium_count=counts["MEDIUM"],
+        low_count=counts["LOW"],
+        drug_drug_interactions=len(assessment.drug_drug_interactions),
+        drug_condition_interactions=len(assessment.drug_condition_interactions),
+        overdose_duplication=len(assessment.overdose_duplication_alerts),
     )
 
 

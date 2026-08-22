@@ -1,10 +1,24 @@
 # Data Schemas cho Backend Mediscan AI (Pydantic v2) - package init.
 # Tuân thủ 100% Data Contract định nghĩa trong ARCHITECTURE.md §5.1 & §5.2
 # Kế thừa nguyên vẹn từ schemas.py, giữ import `from app.schemas import X`.
+from typing import List, Literal, Optional
 
-from typing import List, Optional
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from pydantic.alias_generators import to_camel
+
+# Canonical clinical models + fail-safe clamp [P0/P1 — Audit Stage 3]
+from app.schemas.ocr_schema import (  # noqa: E402
+    clamp_severity,
+    ClinicalAlertSummary,
+    ClinicalAssessmentResponse,
+    DrugConditionAlert,
+    DrugInteractionAlert,
+    FullScanResponse,
+    MappedDrugItem,
+    MedicineScanResult,
+    OCRItem,
+    OverdoseAlert,
+)
 
 class UserProfile(BaseModel):
     age: int = Field(..., ge=0, le=120, description="Tuổi bệnh nhân")
@@ -35,10 +49,19 @@ class Prescription(BaseModel):
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
 class InteractionAlert(BaseModel):
-    severity: str = Field(..., description="Mức độ nghiêm trọng: 'HIGH', 'MEDIUM', 'LOW'")
+    """Alert hợp nhất cho báo cáo đánh giá — severity là NGUỒN QUYẾT ĐỊNH cuối cùng
+    thuộc rule-engine Stage 5; LLM chỉ enrich văn bản [F3.3]. Giá trị lạ từ LLM
+    được fail-safe clamp về HIGH, không bao giờ hạ xuống LOW [F3.2]."""
+
+    severity: Literal["HIGH", "MEDIUM", "LOW"]
     title: str = Field(..., description="Tiêu đề cảnh báo ngắn gọn")
     description: str = Field(..., description="Chi tiết tương tác/xung đột thuốc")
     recommendation: str = Field(..., description="Lời khuyên y tế hướng xử lý")
+
+    @field_validator("severity", mode="before")
+    @classmethod
+    def _severity_fail_safe(cls, v: object) -> str:
+        return clamp_severity(v)
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
@@ -55,18 +78,7 @@ class DrugEvaluationRequest(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
-# Re-export OCR schemas để tương thích imports từ `app.schemas`
-from app.schemas.ocr_schema import (  # noqa: E402
-    MedicineScanResult,
-    OCRItem,
-    MappedDrugItem,
-    DrugInteractionAlert,
-    DrugConditionAlert,
-    OverdoseAlert,
-    ClinicalAssessmentResponse,
-    ClinicalAlertSummary,
-    FullScanResponse,
-)
+# (Khối re-export OCR schemas cũ đã gộp vào import canonical ở đầu file — P0/F3.1.)
 
 __all__ = [
     "UserProfile",

@@ -1,7 +1,60 @@
 # Pydantic models cho kết quả OCR (ONNX PP-OCRv6) - Internal use
-from typing import List
-from pydantic import BaseModel, Field, ConfigDict
+import logging
+from typing import List, Literal, Optional
+
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from pydantic.alias_generators import to_camel
+
+logger = logging.getLogger(__name__)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [P1/F3.2] Fail-safe Severity Clamp — AGENTS.md §B.4 / §5
+# Mọi severity do LLM sinh ra phải bị ép về đúng 3 mức y khoa chuẩn
+# HIGH / MEDIUM / LOW. Nguyên tắc fail-safe: giá trị lạ / rỗng / sai kiểu
+# LUÔN nâng lên "HIGH" (thận trọng tối đa), KHÔNG BAO GIỜ hạ xuống "LOW"
+# và KHÔNG raise exception làm chết pipeline. Mỗi lần clamp đều log warning
+# để theo dõi tần suất LLM lệch chuẩn.
+# ─────────────────────────────────────────────────────────────────────────────
+SEVERITY_LEVELS = ("HIGH", "MEDIUM", "LOW")
+
+# Alias thường gặp từ LLM → mức chuẩn gần nhất theo hướng thận trọng
+_SEVERITY_ALIASES = {
+    "CRITICAL": "HIGH",
+    "SEVERE": "HIGH",
+    "EXTREME": "HIGH",
+    "URGENT": "HIGH",
+    "DANGEROUS": "HIGH",
+    "CONTRAINDICATED": "HIGH",
+    "MODERATE": "MEDIUM",
+    "WARNING": "MEDIUM",
+    "CAUTION": "MEDIUM",
+    "MINOR": "LOW",
+    "INFO": "LOW",
+    "SAFE": "LOW",
+}
+
+
+def clamp_severity(value: object) -> str:
+    """Ép severity về HIGH/MEDIUM/LOW; giá trị bất định → HIGH (fail-safe)."""
+    if isinstance(value, str):
+        normalized = value.strip().upper()
+        if normalized in SEVERITY_LEVELS:
+            return normalized
+        if normalized in _SEVERITY_ALIASES:
+            clamped = _SEVERITY_ALIASES[normalized]
+            logger.warning(
+                "[severity-clamp] LLM trả alias '%s' → ép về '%s'", value, clamped
+            )
+            return clamped
+        logger.warning(
+            "[severity-clamp] LLM trả severity không chuẩn %r → ép lên 'HIGH' (fail-safe)",
+            value,
+        )
+        return "HIGH"
+    logger.warning(
+        "[severity-clamp] LLM trả severity sai kiểu %r → ép lên 'HIGH' (fail-safe)", value
+    )
+    return "HIGH"
 
 
 class OCRItem(BaseModel):
@@ -45,19 +98,32 @@ class MappedDrugItem(BaseModel):
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
 
+# NOTE [Audit-S3 / P0 / F3.1]: Các model Clinical bên dưới CỐ Ý không cấu hình
+# alias_generator=to_camel nhằm bảo toàn wire-format lịch sử của payload
+# `clinical_assessment` (snake_case) mà frontend đang tiêu thụ, trong khi
+# envelope ngoài (FullScanResponse, MappedDrugItem, OCRItem, ClinicalAlertSummary)
+# vẫn camelCase. Bật alias ở đây sẽ âm thầm đổi contract §3.A — không làm nếu
+# chưa có quyết định đồng bộ frontend từ Architect.
 class DrugInteractionAlert(BaseModel):
-    severity: str
+    """Cảnh báo tương tác thuốc - thuốc (nguồn: LLM hoặc rule-engine)."""
+
+    severity: Literal["HIGH", "MEDIUM", "LOW"]
     title: str
     description: str
     recommendation: str
     interacting_drugs: List[str] = []
     evidence_level: Optional[str] = None
 
-    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+    @field_validator("severity", mode="before")
+    @classmethod
+    def _severity_fail_safe(cls, v: object) -> str:
+        return clamp_severity(v)
 
 
 class DrugConditionAlert(BaseModel):
-    severity: str
+    """Cảnh báo thuốc - bệnh nền (nguồn: LLM hoặc rule-engine)."""
+
+    severity: Literal["HIGH", "MEDIUM", "LOW"]
     title: str
     description: str
     recommendation: str
@@ -65,11 +131,16 @@ class DrugConditionAlert(BaseModel):
     condition: str
     evidence_level: Optional[str] = None
 
-    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+    @field_validator("severity", mode="before")
+    @classmethod
+    def _severity_fail_safe(cls, v: object) -> str:
+        return clamp_severity(v)
 
 
 class OverdoseAlert(BaseModel):
-    severity: str
+    """Cảnh báo quá liều / trùng lặp hoạt chất (nguồn: LLM hoặc rule-engine)."""
+
+    severity: Literal["HIGH", "MEDIUM", "LOW"]
     title: str
     description: str
     recommendation: str
@@ -77,7 +148,10 @@ class OverdoseAlert(BaseModel):
     total_daily_mg: float
     max_safe_mg: Optional[float] = None
 
-    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+    @field_validator("severity", mode="before")
+    @classmethod
+    def _severity_fail_safe(cls, v: object) -> str:
+        return clamp_severity(v)
 
 
 class ClinicalAssessmentResponse(BaseModel):
@@ -87,8 +161,6 @@ class ClinicalAssessmentResponse(BaseModel):
     clinical_recommendations: List[str] = []
     monitoring_parameters: List[str] = []
     disclaimer: str = "Kết quả này được tạo bởi AI và chỉ mang tính tham khảo. Vui lòng tham khảo ý kiến bác sĩ/dược sĩ trước khi thay đổi phác đồ điều trị."
-
-    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
 
 class ClinicalAlertSummary(BaseModel):

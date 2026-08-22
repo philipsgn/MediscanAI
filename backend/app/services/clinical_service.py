@@ -9,10 +9,16 @@ import os
 from typing import Any, Optional
 
 import httpx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.core.config import settings
 from app.schemas import DrugItem, UserProfile
+from app.schemas.ocr_schema import (  # Canonical clinical models [P0/F3.1]
+    ClinicalAssessmentResponse,
+    DrugConditionAlert,
+    DrugInteractionAlert,
+    OverdoseAlert,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,51 +29,9 @@ class ClinicalAssessmentRequest(BaseModel):
     user_profile: Optional[UserProfile] = None
 
 
-class DrugInteractionAlert(BaseModel):
-    """Cảnh báo tương tác thuốc - thuốc từ LLM."""
-    severity: str = Field(..., description="HIGH | MEDIUM | LOW")
-    title: str
-    description: str
-    recommendation: str
-    interacting_drugs: list[str] = Field(default=[])
-    evidence_level: Optional[str] = Field(None, description="Mức độ bằng chứng: A/B/C/D")
-
-
-class DrugConditionAlert(BaseModel):
-    """Cảnh báo thuốc - bệnh nền từ LLM."""
-    severity: str = Field(..., description="HIGH | MEDIUM | LOW")
-    title: str
-    description: str
-    recommendation: str
-    drug_name: str
-    condition: str
-    evidence_level: Optional[str] = None
-
-
-class OverdoseAlert(BaseModel):
-    """Cảnh báo quá liều / trùng lặp hoạt chất."""
-    severity: str = Field(..., description="HIGH | MEDIUM | LOW")
-    title: str
-    description: str
-    recommendation: str
-    ingredient: str
-    total_daily_mg: float
-    max_safe_mg: Optional[float] = None
-
-
-class ClinicalAssessmentResponse(BaseModel):
-    """Kết quả đánh giá lâm sàng đầy đủ từ LLM."""
-    drug_drug_interactions: list[DrugInteractionAlert] = Field(default=[])
-    drug_condition_interactions: list[DrugConditionAlert] = Field(default=[])
-    overdose_duplication_alerts: list[OverdoseAlert] = Field(default=[])
-    clinical_recommendations: list[str] = Field(default=[])
-    monitoring_parameters: list[str] = Field(default=[])
-    disclaimer: str = Field(
-        default="Kết quả này được tạo bởi AI và chỉ mang tính tham khảo. "
-        "Vui lòng tham khảo ý kiến bác sĩ/dược sĩ trước khi thay đổi phác đồ điều trị."
-    )
-
-
+# [P0/F3.1] DrugInteractionAlert / DrugConditionAlert / OverdoseAlert /
+# ClinicalAssessmentResponse đã hợp nhất về canonical `app.schemas.ocr_schema`
+# (Task 1.2 — một schema, một nguồn sự thật); import ở đầu file.
 class ClinicalService:
     """Clinical Assessment Engine - Sử dụng LLM cho clinical reasoning."""
 
