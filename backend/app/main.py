@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.endpoints.ocr import router as ocr_router
-from app.config import settings
+from app.core.config import settings
 from app.schemas import (
     DrugEvaluationRequest,
     EvaluationResponse,

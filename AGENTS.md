@@ -66,7 +66,7 @@ Mỗi AI Agent khi thực thi nhiệm vụ trong Repository này phải tự xá
 1. **Formatting & Type Hints:** 
    - Viết code Python chuẩn `PEP 8`. Bắt buộc khai báo đầy đủ `Type Hints` cho tất cả các đối số đầu vào, kết quả trả về của hàm và các API endpoints.
 2. **Quản lý Cấu hình & Secrets:** 
-   - Tuyệt đối không hardcode API Keys (Gemini, OpenAI, các Database URI) trong mã nguồn. Mọi cấu hình phải được đọc từ môi trường (`.env`) thông qua [`backend/app/config.py`](file:///c:/Users/TanPhat/Documents/AI_E/MediscanAI/backend/app/config.py).
+   - Tuyệt đối không hardcode API Keys (Gemini, OpenAI, các Database URI) trong mã nguồn. Mọi cấu hình phải được đọc từ môi trường (`.env`) thông qua [`backend/app/core/config.py`](file:///c:/Users/TanPhat/Documents/AI_E/MediscanAI/backend/app/core/config.py).
 3. **Xử lý Ngoại lệ Chặt chẽ:** 
    - Sử dụng thư viện `pathlib` cho các thao tác với tệp tin. 
    - Bao bọc các API kết nối bên ngoài (Cloud Vision API, LLMs) trong khối `try...except` và bắt các lỗi cụ thể (ví dụ: `HTTPError`, `Timeout`, `ConnectionError`). Trả về mã lỗi HTTP thích hợp (`HTTPException` kèm mô tả chi tiết) để Frontend có thể xử lý hiển thị lỗi mượt mà.

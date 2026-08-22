@@ -136,7 +136,8 @@ mediscan-ai/
 ├── backend/            # Python FastAPI Backend
 │   ├── app/
 │   │   ├── api/        # Cổng giao tiếp API Routes (Endpoints)
-│   │   ├── config.py   # Quản lý cấu hình & biến môi trường
+│   │   ├── core/
+│   │   │   └── config.py  # Quản lý cấu hình & biến môi trường (Settings + tham số OCR Engine)
 │   │   ├── schemas/    # Định nghĩa Pydantic Schemas (bao gồm DosageCheck, History, Reminder)
 │   │   ├── services/   # OCR Engine on-premise, Normalization, Evaluation (4-Layer), Clinical LLM
 │   │   └── main.py     # Điểm khởi chạy ứng dụng FastAPI

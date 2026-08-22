@@ -8,6 +8,7 @@ from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field, ConfigDict
 from pydantic.alias_generators import to_camel
 
+from app.core.config import OCR_PROCESSING_SLA_MS
 from app.services.clinical_service import ClinicalAssessmentRequest, clinical_service
 from app.services.drug_database import drug_database
 from app.services.normalization_service import NormalizationService
@@ -106,12 +107,21 @@ def _ocr_items_to_drug_items(raw_items: list, source_type: str) -> list:
             continue
         # Heuristic: if text looks like a drug name (contains letters, not just numbers)
         if any(c.isalpha() for c in text):
+            # Pipeline gating (ARCHITECTURE.md §3 / AGENTS.md B.1):
+            #  - Pipeline 1 (packaging / vỏ hộp): dosage_instruction PHẢI là None —
+            #    liều dùng do User nhập tay ở Smart Form; OCR không tự động gán.
+            #  - Pipeline 2 (prescription / toa thuốc): OCRItem chưa mang dosage
+            #    (bổ sung ở Stage 3 Normalization nếu text toa chứa hướng dẫn liệu).
+            if source_type == "packaging":
+                dosage_instruction = None
+            else:
+                dosage_instruction = getattr(item, "dosage_instruction", None)
             drug_items.append(
                 DrugItem(
                     brand_name=text,
                     strength="",  # sẽ được fill bởi normalization
                     confidence_score=item.confidence,
-                    dosage_instruction=None,
+                    dosage_instruction=dosage_instruction,
                 )
             )
     return drug_items
@@ -277,7 +287,7 @@ async def ocr_scan(
             source_type=ocr_result.source_type,
             raw_ocr_items=raw_ocr_items,
             ocr_latency_ms=ocr_latency_ms,
-            sla_exceeded=ocr_latency_ms > 15000,  # OCR SLA
+                        sla_exceeded=ocr_latency_ms > OCR_PROCESSING_SLA_MS,  # OCR SLA (from app.core.config)
             image_width=ocr_result.image_width,
             image_height=ocr_result.image_height,
             mapped_drugs=mapped_drugs,
