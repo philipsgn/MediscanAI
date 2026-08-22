@@ -2,6 +2,7 @@
 # Sử dụng rapidfuzz để fuzzy match brand name và ingredient
 from __future__ import annotations
 
+import logging
 import re
 from typing import Optional
 
@@ -9,6 +10,8 @@ from rapidfuzz import process, fuzz
 
 from app.schemas import DrugItem
 from app.services.drug_database import drug_database
+
+logger = logging.getLogger(__name__)
 
 
 class NormalizationService:
@@ -24,6 +27,65 @@ class NormalizationService:
         for raw_drug in ocr_items:
             normalized.append(self.normalize_drug_item(raw_drug))
         return normalized
+
+    async def normalize_drug_item_full(self, raw_drug: DrugItem) -> DrugItem:
+        """[P2/F3.4] Chuẩn hóa 4 tầng: 3 tầng local (sync — giữ nguyên hành vi
+        cho test cũ) + tầng 4 OpenFDA khi local miss toàn bộ, đúng thiết kế
+        "CSDL thuốc quốc gia kết hợp tra cứu ngoài" (ARCHITECTURE.md §4.1).
+
+        Nguồn ngoài (OpenFDA): KHÔNG BAO GIỜ tự đánh dấu is_verified=True —
+        buộc Human-in-the-Loop xác nhận (AGENTS.md §B.2); confidence trần 0.6."""
+        item = self.normalize_drug_item(raw_drug)  # 3 tầng local (exact/fuzzy/ingredient)
+
+        if item.match_method is not None:
+            return item  # local đã match — không tốn network call
+
+        info = await drug_database.get_drug_full_info(item.brand_name, None)
+        if not info or not str(info.get("source", "")).startswith("openfda"):
+            return item  # giữ nhánh unmatched (confidence ≤ 0.4, unverified)
+
+        # Áp dụng thông tin OpenFDA một cách bảo thủ (chỉ ghi trường có thật)
+        fda_brand = info.get("brand_name")
+        if fda_brand:
+            item.brand_name = str(fda_brand)
+        fda_ingredient = info.get("active_ingredient")
+        if fda_ingredient:
+            if isinstance(fda_ingredient, list):
+                joined = ", ".join(str(x) for x in fda_ingredient if x)
+            else:
+                joined = str(fda_ingredient)
+            if joined:
+                item.active_ingredient = joined
+        if info.get("strength"):
+            item.strength = str(info["strength"])
+        fda_warnings = info.get("warnings") or []
+        if fda_warnings:
+            item.warnings = [str(w) for w in fda_warnings]
+        spl_id = info.get("spl_id")
+        if spl_id:
+            item.drug_id = f"openfda:{spl_id}"
+        # OpenFDA không cung cấp nhóm điều trị theo chuẩn VN / liều tối đa VN:
+        item.category = None
+        item.max_daily_dosage = None
+        item.match_method = str(info.get("source"))  # "openfda" | "openfda_ingredient"
+
+        # Confidence: trung bình OCR × điểm nguồn ngoài, TRẦN CỨNG 0.6 (chưa HITL)
+        external_conf = 0.5
+        item.confidence_score = round(
+            min(0.6, (item.confidence_score + external_conf) / 2), 4
+        )
+        item.is_verified = False  # BẮT BUỘC Human-in-the-Loop với nguồn ngoài
+        logger.info(
+            "[normalization] OpenFDA tier-4: %s -> %s (conf=%.2f)",
+            item.brand_name,
+            item.active_ingredient,
+            item.confidence_score,
+        )
+        return item
+
+    async def normalize_ocr_items_full(self, ocr_items: list[DrugItem]) -> list[DrugItem]:
+        """[P2/F3.4] Wrapper async 4 tầng — endpoint /ocr/scan gọi hàm này."""
+        return [await self.normalize_drug_item_full(item) for item in ocr_items]
 
     def normalize_drug_item(self, raw_drug: DrugItem) -> DrugItem:
         """
@@ -74,6 +136,10 @@ class NormalizationService:
         """Áp dụng thông tin từ Drug DB vào DrugItem."""
         # Gán drug_id từ DB
         raw_drug.drug_id = db_drug.get("id")
+
+        # [P2/F3.4 + P3/F3.6] Gắn match_method chính thức lên item — vừa làm
+        # marker chặn tầng 4 OpenFDA, vừa fix contract field luôn null.
+        raw_drug.match_method = match_method
         
         # Chuẩn hóa tên thương mại
         raw_drug.brand_name = db_drug.get("brand_name", raw_drug.brand_name)

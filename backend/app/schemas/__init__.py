@@ -39,6 +39,13 @@ class DrugItem(BaseModel):
     category: Optional[str] = Field(None, description="Nhóm điều trị (VD: Kháng sinh, Giảm đau...)")
     max_daily_dosage: Optional[str] = Field(None, description="Liều tối đa/ngày từ DB (VD: 4000mg)")
     warnings: List[str] = Field(default=[], description="Cảnh báo/Chống chỉ định từ DB")
+    match_method: Optional[str] = Field(
+        None,
+        description=(
+            "Cách khớp DB [P2/F3.4]: exact | fuzzy | ingredient_fallback | "
+            "openfda | openfda_ingredient | None (không match)"
+        ),
+    )
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 

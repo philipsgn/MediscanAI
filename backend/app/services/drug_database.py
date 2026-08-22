@@ -133,10 +133,12 @@ class DrugDatabase:
     # ─────────────────────────────────────────────────────────────────────────
 
     async def fetch_openfda_by_brand(self, brand_name: str) -> Optional[dict[str, Any]]:
-        """Tra cứu OpenFDA theo tên thương mại."""
-        if not settings.OPENFDA_API_KEY:
-            return None
+        """Tra cứu OpenFDA theo tên thương mại.
 
+        [P2/F3.4] Đã xóa gate `if not settings.OPENFDA_API_KEY: return None`:
+        OpenFDA label API hoạt động KHÔNG cần key (đã xác minh thực nghiệm
+        HTTP 200 keyless trong remediation P2). API key (nếu cấu hình) vẫn
+        được đính kèm để hưởng rate-limit cao hơn."""
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 params = {
@@ -158,10 +160,9 @@ class DrugDatabase:
         return None
 
     async def fetch_openfda_by_ingredient(self, ingredient: str) -> list[dict[str, Any]]:
-        """Tra cứu OpenFDA theo hoạt chất."""
-        if not settings.OPENFDA_API_KEY:
-            return []
+        """Tra cứu OpenFDA theo hoạt chất.
 
+        [P2/F3.4] Đã xóa gate API key — xác minh keyless HTTP 200 (P2)."""
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 params = {

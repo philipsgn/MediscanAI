@@ -191,7 +191,8 @@ async def ocr_scan(
         norm_started = time.perf_counter()
         drug_items = _ocr_items_to_drug_items(ocr_result.items, source_type)
         normalization_service = NormalizationService()
-        normalized_drugs = normalization_service.normalize_ocr_items(drug_items)
+        # [P2/F3.4] Chuẩn hóa 4 tầng: 3 tầng local + OpenFDA khi local miss toàn bộ
+        normalized_drugs = await normalization_service.normalize_ocr_items_full(drug_items)
         normalization_latency_ms = int(round((time.perf_counter() - norm_started) * 1000))
 
         mapped_drugs = _map_drug_items(normalized_drugs)
