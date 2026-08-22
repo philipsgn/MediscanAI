@@ -10,6 +10,7 @@ from fastapi.concurrency import run_in_threadpool
 from app.core.config import OCR_PROCESSING_SLA_MS
 from app.schemas import (  # Canonical response models — single source of truth [P0/F3.1]
     ClinicalAlertSummary,
+    ClinicalAssessmentResponse,
     FullScanResponse,
     MappedDrugItem,
     OCRItem,
