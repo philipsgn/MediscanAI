@@ -89,7 +89,7 @@ def _map_drug_items(normalized: list) -> list[MappedDrugItem]:
                 warnings=getattr(drug, "warnings", []),
                 confidence_score=drug.confidence_score,
                 is_verified=drug.is_verified,
-                match_method=getattr(drug, "_match_method", None),
+                match_method=drug.match_method,  # [P3/F3.6] field chính thức trong schema
             )
         )
     return mapped
@@ -247,6 +247,10 @@ async def ocr_scan(
 
     except HTTPException:
         raise
+    # [P3/F3.5] Lỗi kết nối ngoài (OpenFDA/Ollama/OpenAI) đã được bắt CỤ THỂ bên
+    # trong các services với graceful degradation; catch biên cuối này chỉ là
+    # phòng thủ cho lỗi bất ngờ — luôn chuyển thành HTTPException 500 có mã lỗi
+    # rõ ràng, không bao giờ để raise trần làm sập endpoint.
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

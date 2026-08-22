@@ -19,6 +19,7 @@ class Settings(BaseSettings):
 
     # API Keys & External Services
     OPENAI_API_KEY: str = ""  # Fallback LLM text-only (không phải Vision), theo Task 3.3
+    OPENAI_FALLBACK_MODEL: str = "gpt-4o-mini"  # [P3/F3.9] Model fallback qua env, không hardcode
 
     # Local LLM (for Clinical Assessment) - Ollama or similar
     LOCAL_LLM_BASE_URL: str = "http://localhost:11434"

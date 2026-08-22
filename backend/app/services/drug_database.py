@@ -44,8 +44,11 @@ class DrugDatabase:
                         self.ingredient_to_drugs[ing_clean].append(drug)
             
             logger.info(f"Loaded {len(self.local_db)} drugs from local DB")
-        except Exception as e:  # noqa: BLE001
-            logger.error(f"Failed to load local drug DB: {e}")
+        except (OSError, json.JSONDecodeError) as e:
+            # [P3/F3.5] File DB hỏng/thiếu quyền đọc (OSError) hoặc JSON lỗi
+            # cấu trúc → khởi động với DB rỗng (graceful) nhưng log rõ loại lỗi;
+            # không nuốt chung các lỗi lập trình khác.
+            logger.error("Failed to load local drug DB (%s): %s", type(e).__name__, e)
             self.local_db = []
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -155,8 +158,15 @@ class DrugDatabase:
                 results = data.get("results", [])
                 if results:
                     return self._normalize_openfda_result(results[0])
-        except Exception as e:  # noqa: BLE001
-            logger.warning(f"OpenFDA lookup failed for {brand_name}: {e}")
+        except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError) as e:
+            # [P3/F3.5] RequestError bao Timeout/Connect; HTTPStatusError từ
+            # raise_for_status; JSONDecodeError cho payload lỗi. Graceful: None.
+            logger.warning(
+                "OpenFDA lookup failed for %s (%s): %s",
+                brand_name,
+                type(e).__name__,
+                e,
+            )
         return None
 
     async def fetch_openfda_by_ingredient(self, ingredient: str) -> list[dict[str, Any]]:

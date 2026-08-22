@@ -9,7 +9,7 @@ import os
 from typing import Any, Optional
 
 import httpx
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from app.core.config import settings
 from app.schemas import DrugItem, UserProfile
@@ -40,6 +40,7 @@ class ClinicalService:
         self.local_llm_url = settings.LOCAL_LLM_BASE_URL.rstrip("/")
         self.local_llm_model = settings.LOCAL_LLM_MODEL
         self.openai_api_key = settings.OPENAI_API_KEY
+        self.openai_fallback_model = settings.OPENAI_FALLBACK_MODEL  # [P3/F3.9]
 
     # ─────────────────────────────────────────────────────────────────────────
     # Prompt Engineering
@@ -141,20 +142,35 @@ HÃY PHÂN TÍCH VÀ TRẢ VỀ JSON THEO SCHEMA:
                 resp.raise_for_status()
                 data = resp.json()
                 return data.get("response", "")
-        except Exception as e:  # noqa: BLE001
-            logger.error(f"Local LLM call failed: {e}")
+        except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError) as e:
+            # [P3/F3.5] Ollama local gọi qua httpx — RequestError bao trùm
+            # TimeoutException/ConnectError; tách khỏi lỗi parse JSON ở assess().
+            logger.warning("Local LLM call failed (%s): %s", type(e).__name__, e)
             return None
 
     async def _call_openai(self, prompt: str) -> Optional[str]:
-        """Gọi OpenAI API (fallback)."""
+        """Gọi OpenAI API (fallback text-only).
+
+        [P3/F3.9] Model đọc từ Settings (OPENAI_FALLBACK_MODEL), không hardcode.
+        [P3/F3.5] Bắt riêng các lỗi SDK openai thay vì except Exception mù quáng."""
         if not self.openai_api_key:
             return None
         try:
-            from openai import AsyncOpenAI
+            from openai import (
+                AsyncOpenAI,
+                APIConnectionError,
+                APIStatusError,
+                APITimeoutError,
+                RateLimitError,
+            )
+        except ImportError:
+            logger.error("Thư viện 'openai' chưa được cài — bỏ qua fallback LLM ngoài.")
+            return None
 
+        try:
             client = AsyncOpenAI(api_key=self.openai_api_key)
             resp = await client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=self.openai_fallback_model,  # [F3.9] từ Settings
                 messages=[
                     {"role": "system", "content": self._build_system_prompt()},
                     {"role": "user", "content": prompt},
@@ -163,9 +179,18 @@ HÃY PHÂN TÍCH VÀ TRẢ VỀ JSON THEO SCHEMA:
                 temperature=0.1,
                 max_tokens=3000,
             )
-            return resp.choices[0].message.content
-        except Exception as e:  # noqa: BLE001
-            logger.error(f"OpenAI call failed: {e}")
+            content = resp.choices[0].message.content
+            return content or None
+        except (APITimeoutError, APIConnectionError) as e:
+            logger.warning(
+                "OpenAI fallback lỗi kết nối/timeout (%s): %s", type(e).__name__, e
+            )
+            return None
+        except RateLimitError as e:
+            logger.warning("OpenAI fallback bị rate-limit: %s", e)
+            return None
+        except APIStatusError as e:
+            logger.warning("OpenAI fallback trả lỗi HTTP status: %s", e)
             return None
 
     async def _call_llm(self, prompt: str) -> Optional[str]:
@@ -249,10 +274,22 @@ HÃY PHÂN TÍCH VÀ TRẢ VỀ JSON THEO SCHEMA:
         if llm_response:
             try:
                 parsed = json.loads(llm_response)
-                return ClinicalAssessmentResponse(**parsed)
-            except Exception as e:  # noqa: BLE001
-                logger.error(f"Failed to parse LLM response: {e}")
-                logger.debug(f"Raw LLM response: {llm_response[:500]}")
+            except json.JSONDecodeError as e:
+                # [P3/F3.5] JSON hỏng → rơi xuống fallback rule-based NGAY
+                # (khác bản chất với lỗi kết nối — connection do _call_* xử lý).
+                logger.error("LLM trả nội dung không phải JSON hợp lệ: %s", e)
+                logger.debug("Raw LLM response: %s", llm_response[:500])
+            else:
+                try:
+                    return ClinicalAssessmentResponse(**parsed)
+                except ValidationError as e:
+                    # [P3/F3.5] JSON hợp lệ nhưng sai schema → fallback rule-based,
+                    # không để ValidationError làm chết pipeline.
+                    logger.error(
+                        "LLM JSON sai schema ClinicalAssessmentResponse: %s",
+                        e.errors()[:3],
+                    )
+                    logger.debug("Raw LLM response: %s", llm_response[:500])
 
         # Fallback
         logger.warning("Using fallback rule-based assessment")

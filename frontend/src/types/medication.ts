@@ -21,6 +21,8 @@ export interface IDrugItem {
   category?: string;
   maxDailyDosage?: string;
   warnings?: string[];
+  /** [P3/F3.6 đồng bộ §3.A.2] exact | fuzzy | ingredient_fallback | openfda | openfda_ingredient */
+  matchMethod?: 'exact' | 'fuzzy' | 'ingredient_fallback' | 'openfda' | 'openfda_ingredient';
 }
 
 export interface IPrescription {
