@@ -55,6 +55,20 @@ class Prescription(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
+
+class DrugSearchResult(BaseModel):
+    """[S4-Closeout/F4.3] Kết quả RÚT GỌN cho autocomplete từ điển thuốc.
+
+    Chỉ trả các trường UI dropdown cần — KHÔNG trả full DrugItem (tránh lộ
+    warnings/max_daily_dosage không cần thiết cho gợi ý nhập liệu).
+    Wire-format camelCase khớp `IDrugSearchResult` phía frontend (§3.A)."""
+    drug_id: str = Field(..., description="ID thuốc trong DB chuẩn (hoặc openfda:<uuid>)")
+    brand_name: str = Field(..., description="Tên thương mại")
+    active_ingredient: Optional[str] = Field(None, description="Hoạt chất gốc chuẩn hóa")
+    strength: str = Field("", description="Hàm lượng")
+
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
 class InteractionAlert(BaseModel):
     """Alert hợp nhất cho báo cáo đánh giá — severity là NGUỒN QUYẾT ĐỊNH cuối cùng
     thuộc rule-engine Stage 5; LLM chỉ enrich văn bản [F3.3]. Giá trị lạ từ LLM

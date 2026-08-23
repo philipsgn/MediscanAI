@@ -8,6 +8,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.v1.endpoints.drugs import router as drugs_router
 from app.api.v1.endpoints.ocr import router as ocr_router
 from app.core.config import settings
 from app.schemas import (
@@ -48,6 +49,9 @@ app.add_middleware(
 
 # Route OCR + Clinical Assessment Pipeline
 app.include_router(ocr_router, prefix=settings.API_V1_STR)
+
+# Route Drug Lookup (autocomplete) [S4-Closeout/F4.3]
+app.include_router(drugs_router, prefix=settings.API_V1_STR)
 
 @app.get("/", tags=["Health Check"])
 async def root() -> dict[str, str]:

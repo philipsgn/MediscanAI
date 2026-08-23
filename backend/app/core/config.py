@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     OPENFDA_API_KEY: str = ""
     OPENFDA_BASE_URL: str = "https://api.fda.gov/drug"
 
+    # Drug lookup autocomplete [S4-Closeout/F4.3] — mặc định top 10 kết quả,
+    # client có thể override qua query param (giới hạn cứng 1..50 ở router).
+    DRUG_SEARCH_DEFAULT_LIMIT: int = 10
+
     # CORS Settings
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
