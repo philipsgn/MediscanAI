@@ -1,11 +1,11 @@
 'use client';
 
-import { useCabinetStore } from '@/store/cabinetStore';
+import { useCabinetStore, CabinetDrugItem } from '@/store/cabinetStore';
 import { IDrugEvaluationRequest, IEvaluationResponse, IUserProfile } from '@/types/medication';
-import { Pill, Trash2, Play, Pause, ActivitySquare, FlaskConical, Loader2, User, ChevronDown, ChevronUp } from 'lucide-react';
+import { Pill, Trash2, Play, Pause, ActivitySquare, FlaskConical, Loader2, User, ChevronDown, ChevronUp, Pencil, Plus, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
-import axios from 'axios';
+import { useEvaluation } from '@/services/evaluationService';
 import { isDisclaimerAccepted, openMedicalDisclaimerModal } from '@/components/common/MedicalDisclaimerModal';
 import { toast } from '@/components/common/Toast';
 
@@ -28,10 +28,12 @@ const COMMON_ALLERGIES = [
 ];
 
 export function ActiveCabinet({ onReportReady }: ActiveCabinetProps) {
-  const { drugs, removeDrug, toggleActive, clearAll } = useCabinetStore();
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const { drugs, removeDrug, toggleActive, clearAll, updateDrug, addDrug } = useCabinetStore();
   const [showProfile, setShowProfile] = useState(false);
-  
+
+  // [P1/F4.4] TanStack Query mutation — thay thế axios inline (xóa hardcode URL).
+  const { mutate: runEvaluate, isPending: isAnalyzing } = useEvaluation();
+
   // User Profile State for Layer 3 Evaluation
   const [age, setAge] = useState<number>(45);
   const [conditions, setConditions] = useState<string[]>([]);
@@ -51,8 +53,40 @@ export function ActiveCabinet({ onReportReady }: ActiveCabinetProps) {
     );
   };
 
+  /** [P3/F4.8] Inline-edit state: chỉnh sửa thông tin thuốc trong tủ. */
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Partial<CabinetDrugItem>>({});
+  const [isManualAddOpen, setIsManualAddOpen] = useState(false);
+  const [manualForm, setManualForm] = useState({ brandName: '', strength: '', activeIngredient: '', dosageInstruction: '' });
+
+  const startEdit = (drug: CabinetDrugItem) => {
+    setEditingId(drug.id);
+    setEditForm({ brandName: drug.brandName, strength: drug.strength, activeIngredient: drug.activeIngredient, dosageInstruction: drug.dosageInstruction });
+  };
+
+  const saveEdit = (id: string) => {
+    if (!editForm.brandName?.trim()) {
+      toast.warning('Tên thuốc không được để trống.');
+      return;
+    }
+    updateDrug(id, editForm);
+    setEditingId(null);
+    toast.success('Đã cập nhật thông tin thuốc.');
+  };
+
+  const submitManual = () => {
+    if (!manualForm.brandName.trim()) {
+      toast.warning('Vui lòng nhập tên thuốc.');
+      return;
+    }
+    addDrug({ ...manualForm, brandName: manualForm.brandName.trim(), confidenceScore: 1, isVerified: true, inputSource: 'manual' });
+    setManualForm({ brandName: '', strength: '', activeIngredient: '', dosageInstruction: '' });
+    setIsManualAddOpen(false);
+    toast.success(`Đã thêm "${manualForm.brandName.trim()}" vào Tủ thuốc.`);
+  };
+
   const handleAnalyze = async () => {
-    // 1. Enforce Medical Disclaimer Acceptance (Task 5.1)
+    // 1. Enforce Medical Disclaimer Acceptance (Task 6.1 — disclaimer gate)
     if (!isDisclaimerAccepted()) {
       openMedicalDisclaimerModal();
       toast.warning('Vui lòng đọc và chấp thuận Tuyên bố Miễn trừ Trách nhiệm Y tế trước khi phân tích.');
@@ -64,49 +98,35 @@ export function ActiveCabinet({ onReportReady }: ActiveCabinetProps) {
       return;
     }
 
-    setIsAnalyzing(true);
-    try {
-      const userProfile: IUserProfile | undefined = (conditions.length > 0 || allergies.length > 0 || age) ? {
-        age: Number(age) || 45,
-        conditions,
-        allergies
-      } : undefined;
+            const userProfile: IUserProfile | undefined = (conditions.length > 0 || allergies.length > 0 || age) ? {
+      age: Number(age) || 45,
+      conditions,
+      allergies
+    } : undefined;
 
-      const payload: IDrugEvaluationRequest = {
-        userProfile,
-        drugs: activeDrugs.map(d => ({
-          brandName: d.brandName,
-          activeIngredient: d.activeIngredient,
-          strength: d.strength,
-          dosageInstruction: d.dosageInstruction,
-          confidenceScore: d.confidenceScore,
-          isVerified: d.isVerified,
-        }))
-      };
+    const payload: IDrugEvaluationRequest = {
+      userProfile,
+      drugs: activeDrugs.map(d => ({
+        brandName: d.brandName,
+        activeIngredient: d.activeIngredient,
+        strength: d.strength,
+        dosageInstruction: d.dosageInstruction,
+        confidenceScore: d.confidenceScore,
+        isVerified: d.isVerified,
+        matchMethod: d.matchMethod,
+      }))
+    };
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-      const endpoint = `${apiUrl}/evaluate`;
-
-      const res = await axios.post(endpoint, payload, { timeout: 30000 });
-      const reportData = res.data as IEvaluationResponse;
-      
-      toast.success(`Đã phân tích thành công ${reportData.totalDrugsAnalyzed} loại thuốc!`);
-      onReportReady(reportData);
-    } catch (err: unknown) {
-      console.error('Evaluation Error:', err);
-      if (axios.isAxiosError(err)) {
-        const errorDetail = err.response?.data?.detail;
-        if (errorDetail) {
-          toast.error(`Lỗi phân tích: ${errorDetail}`);
-        } else {
-          toast.error('Lỗi kết nối Backend. Hãy chắc chắn Backend đang chạy trên cổng 8000.');
-        }
-      } else {
-        toast.error('Đã xảy ra lỗi trong quá trình đánh giá tương tác thuốc.');
-      }
-    } finally {
-      setIsAnalyzing(false);
-    }
+    runEvaluate(payload, {
+      onSuccess: (reportData: IEvaluationResponse) => {
+        toast.success(`Đã phân tích thành công ${reportData.totalDrugsAnalyzed} loại thuốc!`);
+        onReportReady(reportData);
+      },
+      onError: (err: Error) => {
+        console.error('Evaluation Error:', err);
+        toast.error(`Lỗi phân tích: ${err.message || 'Đã xảy ra lỗi trong quá trình đánh giá tương tác thuốc.'}`);
+      },
+    });
   };
 
   if (drugs.length === 0) {
@@ -152,13 +172,58 @@ export function ActiveCabinet({ onReportReady }: ActiveCabinetProps) {
         )}
       </div>
 
+{/* [P3/F4.8] Entry-point nhập tay — inputSource: 'manual' */}
+      <div className="px-5 py-2 border-b border-gray-100 flex items-center gap-2">
+        <button
+          onClick={() => setIsManualAddOpen(!isManualAddOpen)}
+          className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+        >
+          <Plus size={13} /> {isManualAddOpen ? 'Đóng' : 'Thêm thuốc thủ công'}
+        </button>
+      </div>
+
+      {isManualAddOpen && (
+        <div className="px-5 py-3 border-b border-gray-100 bg-blue-50/40 space-y-2.5">
+          <input
+            value={manualForm.brandName}
+            onChange={(e) => setManualForm(p => ({ ...p, brandName: e.target.value }))}
+            placeholder="Tên thuốc *"
+            className="w-full px-3 py-1.5 rounded-lg border border-gray-300 outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+          />
+          <div className="flex gap-2">
+            <input
+              value={manualForm.strength}
+              onChange={(e) => setManualForm(p => ({ ...p, strength: e.target.value }))}
+              placeholder="Hàm lượng"
+              className="flex-1 px-3 py-1.5 rounded-lg border border-gray-300 outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+            />
+            <input
+              value={manualForm.activeIngredient}
+              onChange={(e) => setManualForm(p => ({ ...p, activeIngredient: e.target.value }))}
+              placeholder="Hoạt chất"
+              className="flex-1 px-3 py-1.5 rounded-lg border border-gray-300 outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+            />
+          </div>
+          <input
+            value={manualForm.dosageInstruction}
+            onChange={(e) => setManualForm(p => ({ ...p, dosageInstruction: e.target.value }))}
+            placeholder="Liều dùng (không bắt buộc — tự nhập, không suy đoán)"
+            className="w-full px-3 py-1.5 rounded-lg border border-gray-300 outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+          />
+          <button onClick={submitManual} className="w-full py-2 rounded-lg bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors">
+            Thêm vào Tủ thuốc
+          </button>
+        </div>
+      )}
+
+      {/* Drug List */}
       {/* Drug List */}
       <div className="divide-y divide-gray-50 max-h-[38vh] overflow-y-auto">
         {drugs.map(drug => (
           <div
             key={drug.id}
             className={cn(
-              'p-3.5 flex items-start gap-3 transition-colors hover:bg-gray-50/80',
+              'p-3.5 flex items-start gap-3 transition-colors hover:bg-gray-50/80 relative',
               !drug.isActive && 'opacity-40 bg-gray-50/50'
             )}
           >
@@ -197,6 +262,57 @@ export function ActiveCabinet({ onReportReady }: ActiveCabinetProps) {
               >
                 {drug.isActive ? <Pause size={14} /> : <Play size={14} />}
               </button>
+              <button
+                onClick={() => startEdit(drug)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
+                title="Sửa thông tin thuốc"
+              >
+                <Pencil size={14} />
+              </button>
+              {editingId === drug.id && (
+                <div className="absolute inset-0 z-10 bg-white/95 backdrop-blur-sm rounded-xl border border-indigo-200 p-3.5 space-y-2 shadow-lg">
+                  <p className="text-xs font-bold text-indigo-700">Sửa thông tin thuốc</p>
+                  <input
+                    value={editForm.brandName ?? ''}
+                    onChange={(e) => setEditForm(p => ({ ...p, brandName: e.target.value }))}
+                    placeholder="Tên thuốc"
+                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 outline-none focus:ring-1 focus:ring-indigo-500 text-sm"
+                  />
+                  <input
+                    value={editForm.strength ?? ''}
+                    onChange={(e) => setEditForm(p => ({ ...p, strength: e.target.value }))}
+                    placeholder="Hàm lượng"
+                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 outline-none focus:ring-1 focus:ring-indigo-500 text-sm"
+                  />
+                  <input
+                    value={editForm.activeIngredient ?? ''}
+                    onChange={(e) => setEditForm(p => ({ ...p, activeIngredient: e.target.value }))}
+                    placeholder="Hoạt chất"
+                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 outline-none focus:ring-1 focus:ring-indigo-500 text-sm"
+                  />
+                  <textarea
+                    value={editForm.dosageInstruction ?? ''}
+                    onChange={(e) => setEditForm(p => ({ ...p, dosageInstruction: e.target.value }))}
+                    placeholder="Liều dùng"
+                    rows={2}
+                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 outline-none focus:ring-1 focus:ring-indigo-500 text-sm resize-none"
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => setEditingId(null)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold text-gray-500 hover:bg-gray-100"
+                    >
+                      <X size={13} className="inline" /> Hủy
+                    </button>
+                    <button
+                      onClick={() => saveEdit(drug.id)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700"
+                    >
+                      <Check size={13} className="inline" /> Lưu
+                    </button>
+                  </div>
+                </div>
+              )}
               <button
                 onClick={() => {
                   removeDrug(drug.id);

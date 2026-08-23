@@ -6,9 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "verify:contract": "node scripts/check-backend-contract.mjs"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.81.0",
     "axios": "^1.19.0",
     "clsx": "^2.1.1",
     "lucide-react": "^1.32.0",
