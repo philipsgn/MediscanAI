@@ -10,9 +10,16 @@ interface DrugVerificationFormProps {
   initialData: IDrugItem;
   onSave: (data: IDrugItem) => void;
   onCancel: () => void;
+  /**
+   * [P3/F4.7] Nguồn input pipeline. Dosage Selector (Sáng/Trưa/Chiều/Tối)
+   * chỉ hiển thị/bắt buộc cho source_type="packaging" (vỏ hộp — người dùng tự
+   * nhập liều, KHÔNG suy đoán). Với prescription, liều đã có từ toa thuốc nên
+   * selector ẩn (không cho phép thay đổi tùy ý — AGENTS.md §3.B.1).
+   */
+  sourceType?: 'prescription' | 'packaging';
 }
 
-export function DrugVerificationForm({ initialData, onSave, onCancel }: DrugVerificationFormProps) {
+export function DrugVerificationForm({ initialData, onSave, onCancel, sourceType }: DrugVerificationFormProps) {
   const { register, handleSubmit, setValue } = useForm<IDrugItem>({
     defaultValues: {
       ...initialData,
@@ -20,7 +27,11 @@ export function DrugVerificationForm({ initialData, onSave, onCancel }: DrugVeri
     }
   });
 
-  const isLowConfidence = initialData.confidenceScore < 0.7 || !initialData.isVerified;
+  /** [P3/F4.6] 3-tier confidence: đỏ <0.5 (rủi ro cao), vàng <0.7 (thấp), xanh ≥0.7. */
+  const confidence = initialData.confidenceScore;
+  const isHighRisk = confidence < 0.5;
+  const isLowConfidence = confidence < 0.7 || !initialData.isVerified;
+  const isPackaging = sourceType === 'packaging';
 
   // Custom logic for Dosage selector
   const [dosageState, setDosageState] = useState({
@@ -54,19 +65,21 @@ export function DrugVerificationForm({ initialData, onSave, onCancel }: DrugVeri
     <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden w-full max-w-2xl">
       <div className={cn(
         "px-6 py-4 border-b flex items-center justify-between",
-        isLowConfidence ? "bg-amber-50/50 border-amber-100" : "bg-emerald-50/50 border-emerald-100"
+        isHighRisk ? "bg-red-50/50 border-red-100" : isLowConfidence ? "bg-amber-50/50 border-amber-100" : "bg-emerald-50/50 border-emerald-100"
       )}>
         <div className="flex items-center gap-3">
-          {isLowConfidence ? (
+          {isHighRisk ? (
+            <AlertCircle className="text-red-500" size={24} />
+          ) : isLowConfidence ? (
             <AlertCircle className="text-amber-500" size={24} />
           ) : (
             <CheckCircle2 className="text-emerald-500" size={24} />
           )}
           <div>
-            <h3 className={cn("font-semibold text-lg", isLowConfidence ? "text-amber-700" : "text-emerald-700")}>
-              {isLowConfidence ? 'Cần xác nhận lại thông tin' : 'AI Nhận diện mức độ tin cậy cao'}
+            <h3 className={cn("font-semibold text-lg", isHighRisk ? "text-red-700" : isLowConfidence ? "text-amber-700" : "text-emerald-700")}>
+              {isHighRisk ? 'Rủi ro cao — phải kiểm tra kỹ' : isLowConfidence ? 'Cần xác nhận lại thông tin' : 'AI Nhận diện mức độ tin cậy cao'}
             </h3>
-            <p className={cn("text-sm", isLowConfidence ? "text-amber-600" : "text-emerald-600")}>
+            <p className={cn("text-sm", isHighRisk ? "text-red-600" : isLowConfidence ? "text-amber-600" : "text-emerald-600")}>
               Độ tin cậy: {Math.round(initialData.confidenceScore * 100)}%
             </p>
           </div>
@@ -103,7 +116,8 @@ export function DrugVerificationForm({ initialData, onSave, onCancel }: DrugVeri
           />
         </div>
 
-        {/* Cấu hình liều dùng nhanh */}
+        {/* [P3/F4.7] Cấu hình liều dùng nhanh — CHỈ hiển thị cho pipeline vỏ hộp (packaging). Với toa thuốc (prescription), liều đã có sẵn, cấm người dùng tự suy đoán/sửa tùy ý. */}
+        {isPackaging && (
         <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100">
           <p className="text-sm font-medium text-blue-800 mb-3">Tạo nhanh hướng dẫn liều dùng</p>
           
@@ -136,6 +150,7 @@ export function DrugVerificationForm({ initialData, onSave, onCancel }: DrugVeri
             Áp dụng xuống ô Hướng dẫn
           </button>
         </div>
+        )}
 
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-gray-700">Hướng dẫn liều dùng thực tế</label>
