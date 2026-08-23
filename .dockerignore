@@ -33,3 +33,10 @@ Thumbs.db
 frontend_old
 .antigravity
 setup_windows.ps1
+
+# [S4-Closeout] Benchmark data & artifacts — không cần trong build context
+# (giảm context transfer từ ~672MB xuống mức tối thiểu; sample images chỉ
+# dùng cho debug script phía host, không đóng gói vào image)
+test-benchmark/
+_v_s3_*.txt
+backend/_v_s3_*.txt

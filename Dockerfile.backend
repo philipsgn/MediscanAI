@@ -40,11 +40,24 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN addgroup --system appgroup \
     && adduser --system --ingroup appgroup appuser
 
-# Runtime libs cần thiết cho Pillow
+# Runtime libs cần thiết cho Pillow & OpenCV (F4.10: opencv-python full cần
+# libGL/libglib — slim image mặc định không có → cv2 import nổ libGL.so.1)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        libjpeg62-turbo zlib1g \
+        libjpeg62-turbo zlib1g libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
+
+# [F4.10] appuser được tạo với home=/nonexistent (adduser --system của Debian)
+# khiến PaddleOCR/matplotlib nổ "Permission denied: '/nonexistent'" khi ghi
+# cache model/config ở lần scan đầu tiên. Trỏ HOME + các thư mục cache về
+# /tmp (world-writable). LƯU Ý: cache /tmp là ephemeral-per-container —
+# model sẽ tải lại mỗi lần khởi tạo container; production nên bake model
+# vào image (follow-up, cần quyết định Architect).
+ENV HOME=/tmp/apphome \
+    XDG_CACHE_HOME=/tmp/apphome/.cache \
+    MPLCONFIGDIR=/tmp/mplconfig
+RUN mkdir -p /tmp/apphome /tmp/mplconfig \
+    && chown -R appuser:appgroup /tmp/apphome /tmp/mplconfig
 
 # Cài đặt wheels từ builder stage (không cần toolchain build)
 COPY --from=builder /build/wheels /wheels
