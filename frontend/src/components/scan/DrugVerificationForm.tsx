@@ -1,10 +1,11 @@
 'use client';
 
 import { useForm } from 'react-hook-form';
-import { IDrugItem } from '@/types/medication';
+import { IDrugItem, IDrugSearchResult } from '@/types/medication';
 import { AlertCircle, CheckCircle2, Sun, Sunset, Moon, Coffee } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { searchDrugs } from '@/services/drugService';
 
 interface DrugVerificationFormProps {
   initialData: IDrugItem;
@@ -20,7 +21,7 @@ interface DrugVerificationFormProps {
 }
 
 export function DrugVerificationForm({ initialData, onSave, onCancel, sourceType }: DrugVerificationFormProps) {
-  const { register, handleSubmit, setValue } = useForm<IDrugItem>({
+  const { register, handleSubmit, setValue, watch } = useForm<IDrugItem>({
     defaultValues: {
       ...initialData,
       dosageInstruction: initialData.dosageInstruction || '',
@@ -32,6 +33,51 @@ export function DrugVerificationForm({ initialData, onSave, onCancel, sourceType
   const isHighRisk = confidence < 0.5;
   const isLowConfidence = confidence < 0.7 || !initialData.isVerified;
   const isPackaging = sourceType === 'packaging';
+
+  // ── [S4-Closeout/F4.3] Autocomplete từ điển thuốc ──────────────────────────
+  // Debounce ≥300ms qua services/drugService (endpoint GET /drugs/search — DB
+  // thật phía backend). KHÔNG dùng danh sách tĩnh phía client dưới mọi hình thức.
+  const brandNameValue = watch('brandName');
+  const [suggestions, setSuggestions] = useState<IDrugSearchResult[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    const term = (brandNameValue ?? '').trim();
+    if (term.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      searchDrugs(term, controller.signal)
+        .then((results) => {
+          setSuggestions(results);
+          setShowSuggestions(results.length > 0);
+        })
+        .catch(() => {
+          // Abort khi user gõ tiếp, hoặc backend vắng mặt — im lặng,
+          // KHÔNG bao giờ phá luồng Human-in-the-Loop xác minh.
+        });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [brandNameValue]);
+
+  const applySuggestion = (s: IDrugSearchResult) => {
+    setValue('brandName', s.brandName, { shouldValidate: true });
+    // Chỉ điền phụ trợ nếu ô đang trống — người dùng vẫn là người quyết định cuối.
+    if (s.activeIngredient && !initialData.activeIngredient) {
+      setValue('activeIngredient', s.activeIngredient);
+    }
+    if (s.strength && !initialData.strength) {
+      setValue('strength', s.strength);
+    }
+    setSuggestions([]);
+    setShowSuggestions(false);
+  };
 
   // Custom logic for Dosage selector
   const [dosageState, setDosageState] = useState({
@@ -89,13 +135,33 @@ export function DrugVerificationForm({ initialData, onSave, onCancel, sourceType
       <form onSubmit={handleSubmit((data) => onSave({ ...data, isVerified: true }))} className="p-6 space-y-5">
         
         <div className="grid grid-cols-2 gap-5">
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 relative">
             <label className="text-sm font-medium text-gray-700">Tên thương mại <span className="text-red-500">*</span></label>
             <input 
               {...register('brandName', { required: true })}
               className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow outline-none"
               placeholder="VD: Panadol Extra"
+              autoComplete="off"
             />
+            {/* [S4-Closeout/F4.3] Dropdown gợi ý từ DB thật (GET /drugs/search) */}
+            {showSuggestions && (
+              <div className="absolute z-20 left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                {suggestions.map((s) => (
+                  <button
+                    key={s.drugId}
+                    type="button"
+                    onClick={() => applySuggestion(s)}
+                    className="w-full text-left px-3 py-2 hover:bg-blue-50 focus:bg-blue-50 transition-colors"
+                  >
+                    <span className="text-sm font-medium text-gray-800">{s.brandName}</span>
+                    {s.activeIngredient && (
+                      <span className="text-xs text-gray-500"> — {s.activeIngredient}</span>
+                    )}
+                    {s.strength && <span className="text-xs text-gray-400"> ({s.strength})</span>}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-gray-700">Hàm lượng</label>

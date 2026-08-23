@@ -16,6 +16,8 @@ export const API_BASE_URL: string =
 export const API_ENDPOINTS = {
   ocrScan: '/ocr/scan',
   evaluate: '/evaluate',
+  /** [S4-Closeout/F4.3] Autocomplete từ điển thuốc (GET ?q=...&limit=...). */
+  drugSearch: '/drugs/search',
 } as const;
 
 export type ApiEndpointPath = keyof typeof API_ENDPOINTS;

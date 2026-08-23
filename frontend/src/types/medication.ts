@@ -117,6 +117,17 @@ export interface IClinicalAlertSummary {
  * `mappedDrugs` ≡ IDrugItem[] (MappedDrugItem backend trùng shape DrugItem,
  * bao gồm matchMethod: exact | fuzzy | ingredient_fallback | openfda*).
  */
+/**
+ * [S4-Closeout/F4.3] Kết quả autocomplete rút gọn — khớp 100% backend
+ * DrugSearchResult (camelCase wire). KHÔNG phải full IDrugItem.
+ */
+export interface IDrugSearchResult {
+  drugId: string;
+  brandName: string;
+  activeIngredient?: string | null;
+  strength: string;
+}
+
 export interface IFullScanResponse {
   engine: string;
   sourceType: 'prescription' | 'packaging';
