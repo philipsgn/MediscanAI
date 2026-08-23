@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import axios from 'axios';
 import { FileText, Box, Loader2, Sparkles, ShieldCheck, CheckCircle2, AlertCircle, Info } from 'lucide-react';
 import { SmartCropModal } from '@/components/scan/SmartCropModal';
 import { DrugVerificationForm } from '@/components/scan/DrugVerificationForm';
@@ -11,6 +10,8 @@ import { openMedicalDisclaimerModal } from '@/components/common/MedicalDisclaime
 import { toast } from '@/components/common/Toast';
 import { useCabinetStore } from '@/store/cabinetStore';
 import { IDrugItem, IEvaluationResponse } from '@/types/medication';
+import { scanImage, mapFullScanToDrugs } from '@/services/ocrService';
+import { isAxiosError } from 'axios';
 
 const MAX_FILE_SIZE_MB = 15;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -85,20 +86,12 @@ export default function ScanPage() {
     const stepTimer2 = setTimeout(() => setProcessingStep(3), 1800);
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('source_type', type);
-
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-      const endpoint = `${apiUrl}/scan`;
-
-      const response = await axios.post(endpoint, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 45000,
-      });
-
-      const items: IDrugItem[] = response.data.items;
-      if (items && items.length > 0) {
+      // [P0/F4.1+F4.2] Gọi qua services tập trung (services/api.ts + ocrService.ts):
+      // hết hardcode URL/path; map mappedDrugs (FullScanResponse thật) thay vì
+      // data.items (hợp đồng cũ đã chết từ pivot Stage 2→3).
+      const data = await scanImage(file, type);
+      const items = mapFullScanToDrugs(data);
+      if (items.length > 0) {
         setVerificationQueue(items);
         toast.success(`AI đã nhận diện thành công ${items.length} loại thuốc từ ${type === 'prescription' ? 'toa thuốc' : 'vỏ hộp'}!`);
       } else {
@@ -106,7 +99,7 @@ export default function ScanPage() {
       }
     } catch (error: unknown) {
       console.error('Scan Error:', error);
-      if (axios.isAxiosError(error)) {
+      if (isAxiosError(error)) {
         const errorDetail = error.response?.data?.detail;
         if (errorDetail) {
           toast.error(`Lỗi từ máy chủ: ${errorDetail}`);
@@ -286,7 +279,7 @@ export default function ScanPage() {
                       {processingStep > 2 ? <CheckCircle2 size={14} /> : processingStep === 2 ? <Loader2 size={14} className="animate-spin" /> : '2'}
                     </div>
                     <span className={`text-xs font-semibold ${processingStep >= 2 ? 'text-gray-800' : 'text-gray-400'}`}>
-                      Trích xuất thông tin thuốc qua Vision Language Model
+                      Trích xuất thông tin thuốc bằng mô hình OCR tự huấn luyện on-premise
                     </span>
                   </div>
 
@@ -334,6 +327,7 @@ export default function ScanPage() {
                   initialData={currentVerificationItem}
                   onSave={handleVerificationSave}
                   onCancel={handleVerificationCancel}
+                  sourceType={sourceType ?? undefined}
                 />
               </div>
             )}
