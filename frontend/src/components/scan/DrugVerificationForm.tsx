@@ -34,6 +34,14 @@ export function DrugVerificationForm({ initialData, onSave, onCancel, sourceType
   const isLowConfidence = confidence < 0.7 || !initialData.isVerified;
   const isPackaging = sourceType === 'packaging';
 
+  // [S4-Closeout/Bước 2] HITL-first Pipeline 2: toa thuốc mà OCR chưa trích được
+  // liều → bắt buộc HIỂN THỊ field nhập (Layer 4 cần dữ liệu đối chiếu). User vẫn
+  // được phép bỏ trống chủ động — khi đó Layer 4 skip với ghi chú, không chặn submit.
+  const needsPrescriptionDosage =
+    sourceType === 'prescription' &&
+    !(initialData.dosageInstruction || '').trim();
+  const needsAnyDosage = needsPrescriptionDosage || isPackaging;
+
   // ── [S4-Closeout/F4.3] Autocomplete từ điển thuốc ──────────────────────────
   // Debounce ≥300ms qua services/drugService (endpoint GET /drugs/search — DB
   // thật phía backend). KHÔNG dùng danh sách tĩnh phía client dưới mọi hình thức.
@@ -219,12 +227,22 @@ export function DrugVerificationForm({ initialData, onSave, onCancel, sourceType
         )}
 
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-gray-700">Hướng dẫn liều dùng thực tế</label>
-          <textarea 
+          <label className="text-sm font-medium text-gray-700">
+            Hướng dẫn liều dùng thực tế
+            {needsPrescriptionDosage && (
+              <span className="text-red-500"> * (toa thuốc chưa có liều — cần nhập để đối chiếu Layer 4)</span>
+            )}
+          </label>
+          <textarea
             {...register('dosageInstruction')}
             rows={2}
-            className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow outline-none resize-none"
-            placeholder="VD: Uống 1 viên sau khi ăn sáng"
+            className={cn(
+              "w-full px-4 py-2.5 rounded-lg border focus:ring-2 outline-none transition-shadow resize-none",
+              needsPrescriptionDosage
+                ? "border-blue-400 bg-blue-50/40 focus:ring-blue-500 focus:border-blue-500"
+                : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+            )}
+            placeholder={needsPrescriptionDosage ? "Bắt buộc nhập: VD: Uống 1 viên x 3 lần/ngày sau ăn" : "VD: Uống 1 viên sau khi ăn sáng"}
           />
         </div>
 
