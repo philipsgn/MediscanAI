@@ -217,7 +217,11 @@ def _extract_qty_per_dose(instruction: Optional[str]) -> float:
 class EvaluationService:
     def __init__(self):
         self.db_path = Path(__file__).parent.parent / "data" / "vietnam_drugs_db.json"
+        self.guidelines_path = (
+            Path(__file__).parent.parent / "data" / "dosage_guidelines.json"
+        )
         self.drugs_db = self._load_db()
+        self.dosage_guidelines: dict[str, dict] = self._load_guidelines()
         # Index by active_ingredient (lowercase) for fast lookup
         self.db_max_dose_index: dict[str, float] = {}
         for drug in self.drugs_db:
@@ -251,6 +255,18 @@ class EvaluationService:
         except Exception as e:
             print(f"Lỗi tải DB: {e}")
             return []
+
+    def _load_guidelines(self) -> dict[str, dict]:
+        """[Task 5.5] Tải bảng liều khuyến cáo theo population từ dosage_guidelines.json.
+        Key chuẩn hóa lowercase để tra cứu theo hoạt chất gốc đầu tiên của DrugItem."""
+        try:
+            with open(self.guidelines_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            guidelines = data.get("guidelines", {})
+            return {k.lower().strip(): v for k, v in guidelines.items()}
+        except Exception as e:
+            print(f"Lỗi tải dosage_guidelines: {e}")
+            return {}
 
     def evaluate_medications(
         self,

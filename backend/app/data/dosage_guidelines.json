@@ -1,0 +1,144 @@
+{
+  "_meta": {
+    "_source": "Tổng hợp từ WHO Model Formulary 2023, British National Formulary (BNF 88) và Dược thư Quốc gia Việt Nam (lần XB 4) — GIÁ TRỊ THAM KHẢO cho người lớn khỏe mạnh trừ khi population riêng ghi chú khác. Không thay thế chỉ định của bác sĩ.",
+    "_version": "2026-08-S4-Closeout",
+    "_child_policy": "KHÔNG cung cấp liều child (<18 tuổi) — hệ thống trả is_appropriate=null kèm ghi nhớ chuyển bác sĩ nhi khoa, tuyệt đối không tự nội suy liều trẻ em."
+  },
+  "guidelines": {
+    "paracetamol": {
+      "_source": "WHO Model Formulary 2023; BNF 88",
+      "populations": {
+        "adult": { "recommended_range": "1500-4000mg/ngày (500-1000mg/lần x 3-4 lần)", "max_mg_per_day": 4000, "note": "" },
+        "elderly_65+": { "recommended_range": "1500-3000mg/ngày", "max_mg_per_day": 3000, "note": "Thận trọng chức năng gan/thận" },
+        "renal_impairment": { "recommended_range": "1500-3000mg/ngày", "max_mg_per_day": 3000, "note": "CrCl <30: giãn khoảng cách xuống 6-8 giờ/lần" },
+        "hepatic_impairment": { "recommended_range": "≤2000mg/ngày", "max_mg_per_day": 2000, "note": "Giảm liều tối đa 2000mg/ngày, tránh dài ngày" }
+      }
+    },
+    "ibuprofen": {
+      "_source": "BNF 88; WHO Model Formulary 2023",
+      "populations": {
+        "adult": { "recommended_range": "600-1200mg/ngày", "max_mg_per_day": 1200, "note": "Liều kê đơn có thể tới 2400mg/ngày dưới giám sát bác sĩ" },
+        "elderly_65+": { "recommended_range": "≤1200mg/ngày", "max_mg_per_day": 1200, "note": "Nguy cơ xuất huyết GI/thận cao hơn" },
+        "renal_impairment": { "recommended_range": "≤600mg/ngày", "max_mg_per_day": 600, "note": "NSAID giảm tưới máu thận — hạn chế tối đa" },
+        "hepatic_impairment": { "recommended_range": "≤600mg/ngày", "max_mg_per_day": 600, "note": "Thận trọng, thời gian ngắn nhất" }
+      }
+    },
+    "aspirin": {
+      "_source": "BNF 88 (kháng tiểu cầu 75-150mg/ngày)",
+      "populations": {
+        "adult": { "recommended_range": "75-150mg/ngày (tim mạch)", "max_mg_per_day": 300, "note": "Liều giảm đau/viêm khác theo chỉ định riêng" },
+        "elderly_65+": { "recommended_range": "75-150mg/ngày", "max_mg_per_day": 300, "note": "Cân nhắc lợi ích-thiệt hại xuất huyết GI" },
+        "renal_impairment": { "recommended_range": "75-150mg/ngày", "max_mg_per_day": 300, "note": "Thận trọng suy thận nặng" },
+        "hepatic_impairment": { "recommended_range": "75-150mg/ngày", "max_mg_per_day": 300, "note": "Thận trọng suy gan nặng" }
+      }
+    },
+    "amoxicillin": {
+      "_source": "WHO Model Formulary 2023; BNF 88",
+      "populations": {
+        "adult": { "recommended_range": "1500-3000mg/ngày (500mg x 3 lần)", "max_mg_per_day": 3000, "note": "Đủ liệu trình theo chỉ định" },
+        "elderly_65+": { "recommended_range": "1500-3000mg/ngày", "max_mg_per_day": 3000, "note": "Điều chỉnh nếu suy giảm thận" },
+        "renal_impairment": { "recommended_range": "≤1500mg/ngày", "max_mg_per_day": 2000, "note": "CrCl <30: giãn khoảng cách/giảm liều theo BNF" },
+        "hepatic_impairment": { "recommended_range": "1500-3000mg/ngày", "max_mg_per_day": 3000, "note": "Không cần điều chỉnh đơn thuần do gan" }
+      }
+    },
+    "metformin": {
+      "_source": "BNF 88; ADA Standards of Care",
+      "populations": {
+        "adult": { "recommended_range": "1500-2550mg/ngày (chia 2-3 lần)", "max_mg_per_day": 2550, "note": "Uống cùng bữa ăn" },
+        "elderly_65+": { "recommended_range": "≤2000mg/ngày", "max_mg_per_day": 2000, "note": "Theo dõi chức năng thận định kỳ" },
+        "renal_impairment": { "recommended_range": null, "max_mg_per_day": null, "note": "CHỐNG CHỈ ĐỊNH khi eGFR <30; eGFR 30-45: không khởi đầu, giảm liều — liên hệ bác sĩ nội tiết" },
+        "hepatic_impairment": { "recommended_range": null, "max_mg_per_day": null, "note": "Thận trọng cao/tránh dùng — nguy cơ nhiễm axit lactic khi kèm bệnh gan" }
+      }
+    },
+    "omeprazole": {
+      "_source": "BNF 88",
+      "populations": {
+        "adult": { "recommended_range": "20-40mg/ngày", "max_mg_per_day": 40, "note": "" },
+        "elderly_65+": { "recommended_range": "20mg/ngày", "max_mg_per_day": 40, "note": "Không cần điều chỉnh thường quy" },
+        "renal_impairment": { "recommended_range": "20-40mg/ngày", "max_mg_per_day": 40, "note": "Không cần điều chỉnh" },
+        "hepatic_impairment": { "recommended_range": "≤20mg/ngày", "max_mg_per_day": 20, "note": "Suy gan nặng: tối đa 20mg/ngày" }
+      }
+    },
+    "simvastatin": {
+      "_source": "BNF 88 (giới hạn 20mg khi đồng thời amiodarone)",
+      "populations": {
+        "adult": { "recommended_range": "10-40mg/ngày (buổi tối)", "max_mg_per_day": 40, "note": "" },
+        "elderly_65+": { "recommended_range": "10-40mg/ngày", "max_mg_per_day": 40, "note": "" },
+        "renal_impairment": { "recommended_range": "10-40mg/ngày", "max_mg_per_day": 40, "note": "Suy thận nặng: khởi đầu thận trọng" },
+        "hepatic_impairment": { "recommended_range": null, "max_mg_per_day": null, "note": "CHỐNG CHỈ ĐỊNH ở bệnh gan tiến triển/tăng transaminase kéo dài không rõ nguyên nhân" }
+      }
+    },
+    "amlodipine": {
+      "_source": "BNF 88",
+      "populations": {
+        "adult": { "recommended_range": "5-10mg/ngày", "max_mg_per_day": 10, "note": "" },
+        "elderly_65+": { "recommended_range": "Khởi đầu 2.5-5mg/ngày", "max_mg_per_day": 10, "note": "Tăng liều chậm" },
+        "renal_impairment": { "recommended_range": "5-10mg/ngày", "max_mg_per_day": 10, "note": "Không cần điều chỉnh" },
+        "hepatic_impairment": { "recommended_range": "Khởi đầu 2.5mg/ngày", "max_mg_per_day": 5, "note": "Giảm clearance thuốc" }
+      }
+    },
+    "metronidazole": {
+      "_source": "WHO Model Formulary 2023; BNF 88",
+      "populations": {
+        "adult": { "recommended_range": "1000-2000mg/ngày (chia 2-3 lần)", "max_mg_per_day": 2000, "note": "Tránh rượu bia trong và 48h sau điều trị" },
+        "elderly_65+": { "recommended_range": "1000-2000mg/ngày", "max_mg_per_day": 2000, "note": "Thận trọng chức năng gan" },
+        "renal_impairment": { "recommended_range": "1000-2000mg/ngày", "max_mg_per_day": 2000, "note": "CrCl <10: dùng 1 lần/24 giờ" },
+        "hepatic_impairment": { "recommended_range": "≤1000mg/ngày", "max_mg_per_day": 1000, "note": "Suy gan nặng: giảm 50% liều" }
+      }
+    },
+    "cetirizine": {
+      "_source": "BNF 88",
+      "populations": {
+        "adult": { "recommended_range": "10mg/ngày", "max_mg_per_day": 10, "note": "" },
+        "elderly_65+": { "recommended_range": "5-10mg/ngày", "max_mg_per_day": 10, "note": "Nguy cơ chóng mặt/buồn ngủ" },
+        "renal_impairment": { "recommended_range": "5mg/ngày", "max_mg_per_day": 10, "note": "CrCl 10-30: 5mg/ngày; CrCl <10: tránh" },
+        "hepatic_impairment": { "recommended_range": "10mg/ngày", "max_mg_per_day": 10, "note": "Không cần điều chỉnh đơn thuần" }
+      }
+    },
+    "tramadol": {
+      "_source": "BNF 88; vietnam_drugs_db (tối đa 300mg/ngày)",
+      "populations": {
+        "adult": { "recommended_range": "100-300mg/ngày (chia 2-3 lần)", "max_mg_per_day": 300, "note": "Opioid — theo dõi sát, nguy cơ phụ thuộc" },
+        "elderly_65+": { "recommended_range": "≤200mg/ngày", "max_mg_per_day": 300, "note": "Giảm liều — nguy cơ lú lẫn/ngã" },
+        "renal_impairment": { "recommended_range": "≤200mg/ngày", "max_mg_per_day": 200, "note": "CrCl <30: giãn cách 12 giờ" },
+        "hepatic_impairment": { "recommended_range": "≤200mg/ngày", "max_mg_per_day": 200, "note": "50mg mỗi 12 giờ" }
+      }
+    },
+    "codeine": {
+      "_source": "vietnam_drugs_db (tối đa 240mg/ngày); BNF 88",
+      "populations": {
+        "adult": { "recommended_range": "60-240mg/ngày (chia 3-4 lần)", "max_mg_per_day": 240, "note": "Opioid nhóm kiểm soát đặc biệt" },
+        "elderly_65+": { "recommended_range": "≤120mg/ngày", "max_mg_per_day": 120, "note": "Nhạy cảm opioid tăng ở người cao tuổi" },
+        "renal_impairment": { "recommended_range": "≤120mg/ngày", "max_mg_per_day": 120, "note": "Giảm liều, giãn cách dùng" },
+        "hepatic_impairment": { "recommended_range": "≤120mg/ngày", "max_mg_per_day": 120, "note": "Giảm liều, thận trọng" }
+      }
+    },
+    "domperidone": {
+      "_source": "BNF 88 (cảnh báo kéo dài khoảng QT)",
+      "populations": {
+        "adult": { "recommended_range": "30mg/ngày (10mg x 3 lần, trước ăn)", "max_mg_per_day": 30, "note": "Theo dõi kéo dài khoảng QT" },
+        "elderly_65+": { "recommended_range": "30mg/ngày", "max_mg_per_day": 30, "note": "Nguy cơ arrhythmia cao hơn — cân nhắc ECG" },
+        "renal_impairment": { "recommended_range": "30mg/ngày", "max_mg_per_day": 30, "note": "Suy thận nặng: dùng 2 lần/ngày" },
+        "hepatic_impairment": { "recommended_range": null, "max_mg_per_day": null, "note": "CHỐNG CHỈ ĐỊNH ở suy gan vừa-nặng" }
+      }
+    },
+    "zolpidem": {
+      "_source": "BNF 88",
+      "populations": {
+        "adult": { "recommended_range": "10mg/ngày (ngay trước giờ ngủ)", "max_mg_per_day": 10, "note": "Chỉ dùng ngắn hạn" },
+        "elderly_65+": { "recommended_range": "5mg/ngày", "max_mg_per_day": 10, "note": "Khuyến nghị khởi đầu 5mg — nguy cơ ngã/lú lẫn" },
+        "renal_impairment": { "recommended_range": "10mg/ngày", "max_mg_per_day": 10, "note": "Không cần điều chỉnh thường quy" },
+        "hepatic_impairment": { "recommended_range": "5mg/ngày", "max_mg_per_day": 10, "note": "Suy gan nặng: CHỐNG CHỈ ĐỊNH" }
+      }
+    },
+    "bisoprolol": {
+      "_source": "BNF 88",
+      "populations": {
+        "adult": { "recommended_range": "2.5-10mg/ngày", "max_mg_per_day": 10, "note": "" },
+        "elderly_65+": { "recommended_range": "Khởi đầu 2.5mg/ngày", "max_mg_per_day": 10, "note": "Theo dõi nhịp tim/huyết áp" },
+        "renal_impairment": { "recommended_range": "2.5-10mg/ngày", "max_mg_per_day": 10, "note": "CrCl <20: tối đa 10mg/ngày" },
+        "hepatic_impairment": { "recommended_range": "2.5-10mg/ngày", "max_mg_per_day": 10, "note": "Khởi đầu thận trọng" }
+      }
+    }
+  }
+}
