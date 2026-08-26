@@ -181,10 +181,12 @@ async def evaluate_interactions(payload: DrugEvaluationRequest) -> EvaluationRes
             schedule_suggestions.append(rec)
             seen_lower.add(rec.strip().lower())
 
-    return EvaluationResponse(
+        return EvaluationResponse(
         total_drugs_analyzed=eval_result.total_drugs_analyzed,
         alerts=enriched,
         schedule_suggestions=schedule_suggestions,
+        dosage_checks=eval_result.dosage_checks,  # [Task 5.5] Layer 4
+        final_summary=eval_result.final_summary,  # [Task 5.5] tổng hợp 4 layer
     )
 
 
