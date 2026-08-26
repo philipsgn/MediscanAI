@@ -94,6 +94,8 @@ class MappedDrugItem(BaseModel):
     confidence_score: float
     is_verified: bool
     match_method: Optional[str] = None
+    # [F3.7] Cach bao dam ham luong khac DB (light warn — hien thi UI, KHONG block submit)
+    strength_mismatch_warning: Optional[str] = None
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 

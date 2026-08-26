@@ -46,6 +46,12 @@ class DrugItem(BaseModel):
             "openfda | openfda_ingredient | None (không match)"
         ),
     )
+    # [F3.7] Cảnh báo nhẹ: hàm lượng user/OCR khác DB chuẩn (non-blocking hint
+    # cho Human-in-the-Loop). KHÔNG thay đổi công thức gán strength ở _apply_db_info.
+    strength_mismatch_warning: Optional[str] = Field(
+        None,
+        description="Cảnh báo hàm lượng (strength) nhập vào khác với DB chuẩn",
+    )
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
@@ -87,9 +93,34 @@ class InteractionAlert(BaseModel):
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
 class EvaluationResponse(BaseModel):
+    """Response chính — 4 Layer (Overdose, Drug-Drug, Drug-Condition, Dosage).
+
+    [Task 5.5] Đã mở rộng so với ban đầu: bổ sung `dosage_checks`
+    (Layer 4 — kết quả đối chiếu liều) và `final_summary`
+    (tóm tắt tổng hợp toàn bộ cảnh báo — yêu cầu AGENTS §3.B.4/DoD #5).
+    """
     total_drugs_analyzed: int
     alerts: List[InteractionAlert]
     schedule_suggestions: List[str] = Field(default=[], description="Gợi ý phân chia lịch uống thuốc an toàn")
+    # [Task 5.5] Layer 4 + Final Summary
+    dosage_checks: List["DosageCheckResult"] = Field(default=[], description="Kết quả Layer 4 - đối chiếu liều dùng")
+    final_summary: str = Field("", description="Tóm tắt tổng quan tình trạng và lời khuyên cuối cùng cho User")
+
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+
+class DosageCheckResult(BaseModel):
+    """Kết quả Layer 4: Đối chiếu liều thực tế (kê toa hoặc tự nhập) với liều
+    khuyến cáo chuẩn theo population (tuổi/bệnh nền). Schema khớp 100%
+    ARCHITECTURE.md §5.1 + IDosageCheckResult phía frontend (§3.A.2)."""
+    drug_name: str = Field(..., description="Tên thuốc được kiểm tra")
+    prescribed_or_input_dosage: str = Field(..., description="Liều kê toa/người dùng nhập (chuỗi gốc)")
+    recommended_dosage: str = Field(..., description="Liều khuyến cáo tham khảo (theo population)")
+    is_appropriate: Optional[bool] = Field(
+        default=None,
+        description="True=phù hợp, False=chênh lệch, None=không đủ dữ liệu/trẻ em ngoài phạm vi",
+    )
+    note: str = Field(default="", description="Ghi chú theo mẫu an toàn — tuyệt đối tuân thủ đứng dẫn ngôn từ (§5)")
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
