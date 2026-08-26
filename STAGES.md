@@ -17,7 +17,7 @@ Tài liệu này là **Single Source of Truth** cho tiến độ phát triển d
 | **Stage 2** | **Multi-Format Pure OCR Engine (ONNX)** | Dual-Stream PP-OCRv6 ONNX (Prescription/Receipt & Packaging Stream) — User Pipeline 1 & 2 | 🟢 Completed |
 | **Stage 3** | **Drug API, Normalization & LLM Assessment** | OpenFDA/Local Drug DB + RapidFuzz Mapping + Ollama Clinical Reasoning Engine | 🟢 Completed |
 | **Stage 4** | **Interactive Web UI & Smart Crop** | Canvas Crop Box, Dynamic Forms, Dashboard & Active Cabinet | 🟢 Completed |
-| **Stage 5** | **Centralized Cross-Evaluation Engine** | Multi-Layer Analysis Engine (Drug-Drug, Overdose, Condition) + **Task 5.5 Layer 4 Dosage Check mới** | 🟡 In Progress (Task 5.5 mới) |
+| **Stage 5** | **Centralized Cross-Evaluation Engine** | Multi-Layer Analysis Engine (Drug-Drug, Overdose, Condition) + Layer 4 Dosage Check (Task 5.5) | 🟢 Completed |
 | **Stage 6** | **Polish, Medical Safety & Testing** | Medical Disclaimer Interceptor, E2E Flow Testing, UX Polish | 🟢 Completed |
 | **Stage 7** | **Production & Docker Deployment** | Docker Compose, Backend Optimization, Web Desktop Launch | 🟢 Completed |
 | **Stage 8** | **Medication History & Reminders (Trang 3)** | Lịch sử các lần quét, Nhắc nhở uống thuốc theo buổi trong ngày | 🔴 Not Started (mới) |
@@ -123,7 +123,7 @@ Tài liệu này là **Single Source of Truth** cho tiến độ phát triển d
 
 - [x] **Task 4.2: Dựng Dynamic Verification Form (Human-in-the-Loop Step)**
   - **Mô tả:** Hiển thị kết quả AI đọc được. Đánh dấu màu đỏ/vàng vùng nghi ngờ. Bổ sung **One-Tap Dosage Selector** cho vỏ hộp thuốc (Sáng - Trưa - Chiều - Tối) + Auto-complete Search từ điển.
-  - **Agent Action:** Xây dựng Component `DrugVerificationForm.tsx` bằng React Hook Form + Shadcn UI.
+  - **Agent Action:** Xây dựng Component `DrugVerificationForm.tsx` bằng React Hook Form + Tailwind CSS (hand-rolled components qua helper `cn()`, không dùng thư viện Shadcn/Radix — quyết định Architect tại Stage 4 Audit F4.5: giữ nguyên stack hiện có vì đã ổn định, tuân thủ Strict Mode, không `any`; tránh rework không cần thiết).
 
 - [x] **Task 4.3: Dựng Màn hình Tủ Thuốc Cá Nhân (Active Medication Cabinet)**
   - **Mô tả:** Nơi tập hợp tất cả các thuốc đã quét từ Toa 1, Toa 2, Vỏ hộp và Nhập tay thành 1 danh sách duy nhất.
@@ -154,7 +154,7 @@ Tài liệu này là **Single Source of Truth** cho tiến độ phát triển d
   - **Mô tả:** Hiển thị kết quả phân tích theo 3 cấp độ màu: 🔴 **HIGH (Đỏ)**, 🟡 **MEDIUM (Vàng)**, 🟢 **LOW (Xanh)**.
   - **Agent Action:** Dựng Component `InteractionAlertCards.tsx` có bộ lọc theo Severity level.
 
-- [ ] **Task 5.5: Thuật Toán Layer 4 — Đối Chiếu Liều Dùng Thực Tế vs. Liều Khuyến Cáo (Dosage Appropriateness Layer)**
+- [x] **Task 5.5: Thuật Toán Layer 4 — Đối Chiếu Liều Dùng Thực Tế vs. Liều Khuyến Cáo (Dosage Appropriateness Layer)**
   - **Mô tả:** Bổ sung layer thứ 4 vào `evaluation_service.py`:
     - Với **User Pipeline 2** (toa thuốc): so sánh `dosage_instruction` đã trích xuất từ toa với liều khuyến cáo chuẩn theo hoạt chất, tuổi và bệnh nền (`UserProfile`). Không kết luận toa "sai" — chỉ cảnh báo tham khảo, khuyến nghị xác nhận lại với bác sĩ.
     - Với **User Pipeline 1** (vỏ hộp): so sánh liều + buổi uống User tự nhập ở Smart Form với liều khuyến cáo chuẩn.
@@ -165,6 +165,7 @@ Tài liệu này là **Single Source of Truth** cho tiến độ phát triển d
     - Đồng bộ `frontend/src/types/medication.ts` (`IDosageCheckResult`, cập nhật `IEvaluationResponse`).
     - Cập nhật `InteractionAlertCards.tsx` (hoặc component mới `DosageCheckCard.tsx`) để hiển thị kết quả Layer 4 và banner Summary/lời khuyên cuối cùng ở đầu báo cáo.
   - **File tác động:** `backend/app/services/evaluation_service.py`, `backend/app/schemas/evaluation_schema.py`, `frontend/src/types/medication.ts`, `frontend/src/components/report/DosageCheckCard.tsx`.
+  - **Kết quả:** Đã triển khai `dosage_guidelines.json` (15 hoạt chất, có nguồn), `check_dosage_appropriateness()` phân biệt chống chỉ định (`contraindication_tag`) vs thiếu dữ liệu, `DosageCheckResult` + `final_summary` wire-through đầy đủ tại `/evaluate`. Kèm F3.7 (`strength_mismatch_warning`) đóng cùng đợt. 106/106 tests pass, E2E HTTP thật xác nhận.
 
 ---
 
