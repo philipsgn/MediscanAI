@@ -23,6 +23,8 @@ export interface IDrugItem {
   warnings?: string[];
   /** [P3/F3.6 đồng bộ §3.A.2] exact | fuzzy | ingredient_fallback | openfda | openfda_ingredient */
   matchMethod?: 'exact' | 'fuzzy' | 'ingredient_fallback' | 'openfda' | 'openfda_ingredient';
+  /** [F3.7] Cảnh báo nhẹ hàm lượng nhập khác DB chuẩn — hiển thị UI, không chặn submit. */
+  strengthMismatchWarning?: string | null;
 }
 
 export interface IPrescription {
@@ -37,10 +39,24 @@ export interface IInteractionAlert {
   recommendation: string;
 }
 
+/** [Task 5.5] Layer 4: kết quả đối chiếu liều dùng — khớp DosageCheckResult backend. */
+export interface IDosageCheckResult {
+  drugName: string;
+  prescribedOrInputDosage: string;
+  recommendedDosage: string;
+  /** true=phù hợp, false=chênh lệch, null=không đủ dữ liệu/trẻ em ngoài phạm vi */
+  isAppropriate: boolean | null;
+  note: string;
+}
+
 export interface IEvaluationResponse {
   totalDrugsAnalyzed: number;
   alerts: IInteractionAlert[];
   scheduleSuggestions: string[];
+  /** [Task 5.5] Layer 4 — kết quả đối chiếu liều theo population */
+  dosageChecks: IDosageCheckResult[];
+  /** [Task 5.5] Tóm tắt tổng hợp toàn bộ 4 layer */
+  finalSummary: string;
 }
 
 export interface IDrugEvaluationRequest {

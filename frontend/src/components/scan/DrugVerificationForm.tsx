@@ -190,6 +190,14 @@ export function DrugVerificationForm({ initialData, onSave, onCancel, sourceType
           />
         </div>
 
+        {/* [F3.7] Cảnh báo nhẹ hàm lượng khác DB chuẩn — hiển thị, KHÔNG chặn submit */}
+        {initialData.strengthMismatchWarning && (
+          <div className="bg-amber-50 rounded-lg p-3 border border-amber-200 flex items-start gap-2">
+            <AlertCircle size={16} className="text-amber-500 mt-0.5 shrink-0" />
+            <p className="text-sm text-amber-700">{initialData.strengthMismatchWarning}</p>
+          </div>
+        )}
+
         {/* [P3/F4.7] Cấu hình liều dùng nhanh — CHỈ hiển thị cho pipeline vỏ hộp (packaging). Với toa thuốc (prescription), liều đã có sẵn, cấm người dùng tự suy đoán/sửa tùy ý. */}
         {isPackaging && (
         <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100">
