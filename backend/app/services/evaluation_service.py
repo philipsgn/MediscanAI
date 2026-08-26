@@ -268,6 +268,62 @@ class EvaluationService:
             print(f"Lỗi tải dosage_guidelines: {e}")
             return {}
 
+    def _build_final_summary(
+        self,
+        alerts: List[InteractionAlert],
+        dosage_checks: List["DosageCheckResult"],
+    ) -> str:
+        """Tổng hợp final_summary rule-based (không gọi LLM — giữ latency).
+
+        Mẫu an toàn: nêu số lượng cảnh báo các mức + kết quả đối chiếu liều,
+        luôn kèm khuyến nghị tham vấn bác sĩ; tuyệt đối tuân thủ đềi cấm ngôn từ tiêu cực về đơn thuốc (§5)."""
+        high = sum(1 for a in alerts if a.severity == "HIGH")
+        medium = sum(1 for a in alerts if a.severity == "MEDIUM")
+        low = sum(1 for a in alerts if a.severity == "LOW")
+
+        parts = []
+        if high + medium + low == 0:
+            parts.append("Không phát hiện cảnh báo tương tác thuốc nghiêm trọng trong danh sách hiện tại.")
+        else:
+            bits = []
+            if high:
+                bits.append(f"{high} cảnh báo mức cao")
+            if medium:
+                bits.append(f"{medium} cảnh báo mức trung bình")
+            if low:
+                bits.append(f"{low} cảnh báo mức thấp")
+            parts.append(f"Phát hiện {', '.join(bits)} về tương tác/trùng lặp/chống chỉ định.")
+
+        # Thông tin Layer 4
+        dosage_counts = {"flag": 0, "ok": 0, "skip": 0}
+        for check in dosage_checks:
+            if check.is_appropriate is False:
+                dosage_counts["flag"] += 1
+            elif check.is_appropriate is True:
+                dosage_counts["ok"] += 1
+            else:
+                dosage_counts["skip"] += 1
+        if dosage_counts["flag"]:
+            parts.append(
+                f"Có {dosage_counts['flag']} thuốc có liều dùng chênh lệch đáng xem xét — "
+                "vui lòng xác nhận lại với bác sĩ kê đơn."
+            )
+        else:
+            parts.append(
+                "Liều dùng khai báo (có dữ liệu) nằm trong giới hạn khuyến cáo tham khảo."
+            )
+
+        parts.append(
+            "Mediscan AI chỉ mang tính tham khảo — không thay thế chỉ định của bác sĩ; "
+            "vui lòng tham vấn chuyên khoa trước khi thay đổi phác đồ."
+        )
+        return " ".join(parts)
+
+    # ─────────────────────────────────────────────────────────────────────────────
+    # LAYER 1..4 gọi từ entry point
+    # ─────────────────────────────────────────────────────────────────────────────
+    # LAYER 1..4 gọi từ entry point
+    # ─────────────────────────────────────────────────────────────────────────────
     def evaluate_medications(
         self,
         drugs: List[DrugItem],
@@ -288,6 +344,9 @@ class EvaluationService:
         if user_profile:
             alerts.extend(self._check_drug_condition(drugs, user_profile))
 
+        # === LAYER 4: Dosage Appropriateness (Task 5.5) ===
+        dosage_checks = self.check_dosage_appropriateness(drugs, user_profile)
+
         # Sắp xếp: HIGH trước, sau đó MEDIUM, rồi LOW
         severity_order = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
         alerts.sort(key=lambda a: severity_order.get(a.severity, 3))
@@ -295,15 +354,159 @@ class EvaluationService:
         # Tạo schedule suggestions cơ bản
         suggestions = self._generate_schedule_suggestions(drugs, alerts)
 
+        # Final summary — tổng hợp toàn bộ 4 layer (AGENTS §3.B.4)
+        final_summary = self._build_final_summary(alerts, dosage_checks)
+
         return EvaluationResponse(
             total_drugs_analyzed=len(drugs),
             alerts=alerts,
-            schedule_suggestions=suggestions
+            schedule_suggestions=suggestions,
+            dosage_checks=dosage_checks,
+            final_summary=final_summary,
         )
 
     # ─────────────────────────────────────────────────────────────────────────
-    # LAYER 1: Overdose Check
+# ─────────────────────────────────────────────────────────────────────────
+    # LAYER 4: Dosage Appropriateness Check (Task 5.5)
     # ─────────────────────────────────────────────────────────────────────────
+    def _resolve_population(self, user_profile: Optional[UserProfile]) -> str:
+        """Xác định population dựa trên tuổi + bệnh nền (theo AGENTS §3.B.4).
+        - ≥65 tuổi → elderly_65+; có suy thận/gan → override renal/hepatic.
+        - <18 tuổi → child (KHÔNG đối chiếu tự động — chính sách an toàn).
+        - Mặc định → adult."""
+        if user_profile is None:
+            return "adult"
+        age = user_profile.age or 0
+        conds = " ".join(c.lower() for c in (user_profile.conditions or []))
+        if "suy thận" in conds or "suy gan" in conds:
+            if "thận" in conds and "gan" not in conds:
+                return "renal_impairment"
+            if "gan" in conds:
+                return "hepatic_impairment"
+        if "suy thận" in conds:
+            return "renal_impairment"
+        if "suy gan" in conds or "xơ gan" in conds:
+            return "hepatic_impairment"
+        if age < 18:
+            return "child"
+        if age >= 65:
+            return "elderly_65+"
+        return "adult"
+
+    def check_dosage_appropriateness(
+        self,
+        drugs: List[DrugItem],
+        user_profile: Optional[UserProfile] = None,
+    ) -> List["DosageCheckResult"]:
+        """Layer 4: đối chiếu liều dùng thực tế với khuyến cáo theo population.
+
+        Quy tắc an toàn tuyệt đối (AGENTS §3.B.4 + điều cấm §5):
+        - Mọi note dùng mẫu THAM KHẢO, KHÔNG dùng từ "sai/nhầm/không đúng".
+        - Hoạt chất ngoài guidelines → is_appropriate=None, note hướng dẫn
+          tự đối chiếu, không suy đoán.
+        - Population child → is_appropriate=None, note chuyển bác sĩ nhi khoa.
+        """
+        from app.schemas import DosageCheckResult
+
+        results: List[DosageCheckResult] = []
+        if not self.dosage_guidelines:
+            return results
+
+        population = self._resolve_population(user_profile)
+
+        for drug in drugs:
+            instruction = (drug.dosage_instruction or "").strip()
+            if not instruction:
+                results.append(DosageCheckResult(
+                    drug_name=drug.brand_name,
+                    prescribed_or_input_dosage="",
+                    recommended_dosage="",
+                    is_appropriate=None,
+                    note="Chưa có dữ liệu liều dùng để đối chiếu (Layer 4 bỏ qua) — vui lòng bổ sung trong bước xác nhận thông tin.",
+                ))
+                continue
+
+            ingredient = (drug.active_ingredient or drug.brand_name).split("/")[0].strip().lower()
+            guideline = self.dosage_guidelines.get(ingredient)
+
+            if guideline is None:
+                results.append(DosageCheckResult(
+                    drug_name=drug.brand_name,
+                    prescribed_or_input_dosage=instruction,
+                    recommended_dosage="",
+                    is_appropriate=None,
+                    note="Chưa có dữ liệu khuyến cáo cho hoạt chất này trong hệ thống — vui lòng tự đối chiếu với bác sĩ/dược sĩ.",
+                ))
+                continue
+
+            if population == "child":
+                results.append(DosageCheckResult(
+                    drug_name=drug.brand_name,
+                    prescribed_or_input_dosage=instruction,
+                    recommended_dosage="",
+                    is_appropriate=None,
+                    note="Cần bác sĩ nhi khoa chỉ định — hệ thống không đối chiếu tự động cho trẻ em.",
+                ))
+                continue
+
+            pop_data = guideline.get("populations", {}).get(
+                population, guideline.get("populations", {}).get("adult", {})
+            )
+            max_mg = pop_data.get("max_mg_per_day")
+            recommended_str = pop_data.get("recommended_range") or ""
+
+            # Tinh lieu thuc te tu dosage_instruction
+            mg = _extract_mg_value(drug.strength or "")
+            if mg is None:
+                results.append(DosageCheckResult(
+                    drug_name=drug.brand_name,
+                    prescribed_or_input_dosage=instruction,
+                    recommended_dosage=recommended_str,
+                    is_appropriate=None,
+                    note="Khong trich xuat duoc ham luong — vui long kiem tra voi bac si/duoc sy.",
+                ))
+                continue
+
+            daily = mg * _extract_qty_per_dose(instruction) * _extract_doses_per_day(instruction)
+
+            if max_mg is None:
+                pop_note = (pop_data.get("note") or "").strip()
+                base = (
+                    f"Lieu {daily:.0f}mg/ngay khac bien so voi khuyen cao tham khao "
+                    f"cho nhom '{population}'"
+                )
+                detail = f" ({pop_note})" if pop_note else ""
+                results.append(DosageCheckResult(
+                    drug_name=drug.brand_name,
+                    prescribed_or_input_dosage=instruction,
+                    recommended_dosage=recommended_str,
+                    is_appropriate=None,
+                    note=f"{base}{detail} — vui long xac nhan lai voi bac si ke don.",
+                ))
+                continue
+
+            if max_mg is not None and daily > max_mg:
+                results.append(DosageCheckResult(
+                    drug_name=drug.brand_name,
+                    prescribed_or_input_dosage=instruction,
+                    recommended_dosage=recommended_str,
+                    is_appropriate=False,
+                    note=f"Lieu {daily:.0f}mg/ngay vuot khuyen cao {max_mg}mg/ngay — vui long xac nhan lai voi bac si ke don.",
+                ))
+            else:
+                results.append(DosageCheckResult(
+                    drug_name=drug.brand_name,
+                    prescribed_or_input_dosage=instruction,
+                    recommended_dosage=recommended_str,
+                    is_appropriate=True,
+                    note="Lieu dung trong gioi han khuyen cao tham khao.",
+                ))
+
+        return results
+
+    # ─────────────────────────────────────────────────────────────────────────────
+    # LAYER 1: Overdose Check
+    # ─────────────────────────────────────────────────────────────────────────────
     def _check_overdose(self, drugs: List[DrugItem]) -> List[InteractionAlert]:
         alerts = []
         # Gom nhóm theo hoạt chất gốc (sau khi normalize về lowercase)
