@@ -1,0 +1,29 @@
+{
+  "engine": "PP-OCRv6",
+  "benchmark_type": "CPU",
+  "preprocessing": {
+    "max_dim": 1600,
+    "doc_orientation": false,
+    "doc_unwarping": false
+  },
+  "summary": {
+    "total_time_seconds": 5.7158,
+    "avg_latency_seconds": 5.7158,
+    "slowest_image": "hop-thuoc-1.jpg",
+    "max_ram_mb": 1028.0,
+    "num_images": 1
+  },
+  "results": [
+    {
+      "engine": "PP-OCRv6",
+      "image_name": "hop-thuoc-1.jpg",
+      "latency_seconds": 5.7158,
+      "min_latency_seconds": 5.7158,
+      "max_latency_seconds": 5.7158,
+      "max_ram_mb": 1028.0,
+      "avg_confidence": 0.8563,
+      "num_lines": 7,
+      "status": "PASS_SLA"
+    }
+  ]
+}

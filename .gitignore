@@ -29,3 +29,5 @@ Thumbs.db
 
 # ─── Temporary files ───
 *.log
+_v_s3_ctx.txt
+backend/_v_s3_pytest.txt
