@@ -14,6 +14,13 @@ from app.services.drug_database import drug_database
 logger = logging.getLogger(__name__)
 
 
+def _normalize_str(value: Optional[str]) -> str:
+    """Chuẩn hóa chuỗi so sánh: gỡ khoảng trắng, lowercase (dùng cho F3.7 strength match)."""
+    if not value:
+        return ""
+    return re.sub(r"\s+", "", value.strip()).lower()
+
+
 class NormalizationService:
     def __init__(self) -> None:
         pass
@@ -149,6 +156,15 @@ class NormalizationService:
         
         # Chuẩn hóa hàm lượng - dùng DB nếu OCR không có hoặc match score cao
         db_strength = db_drug.get("strength")
+        # [F3.7] Cảnh báo khi hàm lượng user/OCR nhập khác hẳn với DB chuẩn
+        # (non-blocking hint cho Human-in-the-Loop; KHÔNG đổi logic gán strength).
+        if raw_drug.strength and db_strength and _normalize_str(
+            raw_drug.strength
+        ) != _normalize_str(db_strength):
+            raw_drug.strength_mismatch_warning = (
+                f"Hàm lượng '{raw_drug.strength}' khác với hàm lượng chuẩn "
+                f"cơ sở dữ liệu '{db_strength}' — vui lòng xác nhận lại với bác sĩ/dược sĹ."
+            )
         if db_strength and (not raw_drug.strength or match_score > 85):
             raw_drug.strength = db_strength
         

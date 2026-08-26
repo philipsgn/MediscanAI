@@ -91,6 +91,7 @@ def _map_drug_items(normalized: list) -> list[MappedDrugItem]:
                 confidence_score=drug.confidence_score,
                 is_verified=drug.is_verified,
                 match_method=drug.match_method,  # [P3/F3.6] field chính thức trong schema
+                strength_mismatch_warning=getattr(drug, "strength_mismatch_warning", None),  # [F3.7]
             )
         )
     return mapped
