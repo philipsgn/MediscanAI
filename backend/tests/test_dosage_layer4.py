@@ -199,3 +199,41 @@ def test_final_summary_contains_dosage_warning(svc):
     has_dosage_note = ("ch" in summary_lower and "nh" in summary_lower) or \
                       ("x" in summary_lower and "c" in summary_lower and "nh" in summary_lower)
     assert has_dosage_note or "mediscan" in summary_lower
+
+
+# --- [Task5.5-fix] contraindication vs missing-data distinction ---
+
+def test_contraindicated_note_strong_and_distinct(svc):
+    """Metformin + suy than mạn -> note CHONG CHI DINH (khác message thiếu dữ liệu)."""
+    from app.services.evaluation_service import CONTRAINDICATION_NOTE
+    drugs = [make_drug("Glucophage", "Metformin", "850mg",
+                       "U" + chr(0x1ED1) + "ng 1 vi" + chr(0xEA) + "n/l"
+                       + chr(0x1EA7) + "n x 2 l" + chr(0x1EA7) + "n/ng"
+                       + chr(0xE0) + "y")]
+    checks = svc.check_dosage_appropriateness(
+        drugs,
+        UserProfile(age=65,
+                    conditions=["suy th" + chr(0x1EAD) + "n m" + chr(0x1EA1) + "n"],
+                    allergies=[]))
+    assert len(checks) == 1
+    assert checks[0].is_appropriate is None  # vẫn không tự phán đoán True/False
+    assert checks[0].note == CONTRAINDICATION_NOTE
+    assert "ch" + chr(0x1ed1) + "ng ch" + chr(0x1ec9) + " " + chr(0x111) + chr(0x1ecb) + "nh" in checks[0].note
+
+def test_null_max_without_tag_falls_back_to_generic(svc):
+    """max=null NHUNG khong co tag -> giu message thieu-du-lien generic."""
+    svc.dosage_guidelines["probechem"] = {
+        "_source": "probe", "populations": {"adult": {
+            "recommended_range": None, "max_mg_per_day": None,
+            "note": "du lieu tham khao chua duoc kham dinh",
+        }},
+    }
+    from app.services.evaluation_service import CONTRAINDICATION_NOTE
+    drugs = [make_drug("ProbeChem", "ProbeChem", "100mg",
+                       "Uong 1 vien/lan x 1 lan/ngay")]
+    checks = svc.check_dosage_appropriateness(
+        drugs, UserProfile(age=40, conditions=[], allergies=[]))
+    assert len(checks) == 1
+    assert checks[0].is_appropriate is None
+    assert checks[0].note != CONTRAINDICATION_NOTE
+    assert "khac bien so" in checks[0].note

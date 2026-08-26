@@ -214,6 +214,11 @@ def _extract_qty_per_dose(instruction: Optional[str]) -> float:
     return 1.0
 
 
+
+# [Task5.5-fix] Bat buoc dung dung chu nay cho case CHONG CHI DINH da biet
+# (Architect-approved wording; tuan thu dieu cam §5 - khong ket luan don thuoc sai.)
+CONTRAINDICATION_NOTE = "Hoạt chất này có ghi nhận chống chỉ định với tình trạng sức khỏe hiện tại của bạn theo tài liệu tham khảo — cần trao đổi ngay với bác sĩ trước khi tiếp tục sử dụng."
+
 class EvaluationService:
     def __init__(self):
         self.db_path = Path(__file__).parent.parent / "data" / "vietnam_drugs_db.json"
@@ -470,6 +475,18 @@ class EvaluationService:
             daily = mg * _extract_qty_per_dose(instruction) * _extract_doses_per_day(instruction)
 
             if max_mg is None:
+                # [Task5.5-fix] KNOWN contraindication (has tag) -> stronger note
+                # than generic missing-data; still is_appropriate=None (never judged).
+                ci_tag = (pop_data.get("contraindication_tag") or "").strip()
+                if ci_tag:
+                    results.append(DosageCheckResult(
+                        drug_name=drug.brand_name,
+                        prescribed_or_input_dosage=instruction,
+                        recommended_dosage=recommended_str,
+                        is_appropriate=None,
+                        note=CONTRAINDICATION_NOTE,
+                    ))
+                    continue
                 pop_note = (pop_data.get("note") or "").strip()
                 base = (
                     f"Lieu {daily:.0f}mg/ngay khac bien so voi khuyen cao tham khao "
