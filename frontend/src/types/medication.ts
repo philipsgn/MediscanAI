@@ -5,6 +5,9 @@
 
 export interface IUserProfile {
   age: number;
+  weightKg?: number | null;
+  heightCm?: number | null;
+  gender?: 'male' | 'female' | 'other' | null;
   conditions: string[];
   allergies: string[];
 }

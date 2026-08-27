@@ -4,28 +4,19 @@ import { useCabinetStore, CabinetDrugItem } from '@/store/cabinetStore';
 import { IDrugEvaluationRequest, IEvaluationResponse, IUserProfile } from '@/types/medication';
 import { Pill, Trash2, Play, Pause, ActivitySquare, FlaskConical, Loader2, User, ChevronDown, ChevronUp, Pencil, Plus, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useEvaluation } from '@/services/evaluationService';
 import { isDisclaimerAccepted, openMedicalDisclaimerModal } from '@/components/common/MedicalDisclaimerModal';
 import { toast } from '@/components/common/Toast';
+import { KNOWN_CONDITIONS, KNOWN_ALLERGIES } from '@/constants/conditions';
+import { useUserProfileStore } from '@/store/userProfileStore';
 
 interface ActiveCabinetProps {
   onReportReady: (report: IEvaluationResponse) => void;
 }
 
-const COMMON_CONDITIONS = [
-  'Cao huyết áp',
-  'Viêm loét dạ dày',
-  'Suy thận',
-  'Bệnh gan',
-  'Hen suyễn',
-  'Mang thai'
-];
-
-const COMMON_ALLERGIES = [
-  'Dị ứng Penicillin',
-  'Dị ứng Aspirin/NSAID'
-];
+// COMMON_CONDITIONS / COMMON_ALLERGIES migrated to @/constants/conditions.ts
+// (centralized single source of truth — khớp backend DRUG_CONDITION_CONFLICTS)
 
 export function ActiveCabinet({ onReportReady }: ActiveCabinetProps) {
     const { drugs, removeDrug, toggleActive, clearAll, updateDrug, addDrug } = useCabinetStore();
@@ -34,10 +25,21 @@ export function ActiveCabinet({ onReportReady }: ActiveCabinetProps) {
   // [P1/F4.4] TanStack Query mutation — thay thế axios inline (xóa hardcode URL).
   const { mutate: runEvaluate, isPending: isAnalyzing } = useEvaluation();
 
-  // User Profile State for Layer 3 Evaluation
-  const [age, setAge] = useState<number>(45);
-  const [conditions, setConditions] = useState<string[]>([]);
-  const [allergies, setAllergies] = useState<string[]>([]);
+  // [Onboarding] Đọc profile từ Zustand store làm giá trị khởi tạo (nếu đã onboard).
+  // Giữ local state cho phép override tại đây mà không thay đổi profile gốc.
+  const storedProfile = useUserProfileStore((s) => s.profile);
+  const [age, setAge] = useState<number>(storedProfile?.age ?? 45);
+  const [conditions, setConditions] = useState<string[]>(storedProfile?.conditions ?? []);
+  const [allergies, setAllergies] = useState<string[]>(storedProfile?.allergies ?? []);
+
+  // Sync khi storedProfile thay đổi (VD: user vừa hoàn tất onboarding)
+  useEffect(() => {
+    if (storedProfile) {
+      setAge(storedProfile.age);
+      setConditions(storedProfile.conditions);
+      setAllergies(storedProfile.allergies);
+    }
+  }, [storedProfile]);
 
   const activeDrugs = drugs.filter(d => d.isActive);
 
@@ -363,19 +365,19 @@ export function ActiveCabinet({ onReportReady }: ActiveCabinetProps) {
             <div>
               <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Tiền sử bệnh nền:</label>
               <div className="flex flex-wrap gap-1.5">
-                {COMMON_CONDITIONS.map(cond => (
+                {KNOWN_CONDITIONS.map(opt => (
                   <button
-                    key={cond}
+                    key={opt.value}
                     type="button"
-                    onClick={() => toggleCondition(cond)}
+                    onClick={() => toggleCondition(opt.value)}
                     className={cn(
                       'px-2 py-1 rounded-md text-[11px] transition-all font-medium',
-                      conditions.includes(cond)
+                      conditions.includes(opt.value)
                         ? 'bg-red-100 text-red-700 border border-red-200 font-bold'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     )}
                   >
-                    {cond}
+                    {opt.label}
                   </button>
                 ))}
               </div>
@@ -384,19 +386,19 @@ export function ActiveCabinet({ onReportReady }: ActiveCabinetProps) {
             <div>
               <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Dị ứng thuốc:</label>
               <div className="flex flex-wrap gap-1.5">
-                {COMMON_ALLERGIES.map(all => (
+                {KNOWN_ALLERGIES.map(opt => (
                   <button
-                    key={all}
+                    key={opt.value}
                     type="button"
-                    onClick={() => toggleAllergy(all)}
+                    onClick={() => toggleAllergy(opt.value)}
                     className={cn(
                       'px-2 py-1 rounded-md text-[11px] transition-all font-medium',
-                      allergies.includes(all)
+                      allergies.includes(opt.value)
                         ? 'bg-amber-100 text-amber-800 border border-amber-200 font-bold'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     )}
                   >
-                    {all}
+                    {opt.label}
                   </button>
                 ))}
               </div>
