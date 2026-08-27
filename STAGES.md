@@ -1,15 +1,18 @@
 # 🚀 MEDISCAN AI - DỰ ÁN LỘ TRÌNH PHÁT TRIỂN CHI TIẾT (STAGES & VIBE-CODING ROADMAP)
 
 Tài liệu này là **Single Source of Truth** cho tiến độ phát triển dự án **Mediscan AI**. Cấu trúc mỗi Task được chia nhỏ thành các gói công việc cụ thể (Context, Files, Dependencies, Prompt Mẫu) giúp **AI Coding Agent** và Developer triển khai mã nguồn tức thì (*Vibe-Coding Ready*).
+# 🚀 MEDISCAN AI - DỰ ÁN LỘ TRÌNH PHÁT TRIỂN CHI TIẾT (STAGES & VIBE-CODING ROADMAP)
+
+Tài liệu này là **Single Source of Truth** cho tiến độ phát triển dự án **Mediscan AI**. Cấu trúc mỗi Task được chia nhỏ thành các gói công việc cụ thể (Context, Files, Dependencies, Prompt Mẫu) giúp **AI Coding Agent** và Developer triển khai mã nguồn tức thì (*Vibe-Coding Ready*).
 
 ---
 
 ## 📌 TỔNG QUAN HỆ THỐNG GIAI ĐOẠN (STAGES OVERVIEW)
 [Stage 1: Base & Setup] ➔ [Stage 2: Pure Dual OCR Engine] ➔ [Stage 3: Local LLM Clinical & API] ➔ [Stage 4: Web UI & Smart Crop]
 │
-[Stage 7: Production]  ➔ [Stage 6: Polish & Safety]   ➔ [Stage 5: Centralized Cross-Eval Engine (+ Layer 4 Dosage)] ➔ [Stage 8: History & Reminders]
+[Stage 7: Production]  ➔ [Stage 8: Auth System] ➔ [Stage 9: Personalized Onboarding] ➔ [Stage 10: History & Reminders]
 
-### 🟡 STAGE 8 MỚI BỔ SUNG (LỊCH SỬ & NHẮC NHỞ) — CÁC STAGE CÒN LẠI ĐÃ HOÀN THÀNH
+### 🟡 STAGE 8, 9, 10 MỚI BỔ SUNG — CÁC STAGE 1-7 ĐÃ HOÀN THÀNH
 
 | Stage | Tên Giai Đoạn | Trọng Tâm Kiến Trúc | Trạng Thái |
 | :--- | :--- | :--- | :--- |
@@ -20,7 +23,9 @@ Tài liệu này là **Single Source of Truth** cho tiến độ phát triển d
 | **Stage 5** | **Centralized Cross-Evaluation Engine** | Multi-Layer Analysis Engine (Drug-Drug, Overdose, Condition) + Layer 4 Dosage Check (Task 5.5) | 🟢 Completed |
 | **Stage 6** | **Polish, Medical Safety & Testing** | Medical Disclaimer Interceptor, E2E Flow Testing, UX Polish | 🟢 Completed |
 | **Stage 7** | **Production & Docker Deployment** | Docker Compose, Backend Optimization, Web Desktop Launch | 🟢 Completed |
-| **Stage 8** | **Medication History & Reminders (Trang 3)** | Lịch sử các lần quét, Nhắc nhở uống thuốc theo buổi trong ngày | 🔴 Not Started (mới) |
+| **Stage 8** | **Authentication System** | Đăng ký/Đăng nhập username+password, JWT session, bảo vệ route | 🔴 Not Started |
+| **Stage 9** | **Personalized Health Onboarding** | Wizard khai hồ sơ y tế (ngày sinh/bệnh nền/dị ứng) gắn với tài khoản thật | 🔴 Not Started |
+| **Stage 10** | **Medication History & Reminders** | Giữ nguyên nội dung cũ, chuyển từ "ẩn danh" sang "gắn với user_id thật" | 🔴 Not Started |
 
 ---
 
@@ -210,8 +215,32 @@ Tài liệu này là **Single Source of Truth** cho tiến độ phát triển d
 
 ---
 
-### 🔹 STAGE 8: MEDICATION HISTORY & REMINDERS (TRANG 3 — QUẢN LÝ USER)
-> **Mục tiêu:** Bổ sung Trang 3 hoàn chỉnh cho việc quản lý User: Lịch sử các lần quét/đánh giá và Nhắc nhở uống thuốc theo buổi trong ngày, tách biệt hoàn toàn khỏi Cross-Evaluation Engine (Single Responsibility — xem `AGENTS.md` mục B.5).
+### 🔹 STAGE 8: AUTHENTICATION SYSTEM
+> **Mục tiêu:** Xây dựng hệ thống Đăng ký/Đăng nhập bằng tài khoản thật (Username + Password). Sử dụng JWT session, mã hóa mật khẩu, và bảo vệ các route người dùng (như Hồ sơ, Lịch sử, Nhắc nhở).
+
+* **File tác động chính:**
+  - Backend: `auth_service.py`, `user_schema.py`, `auth_router.py`
+  - Frontend: `authStore.ts`, `LoginPage.tsx`, `RegisterPage.tsx`, Middleware bảo vệ route
+
+- [ ] **Task 8.1: Backend — JWT Authentication & User Model**
+- [ ] **Task 8.2: Frontend — Auth Pages & Zustand Store**
+
+---
+
+### 🔹 STAGE 9: PERSONALIZED HEALTH ONBOARDING
+> **Mục tiêu:** Di chuyển và cá nhân hóa Wizard khai báo hồ sơ y tế (Ngày sinh, Cân nặng, Bệnh nền, Dị ứng) để nó gắn liền với tài khoản thật vừa đăng ký.
+
+* **File tác động chính:**
+  - Backend: Liên kết UserProfile với tài khoản người dùng (`user_id`).
+  - Frontend: Chỉnh sửa lại `userProfileStore.ts` để đọc/ghi từ Backend API thay vì chỉ lưu `localStorage`. Cập nhật `OnboardingWizard`.
+
+- [ ] **Task 9.1: Backend — UserProfile CRUD APIs**
+- [ ] **Task 9.2: Frontend — Sync Onboarding Flow with Auth**
+
+---
+
+### 🔹 STAGE 10: MEDICATION HISTORY & REMINDERS (TRANG 3 — QUẢN LÝ USER)
+> **Mục tiêu:** Bổ sung Trang 3 hoàn chỉnh cho việc quản lý User: Lịch sử các lần quét/đánh giá và Nhắc nhở uống thuốc. Thay vì lưu trữ cho "User ẩn danh", mọi dữ liệu nay phải gắn với `user_id` thật từ JWT session.
 
 * **File tác động chính:**
   - `backend/app/schemas/history_schema.py`, `backend/app/schemas/reminder_schema.py`
@@ -220,23 +249,23 @@ Tài liệu này là **Single Source of Truth** cho tiến độ phát triển d
   - `frontend/src/app/account/history/page.tsx`, `frontend/src/app/account/reminders/page.tsx`
   - `frontend/src/components/history/HistoryTimeline.tsx`, `frontend/src/components/reminders/ReminderScheduler.tsx`
 
-- [ ] **Task 8.1: Backend — Lưu & Truy Vấn Lịch Sử Quét Thuốc**
-  - **Mô tả:** Mỗi lần gọi thành công `POST /api/v1/evaluate` phải ghi lại một `MedicationHistoryEntry` (scan_id, scanned_at, source_type, drug_names, highest_severity).
-  - **Agent Action:** Viết `history_service.py` với hàm `save_history_entry()` và `get_history_by_user()`; endpoint `GET /api/v1/history` hỗ trợ phân trang.
+- [ ] **Task 10.1: Backend — Lưu & Truy Vấn Lịch Sử Quét Thuốc Gắn Với User ID**
+  - **Mô tả:** Mỗi lần gọi thành công `POST /api/v1/evaluate` phải ghi lại một `MedicationHistoryEntry` gắn với `user_id` hiện tại.
+  - **Agent Action:** Viết `history_service.py` với endpoint GET hỗ trợ phân trang.
 
-- [ ] **Task 8.2: Backend — Quản Lý Nhắc Nhở Uống Thuốc**
-  - **Mô tả:** CRUD cho `MedicationReminder` (drug_name, times_of_day, is_active), gắn với thuốc đang có trong Tủ thuốc (`ActiveCabinet`).
-  - **Agent Action:** Viết `reminder_service.py` + endpoint `POST/GET/PATCH/DELETE /api/v1/reminders`. Không được tái sử dụng logic từ `evaluation_service.py`.
+- [ ] **Task 10.2: Backend — Quản Lý Nhắc Nhở Uống Thuốc Cho Tài Khoản**
+  - **Mô tả:** CRUD cho `MedicationReminder`, gắn với thuốc đang có trong Tủ thuốc và `user_id`.
+  - **Agent Action:** Viết `reminder_service.py` + endpoint `POST/GET/PATCH/DELETE /api/v1/reminders`.
 
-- [ ] **Task 8.3: Frontend — Trang 3 Quản Lý User Hoàn Chỉnh**
-  - **Mô tả:** Dựng `frontend/src/app/account/` gồm 3 tab: Tủ thuốc (đã có ở Stage 4), Lịch sử, Nhắc nhở.
+- [ ] **Task 10.3: Frontend — Trang 3 Quản Lý User Hoàn Chỉnh**
+  - **Mô tả:** Dựng `frontend/src/app/account/` gồm 3 tab: Tủ thuốc (đã có ở Stage 4), Lịch sử, Nhắc nhở (nay yêu cầu đăng nhập).
   - **Agent Action:**
     - `HistoryTimeline.tsx`: hiển thị timeline các lần quét, click vào để xem lại báo cáo chi tiết đã lưu.
     - `ReminderScheduler.tsx`: UI chọn buổi uống (Sáng/Trưa/Chiều/Tối) theo từng thuốc, toggle bật/tắt.
     - Tích hợp TanStack Query cho cả 2 màn hình, đồng bộ với Axios client tại `src/services/`.
 
-- [ ] **Task 8.4: Thông Báo Nhắc Nhở (Notification Delivery)**
-  - **Mô tả:** Quyết định cơ chế nhắc nhở khả thi cho Web Desktop (Browser Notification API / in-app toast định kỳ khi mở app) — không cam kết Push Notification thật sự vì giới hạn nền tảng Web.
+- [ ] **Task 10.4: Thông Báo Nhắc Nhở (Notification Delivery)**
+  - **Mô tả:** Quyết định cơ chế nhắc nhở khả thi cho Web Desktop (Browser Notification API / in-app toast).
   - **Agent Action:** Ghi rõ giới hạn kỹ thuật trong tài liệu, đề xuất giải pháp nâng cấp khi có Mobile App (Flutter/React Native) ở giai đoạn mở rộng.
 
 ---
