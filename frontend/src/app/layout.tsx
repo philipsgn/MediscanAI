@@ -4,6 +4,7 @@ import { QueryProvider } from "@/components/QueryProvider";
 import "./globals.css";
 import { MedicalDisclaimerModal } from "@/components/common/MedicalDisclaimerModal";
 import { ToastContainer } from "@/components/common/Toast";
+import { OnboardingGate } from "@/components/OnboardingGate";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -34,9 +35,13 @@ export default function RootLayout({
           <MedicalDisclaimerModal />
           {/* Toast notification layer */}
           <ToastContainer />
-          {children}
+          {/* Onboarding Gate — redirect về /onboarding nếu chưa khai báo hồ sơ */}
+          <OnboardingGate>
+            {children}
+          </OnboardingGate>
         </body>
       </html>
     </QueryProvider>
   );
 }
+
