@@ -1,0 +1,36 @@
+{
+  "usr_5177e7be3b71": [
+    {
+      "id": "hist_86e6f8c602e0",
+      "user_id": "usr_5177e7be3b71",
+      "scanned_at": "2026-08-27T09:32:23.449287+00:00",
+      "source_type": "prescription",
+      "drug_names": [
+        "Panadol Extra 500mg",
+        "Amoxicillin 500mg"
+      ],
+      "highest_severity": "MEDIUM",
+      "summary": "Phát hiện 1 tương tác nhẹ về cạnh tranh hấp thu",
+      "raw_payload": {
+        "alertsCount": 1
+      }
+    }
+  ],
+  "usr_d35293daa92d": [
+    {
+      "id": "hist_6ece06ceb518",
+      "user_id": "usr_d35293daa92d",
+      "scanned_at": "2026-08-27T09:34:57.944707+00:00",
+      "source_type": "prescription",
+      "drug_names": [
+        "Panadol Extra 500mg",
+        "Amoxicillin 500mg"
+      ],
+      "highest_severity": "MEDIUM",
+      "summary": "Phát hiện 1 tương tác nhẹ về cạnh tranh hấp thu",
+      "raw_payload": {
+        "alertsCount": 1
+      }
+    }
+  ]
+}

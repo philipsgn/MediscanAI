@@ -4,12 +4,16 @@
  */
 
 export interface IUserProfile {
+  userId?: string;
   age: number;
+  birthYear?: number | null;
   weightKg?: number | null;
   heightCm?: number | null;
+  bmi?: number | null;
   gender?: 'male' | 'female' | 'other' | null;
   conditions: string[];
   allergies: string[];
+  updatedAt?: string;
 }
 
 export interface IDrugItem {

@@ -17,7 +17,7 @@ Write-Host "[3/4] Updating pip..."
 & $venvPython -m pip install --upgrade pip --retries 5 --timeout 120
 
 Write-Host "[4/4] Installing project libraries..."
-& $venvPython -m pip install --no-cache-dir --retries 5 --timeout 120 -r (Join-Path $projectRoot "requirements.txt")
+& $venvPython -m pip install --no-cache-dir --retries 5 --timeout 120 -r (Join-Path $projectRoot "backend\requirements.txt")
 
 Write-Host ""
 Write-Host "Completed successfully. Activate the environment with:"

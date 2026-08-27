@@ -10,7 +10,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.endpoints.drugs import router as drugs_router
+from app.api.v1.endpoints.history import router as history_router
 from app.api.v1.endpoints.ocr import router as ocr_router
+from app.api.v1.endpoints.profile import router as profile_router
+from app.api.v1.endpoints.reminders import router as reminders_router
 from app.core.config import settings
 from app.schemas import (
     DrugEvaluationRequest,
@@ -50,6 +53,13 @@ app.add_middleware(
 
 # Route Authentication System (Stage 8)
 app.include_router(auth_router, prefix=settings.API_V1_STR)
+
+# Route Personalized Clinical Health Profile (Stage 9)
+app.include_router(profile_router, prefix=settings.API_V1_STR)
+
+# Route Medication History & Smart Reminders (Stage 10)
+app.include_router(history_router, prefix=settings.API_V1_STR)
+app.include_router(reminders_router, prefix=settings.API_V1_STR)
 
 # Route OCR + Clinical Assessment Pipeline
 app.include_router(ocr_router, prefix=settings.API_V1_STR)

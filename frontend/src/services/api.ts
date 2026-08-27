@@ -22,6 +22,15 @@ export const API_ENDPOINTS = {
   authRegister: '/auth/register',
   authLogin: '/auth/login',
   authMe: '/auth/me',
+  /** Profile endpoints (Stage 9) */
+  profileMe: '/profile/me',
+  profileUpsert: '/profile',
+  /** History endpoints (Stage 10) */
+  historyMe: '/history/me',
+  historySave: '/history',
+  /** Reminder endpoints (Stage 10) */
+  remindersMe: '/reminders/me',
+  remindersCreate: '/reminders',
 } as const;
 
 export type ApiEndpointPath = keyof typeof API_ENDPOINTS;

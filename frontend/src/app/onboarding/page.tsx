@@ -1,5 +1,5 @@
-import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
+import { ClinicalOnboardingWizard } from '@/components/onboarding/ClinicalOnboardingWizard';
 
 export default function OnboardingPage() {
-  return <OnboardingWizard />;
+  return <ClinicalOnboardingWizard />;
 }

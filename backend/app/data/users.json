@@ -1,0 +1,98 @@
+{
+  "usr_02da919dc39f": {
+    "id": "usr_02da919dc39f",
+    "email": "doctor.test@mediscan.ai",
+    "username": "doctortest",
+    "full_name": "Bác Sĩ Test",
+    "hashed_password": "$2b$12$1NNW7WoM1Rq48VuL5iJ5hez833jdJXTd3NgQ5fhMc.A9ab49NK15u",
+    "created_at": "2026-08-27T08:59:02.326000+00:00"
+  },
+  "usr_9e6e130309f2": {
+    "id": "usr_9e6e130309f2",
+    "email": "profile.user@mediscan.ai",
+    "username": "profileuser",
+    "full_name": "Bệnh Nhân Model",
+    "hashed_password": "$2b$12$.5A6RAtivRG61OdusXGVLeCwXHgLEPHhaCEZMPFbIL0GYxS2x.97G",
+    "created_at": "2026-08-27T09:19:30.371108+00:00"
+  },
+  "usr_521512af11e1": {
+    "id": "usr_521512af11e1",
+    "email": "doc_433d7e@mediscan.ai",
+    "username": "user_433d7e",
+    "full_name": "Bác Sĩ Test",
+    "hashed_password": "$2b$12$cEztR/XLs5n0SuD9L0UQMu0YpgN5ccdE6aerPvmSg9GSo2mzEgvIi",
+    "created_at": "2026-08-27T09:20:09.931191+00:00"
+  },
+  "usr_0f61f6a609d9": {
+    "id": "usr_0f61f6a609d9",
+    "email": "profile_df26b9@mediscan.ai",
+    "username": "prof_df26b9",
+    "full_name": "Bệnh Nhân Model",
+    "hashed_password": "$2b$12$BE7kBi9TdjVzvXVRkODSeeD2GRT7DP60lyxIBBhB5AuzkpaOABlsy",
+    "created_at": "2026-08-27T09:20:11.112823+00:00"
+  },
+  "usr_926ba7afa2eb": {
+    "id": "usr_926ba7afa2eb",
+    "email": "doc_831fe6@mediscan.ai",
+    "username": "user_831fe6",
+    "full_name": "Bác Sĩ Test",
+    "hashed_password": "$2b$12$fhE3E.8NNRtiAbxn6K5Msu/EDRDWpziZ/VcOztFizLdBUpC5Y1oJu",
+    "created_at": "2026-08-27T09:22:44.623036+00:00"
+  },
+  "usr_b1beff8bb4be": {
+    "id": "usr_b1beff8bb4be",
+    "email": "profile_981de0@mediscan.ai",
+    "username": "prof_981de0",
+    "full_name": "Bệnh Nhân Model",
+    "hashed_password": "$2b$12$2jpe5rHD..FxMuGnsC5ooOpQ7ocm5.fLGB3sTcSBr0tNCVXCXuG2.",
+    "created_at": "2026-08-27T09:22:45.998477+00:00"
+  },
+  "usr_0d5420b7a7ff": {
+    "id": "usr_0d5420b7a7ff",
+    "email": "doc_3a0954@mediscan.ai",
+    "username": "user_3a0954",
+    "full_name": "Bác Sĩ Test",
+    "hashed_password": "$2b$12$/RfeIgvjXDWSP96oCtx6qeJhQn0DHTQFO8VU8jgl2dpwzhULLXOPq",
+    "created_at": "2026-08-27T09:32:22.279064+00:00"
+  },
+  "usr_5177e7be3b71": {
+    "id": "usr_5177e7be3b71",
+    "email": "history_498186@mediscan.ai",
+    "username": "user_hist_498186",
+    "full_name": "Bệnh Nhân Stage 10",
+    "hashed_password": "$2b$12$HkTKxqSbnVlrYl1Hyw/riOg281TCXC4RZV2isc2gUx.Gq9rlOE3Za",
+    "created_at": "2026-08-27T09:32:23.443595+00:00"
+  },
+  "usr_af08a9bb75cf": {
+    "id": "usr_af08a9bb75cf",
+    "email": "profile_01863d@mediscan.ai",
+    "username": "prof_01863d",
+    "full_name": "Bệnh Nhân Model",
+    "hashed_password": "$2b$12$DSpzjobzaJsXV937aqkAhemxgnN7HmecS3UtytydkcKjz9VkAYd/a",
+    "created_at": "2026-08-27T09:32:23.941233+00:00"
+  },
+  "usr_3c54d9a87e30": {
+    "id": "usr_3c54d9a87e30",
+    "email": "doc_489f22@mediscan.ai",
+    "username": "user_489f22",
+    "full_name": "Bác Sĩ Test",
+    "hashed_password": "$2b$12$.CiW6Y95IdMnW9S.b7UnH.Zu7.FNQ0QE/M7rYIBX294VuRpGQhNIO",
+    "created_at": "2026-08-27T09:34:56.669486+00:00"
+  },
+  "usr_d35293daa92d": {
+    "id": "usr_d35293daa92d",
+    "email": "history_d6ca9c@mediscan.ai",
+    "username": "user_hist_d6ca9c",
+    "full_name": "Bệnh Nhân Stage 10",
+    "hashed_password": "$2b$12$hkkQOcs4l6HzPC3FB3VcpuYUg/cPHebc7RVCMeFxsJv027I96QEqG",
+    "created_at": "2026-08-27T09:34:57.939416+00:00"
+  },
+  "usr_cbba27d58da0": {
+    "id": "usr_cbba27d58da0",
+    "email": "profile_463906@mediscan.ai",
+    "username": "prof_463906",
+    "full_name": "Bệnh Nhân Model",
+    "hashed_password": "$2b$12$gcxIJKWyyiDiWorznw/0pewWHQYcIYInSbBiPBU1bAIdwpP3oWk4.",
+    "created_at": "2026-08-27T09:34:58.331340+00:00"
+  }
+}

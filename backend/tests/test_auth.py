@@ -3,6 +3,7 @@ Unit tests cho Authentication System (Stage 8).
 Kiểm thử toàn bộ các endpoint register, login, me, token verification & error cases.
 """
 
+import uuid
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
@@ -12,9 +13,13 @@ client = TestClient(app)
 
 def test_auth_full_flow():
     # 1. Đăng ký tài khoản mới thành công
+    uid = uuid.uuid4().hex[:6]
+    username = f"user_{uid}"
+    email = f"doc_{uid}@mediscan.ai"
+
     user_payload = {
-        "email": "doctor.test@mediscan.ai",
-        "username": "doctortest",
+        "email": email,
+        "username": username,
         "password": "SecurePassword123!",
         "fullName": "Bác Sĩ Test",
     }
@@ -23,8 +28,8 @@ def test_auth_full_flow():
     data_reg = resp_reg.json()
     assert "accessToken" in data_reg
     assert "refreshToken" in data_reg
-    assert data_reg["user"]["username"] == "doctortest"
-    assert data_reg["user"]["email"] == "doctor.test@mediscan.ai"
+    assert data_reg["user"]["username"] == username
+    assert data_reg["user"]["email"] == email
     assert data_reg["user"]["fullName"] == "Bác Sĩ Test"
 
     access_token = data_reg["accessToken"]
@@ -35,7 +40,7 @@ def test_auth_full_flow():
 
     # 3. Đăng nhập đúng bằng Username -> 200 OK
     login_payload_user = {
-        "usernameOrEmail": "doctortest",
+        "usernameOrEmail": username,
         "password": "SecurePassword123!",
     }
     resp_login1 = client.post("/api/v1/auth/login", json=login_payload_user)
@@ -44,7 +49,7 @@ def test_auth_full_flow():
 
     # 4. Đăng nhập đúng bằng Email -> 200 OK
     login_payload_email = {
-        "usernameOrEmail": "doctor.test@mediscan.ai",
+        "usernameOrEmail": email,
         "password": "SecurePassword123!",
     }
     resp_login2 = client.post("/api/v1/auth/login", json=login_payload_email)
@@ -52,7 +57,7 @@ def test_auth_full_flow():
 
     # 5. Đăng nhập sai Mật khẩu -> 401 Unauthorized
     login_wrong = {
-        "usernameOrEmail": "doctortest",
+        "usernameOrEmail": username,
         "password": "WrongPassword!",
     }
     resp_wrong = client.post("/api/v1/auth/login", json=login_wrong)
@@ -62,7 +67,7 @@ def test_auth_full_flow():
     headers = {"Authorization": f"Bearer {access_token}"}
     resp_me = client.get("/api/v1/auth/me", headers=headers)
     assert resp_me.status_code == 200
-    assert resp_me.json()["username"] == "doctortest"
+    assert resp_me.json()["username"] == username
 
     # 7. Truy cập GET /me không có Token / Token giả -> 401 Unauthorized
     resp_unauth = client.get("/api/v1/auth/me")

@@ -1,0 +1,92 @@
+{
+  "usr_9e6e130309f2": {
+    "user_id": "usr_9e6e130309f2",
+    "age": 45,
+    "birth_year": 1981,
+    "gender": "male",
+    "weight_kg": 68.0,
+    "height_cm": 170.0,
+    "bmi": 23.5,
+    "conditions": [
+      "Cao huyết áp",
+      "Suy thận",
+      "Viêm loét dạ dày"
+    ],
+    "allergies": [
+      "Dị ứng Penicillin"
+    ],
+    "updated_at": "2026-08-27T09:19:30.385056+00:00"
+  },
+  "usr_0f61f6a609d9": {
+    "user_id": "usr_0f61f6a609d9",
+    "age": 45,
+    "birth_year": 1981,
+    "gender": "male",
+    "weight_kg": 68.0,
+    "height_cm": 170.0,
+    "bmi": 23.5,
+    "conditions": [
+      "Cao huyết áp",
+      "Suy thận",
+      "Viêm loét dạ dày"
+    ],
+    "allergies": [
+      "Dị ứng Penicillin"
+    ],
+    "updated_at": "2026-08-27T09:20:11.139489+00:00"
+  },
+  "usr_b1beff8bb4be": {
+    "user_id": "usr_b1beff8bb4be",
+    "age": 45,
+    "birth_year": 1981,
+    "gender": "male",
+    "weight_kg": 68.0,
+    "height_cm": 170.0,
+    "bmi": 23.5,
+    "conditions": [
+      "Cao huyết áp",
+      "Suy thận",
+      "Viêm loét dạ dày"
+    ],
+    "allergies": [
+      "Dị ứng Penicillin"
+    ],
+    "updated_at": "2026-08-27T09:22:46.015464+00:00"
+  },
+  "usr_af08a9bb75cf": {
+    "user_id": "usr_af08a9bb75cf",
+    "age": 45,
+    "birth_year": 1981,
+    "gender": "male",
+    "weight_kg": 68.0,
+    "height_cm": 170.0,
+    "bmi": 23.5,
+    "conditions": [
+      "Cao huyết áp",
+      "Suy thận",
+      "Viêm loét dạ dày"
+    ],
+    "allergies": [
+      "Dị ứng Penicillin"
+    ],
+    "updated_at": "2026-08-27T09:32:23.965952+00:00"
+  },
+  "usr_cbba27d58da0": {
+    "user_id": "usr_cbba27d58da0",
+    "age": 45,
+    "birth_year": 1981,
+    "gender": "male",
+    "weight_kg": 68.0,
+    "height_cm": 170.0,
+    "bmi": 23.5,
+    "conditions": [
+      "Cao huyết áp",
+      "Suy thận",
+      "Viêm loét dạ dày"
+    ],
+    "allergies": [
+      "Dị ứng Penicillin"
+    ],
+    "updated_at": "2026-08-27T09:34:58.369884+00:00"
+  }
+}

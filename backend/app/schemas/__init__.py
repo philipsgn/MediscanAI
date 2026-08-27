@@ -142,6 +142,21 @@ from app.schemas.user_schema import (
     TokenResponse,
     TokenPayload,
 )
+from app.schemas.user_profile_schema import (
+    UserProfileCreate,
+    UserProfileUpdate,
+    UserProfileResponse,
+)
+from app.schemas.history_reminder_schema import (
+    ScanHistoryCreate,
+    ScanHistoryResponse,
+    ReminderCreate,
+    ReminderUpdate,
+    ReminderLogCreate,
+    ReminderLogItem,
+    ReminderResponse,
+    AdherenceStats,
+)
 
 __all__ = [
     "UserProfile",
@@ -164,4 +179,15 @@ __all__ = [
     "UserResponse",
     "TokenResponse",
     "TokenPayload",
+    "UserProfileCreate",
+    "UserProfileUpdate",
+    "UserProfileResponse",
+    "ScanHistoryCreate",
+    "ScanHistoryResponse",
+    "ReminderCreate",
+    "ReminderUpdate",
+    "ReminderLogCreate",
+    "ReminderLogItem",
+    "ReminderResponse",
+    "AdherenceStats",
 ]
