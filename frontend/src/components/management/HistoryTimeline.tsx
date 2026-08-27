@@ -1,16 +1,16 @@
 'use client';
 
 /**
- * HistoryTimeline — Component Dòng Thời Gian Lịch Sử Quét & Đánh Giá Thuốc (Stage 10).
- * Clinical Teal Palette (#0F766E), Slate (#0F172A).
- * Phân cấp Severity (Đỏ/Vàng/Xanh), Modal xem lại báo cáo chi tiết & Nút "Khôi phục vào Tủ thuốc".
+ * HistoryTimeline — Dòng Thời Gian Lịch Sử Quét & Đánh Giá Thuốc (Minimalist Clinical Grade).
+ * Border 1px slate-200, Nền trắng/xám, rounded-none / rounded-sm.
+ * Phân cấp Severity đơn sắc, Modal xem báo cáo & Nút "Khôi phục vào Tủ thuốc".
  */
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Clock, AlertTriangle, AlertCircle, CheckCircle2, FileText, RotateCcw,
-  Calendar, ChevronRight, X, Sparkles, Filter, Pill, Search
+  Calendar, ChevronRight, X, Filter, Pill, Search
 } from 'lucide-react';
 import { useHistoryReminderStore } from '@/store/historyReminderStore';
 import { useCabinetStore } from '@/store/cabinetStore';
@@ -43,26 +43,26 @@ export function HistoryTimeline() {
     switch (severity) {
       case 'HIGH':
         return {
-          label: 'HIGH SEVERITY (Cảnh Báo Nặng)',
-          color: 'bg-rose-950/80 text-rose-300 border-rose-700/80',
+          label: 'CẢNH BÁO NẶNG (HIGH)',
+          color: 'text-rose-800 bg-rose-50 border-rose-300',
           icon: AlertCircle,
         };
       case 'MEDIUM':
         return {
-          label: 'MEDIUM SEVERITY (Cảnh Báo Vừa)',
-          color: 'bg-amber-950/80 text-amber-300 border-amber-700/80',
+          label: 'CẢNH BÁO VỪA (MEDIUM)',
+          color: 'text-amber-800 bg-amber-50 border-amber-300',
           icon: AlertTriangle,
         };
       case 'LOW':
         return {
-          label: 'LOW SEVERITY (Cảnh Báo Nhẹ)',
-          color: 'bg-sky-950/80 text-sky-300 border-sky-700/80',
+          label: 'CẢNH BÁO NHẸ (LOW)',
+          color: 'text-sky-800 bg-sky-50 border-sky-300',
           icon: AlertCircle,
         };
       default:
         return {
-          label: 'SAFE / NO ALERTS (An Toàn)',
-          color: 'bg-emerald-950/80 text-emerald-300 border-emerald-700/80',
+          label: 'AN TOÀN (NONE)',
+          color: 'text-emerald-800 bg-emerald-50 border-emerald-300',
           icon: CheckCircle2,
         };
     }
@@ -84,56 +84,54 @@ export function HistoryTimeline() {
 
     addDrugs(newCabinetItems);
     toast.success(`Đã khôi phục ${newCabinetItems.length} thuốc vào Tủ thuốc!`);
-    router.push('/scan');
+    router.push('/cabinet');
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* ── Top Filter & Search Bar ── */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-900/80 p-4 rounded-2xl border border-slate-800 backdrop-blur-md">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 border border-slate-200">
         <div className="relative flex-1">
-          <Search size={16} className="absolute left-3.5 top-3 text-slate-500" />
+          <Search size={15} className="absolute left-3 top-2.5 text-slate-400" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Tìm kiếm theo tên thuốc hoặc tóm tắt..."
-            className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 outline-none focus:border-teal-500 transition-all"
+            className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-300 text-xs text-slate-900 placeholder-slate-400 outline-none focus:border-slate-900 font-mono"
           />
         </div>
 
         <div className="flex items-center gap-2">
-          <Filter size={15} className="text-slate-400 shrink-0" />
+          <Filter size={14} className="text-slate-500 shrink-0" />
           <select
             value={filterSeverity}
             onChange={(e) => setFilterSeverity(e.target.value)}
-            className="px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-300 outline-none focus:border-teal-500 transition-all font-semibold"
+            className="px-2.5 py-1.5 bg-slate-50 border border-slate-300 text-xs text-slate-800 outline-none focus:border-slate-900 font-mono"
           >
-            <option value="ALL">Tất cả mức cảnh báo</option>
-            <option value="HIGH">🔴 Cảnh báo Nặng (HIGH)</option>
-            <option value="MEDIUM">🟡 Cảnh báo Vừa (MEDIUM)</option>
-            <option value="LOW">🔵 Cảnh báo Nhẹ (LOW)</option>
-            <option value="NONE">🟢 An toàn (NONE)</option>
+            <option value="ALL">Tất cả mức độ</option>
+            <option value="HIGH">Cảnh báo Nặng (HIGH)</option>
+            <option value="MEDIUM">Cảnh báo Vừa (MEDIUM)</option>
+            <option value="LOW">Cảnh báo Nhẹ (LOW)</option>
+            <option value="NONE">An toàn (NONE)</option>
           </select>
         </div>
       </div>
 
-      {/* ── Timeline Sessions Stream ── */}
+      {/* ── Timeline Sessions ── */}
       {isLoadingHistories ? (
-        <div className="p-12 text-center text-slate-400 text-xs flex flex-col items-center gap-2">
-          <Clock size={24} className="animate-spin text-teal-400" />
-          <span>Đang tải lịch sử phiên quét...</span>
+        <div className="p-8 text-center text-slate-500 text-xs font-mono flex items-center justify-center gap-2 border border-slate-200 bg-white">
+          <Clock size={16} className="animate-spin text-slate-700" />
+          <span>ĐANG TẢI DỮ LIỆU LỊCH SỬ...</span>
         </div>
       ) : filteredHistories.length === 0 ? (
-        <div className="p-12 text-center bg-slate-900/50 border border-slate-800/60 rounded-2xl text-slate-400 space-y-2">
-          <FileText size={32} className="mx-auto text-slate-600" />
-          <p className="text-sm font-bold text-slate-300">Chưa có lịch sử phiên quét nào</p>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            Mỗi lần bạn thực hiện quét toa hoặc phân tích tủ thuốc, thông tin sẽ được lưu vết tại đây.
-          </p>
+        <div className="p-8 text-center bg-white border border-slate-200 text-slate-500 font-mono space-y-1">
+          <FileText size={24} className="mx-auto text-slate-400" />
+          <p className="text-xs font-bold text-slate-700">CHƯA CÓ LỊCH SỬ PHIÊN QUÉT NÀO</p>
+          <p className="text-[11px] text-slate-400">Các phiên phân tích thuốc sẽ được lưu vết tự động tại đây.</p>
         </div>
       ) : (
-        <div className="relative border-l-2 border-slate-800 ml-4 sm:ml-6 space-y-6 pl-6 sm:pl-8 py-2">
+        <div className="space-y-3">
           {filteredHistories.map((item) => {
             const badge = getSeverityBadge(item.highestSeverity);
             const BadgeIcon = badge.icon;
@@ -146,73 +144,65 @@ export function HistoryTimeline() {
             });
 
             return (
-              <div key={item.id} className="relative group">
-                {/* Timeline Dot Indicator */}
-                <div className="absolute -left-[31px] sm:-left-[39px] top-4 w-4 h-4 rounded-full bg-slate-900 border-2 border-teal-500 group-hover:scale-125 transition-transform" />
-
-                {/* Main Session Card */}
-                <div className="bg-slate-900/90 rounded-2xl border border-slate-800/90 p-5 shadow-xl hover:border-teal-900/80 transition-all space-y-3.5 backdrop-blur-md">
-                  
-                  {/* Top Header Row */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-                      <Calendar size={14} className="text-teal-400" />
-                      <span>{dateStr}</span>
-                      <span className="text-slate-600">•</span>
-                      <span className="capitalize text-slate-300">
-                        Nguồn: {item.sourceType === 'prescription' ? 'Toa thuốc' : item.sourceType === 'packaging' ? 'Vỏ hộp' : 'Nhập tay'}
-                      </span>
-                    </div>
-
-                    <div className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold flex items-center gap-1.5 ${badge.color}`}>
-                      <BadgeIcon size={13} />
-                      <span>{badge.label}</span>
-                    </div>
-                  </div>
-
-                  {/* Drug List Badges */}
-                  <div>
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
-                      Danh sách thuốc ({item.drugNames.length})
+              <div key={item.id} className="bg-white border border-slate-200 p-4 space-y-3">
+                {/* Header Row */}
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+                  <div className="flex items-center gap-2 text-xs font-mono text-slate-600">
+                    <Calendar size={13} className="text-slate-500" />
+                    <span className="font-bold">{dateStr}</span>
+                    <span className="text-slate-300">•</span>
+                    <span className="uppercase text-[11px]">
+                      NGUỒN: {item.sourceType === 'prescription' ? 'TOA THUỐC' : item.sourceType === 'packaging' ? 'VỎ HỘP' : 'NHẬP TAY'}
                     </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {item.drugNames.map((d, i) => (
-                        <span key={i} className="px-2.5 py-1 rounded-lg bg-slate-950 text-slate-200 border border-slate-800 text-xs font-semibold flex items-center gap-1.5">
-                          <Pill size={12} className="text-teal-400" />
-                          {d}
-                        </span>
-                      ))}
-                    </div>
                   </div>
 
-                  {/* Summary Text if present */}
-                  {item.summary && (
-                    <p className="text-xs text-slate-300 bg-slate-950/60 p-3 rounded-xl border border-slate-850 italic">
-                      &quot;{item.summary}&quot;
-                    </p>
-                  )}
-
-                  {/* Bottom Action Row */}
-                  <div className="flex items-center justify-between pt-1 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedItem(item)}
-                      className="text-teal-400 hover:text-teal-300 font-bold flex items-center gap-1 transition-colors"
-                    >
-                      <span>Xem báo cáo chi tiết</span>
-                      <ChevronRight size={14} />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleRestoreToCabinet(item)}
-                      className="px-3 py-1.5 rounded-lg bg-teal-950 hover:bg-teal-900 text-teal-300 border border-teal-800/80 font-bold flex items-center gap-1.5 transition-all active:scale-95"
-                    >
-                      <RotateCcw size={13} />
-                      <span>Khôi phục vào Tủ thuốc</span>
-                    </button>
+                  <div className={`px-2 py-0.5 border text-[10px] font-mono font-bold flex items-center gap-1 ${badge.color}`}>
+                    <BadgeIcon size={12} />
+                    <span>{badge.label}</span>
                   </div>
+                </div>
 
+                {/* Drug Items */}
+                <div>
+                  <span className="text-[10px] font-mono font-bold text-slate-500 uppercase block mb-1">
+                    Danh mục thuốc ({item.drugNames.length}):
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {item.drugNames.map((d, i) => (
+                      <span key={i} className="px-2 py-0.5 bg-slate-50 text-slate-800 border border-slate-200 text-xs font-mono flex items-center gap-1">
+                        <Pill size={11} className="text-slate-500" />
+                        {d}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Summary */}
+                {item.summary && (
+                  <p className="text-xs text-slate-700 bg-slate-50 p-2.5 border border-slate-200 font-mono">
+                    {item.summary}
+                  </p>
+                )}
+
+                {/* Actions */}
+                <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-xs font-mono">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedItem(item)}
+                    className="text-slate-900 hover:text-slate-700 font-bold flex items-center gap-1"
+                  >
+                    <span>Xem báo cáo chi tiết</span>
+                    <ChevronRight size={13} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleRestoreToCabinet(item)}
+                    className="px-3 py-1 bg-slate-900 hover:bg-slate-800 text-white font-bold flex items-center gap-1.5 transition-colors"
+                  >
+                    <RotateCcw size={12} />
+                    <span>Khôi phục vào Tủ thuốc</span>
+                  </button>
                 </div>
               </div>
             );
@@ -220,43 +210,42 @@ export function HistoryTimeline() {
         </div>
       )}
 
-      {/* ── Detail Modal for Past Report ── */}
+      {/* ── Detail Modal ── */}
       {selectedItem && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-xl p-6 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2 text-white font-extrabold text-sm">
-                <Sparkles size={18} className="text-teal-400" />
-                <span>Chi Tiết Phiên Scan ({selectedItem.id})</span>
-              </div>
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-none flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-300 w-full max-w-xl p-6 space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <span className="font-mono font-bold text-xs text-slate-900 uppercase">
+                CHI TIẾT PHIÊN LÂM SÀNG ({selectedItem.id})
+              </span>
               <button
                 type="button"
                 onClick={() => setSelectedItem(null)}
-                className="text-slate-400 hover:text-white"
+                className="text-slate-400 hover:text-slate-900"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
+            <div className="space-y-3 text-xs font-mono">
               <div>
-                <span className="text-slate-500 font-bold block mb-1">Thời gian quét:</span>
-                <span className="text-slate-200 font-mono">{new Date(selectedItem.scannedAt).toLocaleString('vi-VN')}</span>
+                <span className="text-slate-500 font-bold block mb-0.5">Thời gian quét:</span>
+                <span className="text-slate-900">{new Date(selectedItem.scannedAt).toLocaleString('vi-VN')}</span>
               </div>
 
               <div>
-                <span className="text-slate-500 font-bold block mb-1">Danh sách thuốc:</span>
-                <ul className="list-disc list-inside text-slate-200 space-y-0.5">
+                <span className="text-slate-500 font-bold block mb-0.5">Danh sách thuốc:</span>
+                <ul className="list-disc list-inside text-slate-900 space-y-0.5">
                   {selectedItem.drugNames.map((name, i) => (
-                    <li key={i} className="font-semibold">{name}</li>
+                    <li key={i}>{name}</li>
                   ))}
                 </ul>
               </div>
 
               {selectedItem.summary && (
                 <div>
-                  <span className="text-slate-500 font-bold block mb-1">Tóm tắt kết quả:</span>
-                  <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-300">
+                  <span className="text-slate-500 font-bold block mb-0.5">Tóm tắt đánh giá:</span>
+                  <div className="p-2.5 bg-slate-50 border border-slate-200 text-slate-800">
                     {selectedItem.summary}
                   </div>
                 </div>
@@ -264,24 +253,24 @@ export function HistoryTimeline() {
 
               {selectedItem.rawPayload && (
                 <div>
-                  <span className="text-slate-500 font-bold block mb-1">Payload JSON nguyên bản:</span>
-                  <pre className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[10px] font-mono text-teal-300 overflow-x-auto max-h-48">
+                  <span className="text-slate-500 font-bold block mb-0.5">Payload Dữ liệu Thô (JSON):</span>
+                  <pre className="p-2.5 bg-slate-900 text-slate-100 text-[10px] overflow-x-auto max-h-40 font-mono">
                     {JSON.stringify(selectedItem.rawPayload, null, 2)}
                   </pre>
                 </div>
               )}
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 font-mono text-xs">
               <button
                 type="button"
                 onClick={() => {
                   handleRestoreToCabinet(selectedItem);
                   setSelectedItem(null);
                 }}
-                className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs flex items-center gap-1.5"
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold flex items-center gap-1.5"
               >
-                <RotateCcw size={14} />
+                <RotateCcw size={13} />
                 <span>Khôi phục vào Tủ thuốc</span>
               </button>
             </div>

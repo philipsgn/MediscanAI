@@ -19,6 +19,8 @@ export const metadata: Metadata = {
   keywords: "tương tác thuốc, kiểm tra thuốc, Mediscan AI, toa thuốc, an toàn thuốc",
 };
 
+import { ClinicalHeader } from "@/components/layout/ClinicalHeader";
+
 export default function RootLayout({
   children,
 }: {
@@ -30,14 +32,17 @@ export default function RootLayout({
         lang="vi"
         className={`${inter.variable} h-full antialiased`}
       >
-        <body className="min-h-full flex flex-col bg-gray-50 font-[var(--font-inter)]">
+        <body className="min-h-full flex flex-col bg-slate-50 font-[var(--font-inter)] text-slate-900 selection:bg-slate-900 selection:text-white">
           {/* Medical Disclaimer Gate — Bắt buộc đồng ý trước khi sử dụng */}
           <MedicalDisclaimerModal />
           {/* Toast notification layer */}
           <ToastContainer />
           {/* Onboarding Gate — redirect về /onboarding nếu chưa khai báo hồ sơ */}
           <OnboardingGate>
-            {children}
+            <ClinicalHeader />
+            <div className="flex-1 flex flex-col">
+              {children}
+            </div>
           </OnboardingGate>
         </body>
       </html>

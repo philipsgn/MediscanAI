@@ -32,5 +32,22 @@
         "alertsCount": 1
       }
     }
+  ],
+  "usr_e3b5c9100253": [
+    {
+      "id": "hist_88353343a846",
+      "user_id": "usr_e3b5c9100253",
+      "scanned_at": "2026-08-27T10:12:32.912476+00:00",
+      "source_type": "prescription",
+      "drug_names": [
+        "Panadol Extra 500mg",
+        "Amoxicillin 500mg"
+      ],
+      "highest_severity": "MEDIUM",
+      "summary": "Phát hiện 1 tương tác nhẹ về cạnh tranh hấp thu",
+      "raw_payload": {
+        "alertsCount": 1
+      }
+    }
   ]
 }

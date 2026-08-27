@@ -13,6 +13,8 @@ export interface IUserProfile {
   gender?: 'male' | 'female' | 'other' | null;
   conditions: string[];
   allergies: string[];
+  isPregnant?: boolean;
+  isBreastfeeding?: boolean;
   updatedAt?: string;
 }
 

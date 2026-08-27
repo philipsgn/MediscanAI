@@ -88,5 +88,23 @@
       "Dị ứng Penicillin"
     ],
     "updated_at": "2026-08-27T09:34:58.369884+00:00"
+  },
+  "usr_046b0269231a": {
+    "user_id": "usr_046b0269231a",
+    "age": 45,
+    "birth_year": 1981,
+    "gender": "male",
+    "weight_kg": 68.0,
+    "height_cm": 170.0,
+    "bmi": 23.5,
+    "conditions": [
+      "Cao huyết áp",
+      "Suy thận",
+      "Viêm loét dạ dày"
+    ],
+    "allergies": [
+      "Dị ứng Penicillin"
+    ],
+    "updated_at": "2026-08-27T10:12:33.399333+00:00"
   }
 }

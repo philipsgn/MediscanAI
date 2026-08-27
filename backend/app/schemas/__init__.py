@@ -27,6 +27,8 @@ class UserProfile(BaseModel):
     gender: Optional[str] = Field(None, description="'male' | 'female' | 'other'")
     conditions: List[str] = Field(default=[], description="Danh sách mã/tên bệnh nền (Ví dụ: Hypertension, Diabetes)")
     allergies: List[str] = Field(default=[], description="Danh sách hoạt chất dị ứng")
+    is_pregnant: Optional[bool] = Field(default=False, description="Đang mang thai (chỉ áp dụng nữ giới)")
+    is_breastfeeding: Optional[bool] = Field(default=False, description="Đang cho con bú (chỉ áp dụng nữ giới)")
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 

@@ -1,25 +1,25 @@
 'use client';
 
 /**
- * ReminderSchedule — Component Nhắc Nhở Uống Thuốc & Theo Dõi Tuân Thủ Điều Trị (Stage 10).
- * Thẻ nhắc nhở theo 4 khung giờ trong ngày (Sáng, Trưa, Chiều, Tối).
- * Nút đánh dấu "Đã uống" (Taken) / "Bỏ qua" (Skipped), Switch toggle, và Thanh tiến độ Tuân thủ (Adherence Rate %).
+ * ReminderSchedule — Nhắc Nhở Uống Thuốc & Theo Dõi Tuân Thủ (Minimalist Clinical Grade).
+ * Border 1px slate-200, Nền trắng/xám, rounded-none / rounded-sm.
+ * Khung giờ 4 buổi trong ngày, Nút đánh dấu Đã uống / Bỏ qua & Chỉ số Tuân thủ điều trị %.
  */
 
 import React, { useState, useEffect } from 'react';
 import {
   Clock, CheckCircle2, XCircle, Plus, Trash2, Power, Sun, Sunset, Moon, Sunrise,
-  TrendingUp, Pill, AlertCircle, Loader2, Sparkles, Check
+  TrendingUp, Pill, Loader2, Check, X
 } from 'lucide-react';
 import { useHistoryReminderStore } from '@/store/historyReminderStore';
 import { IReminderCreate, IReminderItem } from '@/types/history_reminder';
 import { toast } from '@/components/common/Toast';
 
 const TIME_OF_DAY_SLOTS = [
-  { key: 'morning', label: 'Buổi Sáng', defaultTime: '08:00', icon: Sunrise, color: 'text-amber-400 border-amber-900/60 bg-amber-950/30' },
-  { key: 'noon', label: 'Buổi Trưa', defaultTime: '12:00', icon: Sun, color: 'text-yellow-400 border-yellow-900/60 bg-yellow-950/30' },
-  { key: 'afternoon', label: 'Buổi Chiều', defaultTime: '17:00', icon: Sunset, color: 'text-orange-400 border-orange-900/60 bg-orange-950/30' },
-  { key: 'evening', label: 'Buổi Tối', defaultTime: '21:00', icon: Moon, color: 'text-sky-400 border-sky-900/60 bg-sky-950/30' },
+  { key: 'morning', label: 'BUỔI SÁNG', defaultTime: '08:00', icon: Sunrise },
+  { key: 'noon', label: 'BUỔI TRƯA', defaultTime: '12:00', icon: Sun },
+  { key: 'afternoon', label: 'BUỔI CHIỀU', defaultTime: '17:00', icon: Sunset },
+  { key: 'evening', label: 'BUỔI TỐI', defaultTime: '21:00', icon: Moon },
 ] as const;
 
 export function ReminderSchedule() {
@@ -104,109 +104,89 @@ export function ReminderSchedule() {
     }
   };
 
-  const getAdherenceBadgeColor = (rate: number) => {
-    if (rate >= 80) return 'text-emerald-400 bg-emerald-950/60 border-emerald-700';
-    if (rate >= 50) return 'text-amber-400 bg-amber-950/60 border-amber-700';
-    return 'text-rose-400 bg-rose-950/60 border-rose-700';
-  };
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
 
-      {/* ── Treatment Adherence Progress Card ── */}
-      <div className="bg-slate-900/90 rounded-2xl border border-slate-800 p-5 shadow-xl backdrop-blur-md space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-teal-950 text-teal-400 border border-teal-800/80">
-              <TrendingUp size={22} />
-            </div>
-            <div>
-              <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
-                Tiến Độ Tuân Thủ Điều Trị (Treatment Adherence)
-              </h3>
-              <p className="text-xs text-slate-400">Tỉ lệ dựa trên số lần bạn đánh dấu Đã uống / Bỏ qua</p>
-            </div>
+      {/* ── Treatment Adherence Metric Bar ── */}
+      <div className="bg-white border border-slate-200 p-4 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+          <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-900 uppercase">
+            <TrendingUp size={15} className="text-slate-700" />
+            <span>CHỈ SỐ TUÂN THỦ ĐIỀU TRỊ (TREATMENT ADHERENCE RATE)</span>
           </div>
 
-          <div className={`px-3 py-1.5 rounded-xl border text-xs font-black flex items-center gap-1.5 ${getAdherenceBadgeColor(stats.adherenceRate)}`}>
-            <span>{stats.adherenceRate}% Tuân Thủ</span>
+          <div className="px-2.5 py-0.5 border border-slate-900 bg-slate-900 text-white text-xs font-mono font-bold">
+            {stats.adherenceRate}% TUÂN THỦ
           </div>
         </div>
 
-        {/* Progress Bar */}
-        <div className="space-y-1.5">
-          <div className="w-full h-3 bg-slate-950 rounded-full overflow-hidden p-0.5 border border-slate-800 flex">
+        {/* Progress bar */}
+        <div className="space-y-1.5 font-mono text-xs">
+          <div className="w-full h-2 bg-slate-100 border border-slate-200">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-400 transition-all duration-500"
+              className="h-full bg-slate-900 transition-all duration-300"
               style={{ width: `${Math.min(stats.adherenceRate, 100)}%` }}
             />
           </div>
-          <div className="flex justify-between text-[11px] text-slate-400 font-semibold px-1">
-            <span>Đã uống: <strong className="text-emerald-400">{stats.takenCount}</strong> lần</span>
-            <span>Bỏ qua: <strong className="text-rose-400">{stats.skippedCount}</strong> lần</span>
-            <span>Tổng nhắc nhở: <strong className="text-white">{stats.totalReminders}</strong></span>
+          <div className="flex justify-between text-[11px] text-slate-600">
+            <span>Đã uống: <strong className="text-slate-900">{stats.takenCount}</strong> lần</span>
+            <span>Bỏ qua: <strong className="text-slate-900">{stats.skippedCount}</strong> lần</span>
+            <span>Tổng số lịch: <strong className="text-slate-900">{stats.totalReminders}</strong></span>
           </div>
         </div>
       </div>
 
       {/* ── Top Header & Add Button ── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-base font-extrabold text-white flex items-center gap-2">
-            <Clock size={18} className="text-teal-400" />
-            Lịch Nhắc Nhở Uống Thuốc Theo Khung Giờ
-          </h3>
-          <p className="text-xs text-slate-400">Tự động sắp xếp thuốc theo 4 buổi trong ngày</p>
+      <div className="flex items-center justify-between pt-1">
+        <div className="text-xs font-mono font-bold text-slate-900 uppercase">
+          LỊCH UỐNG THEO 4 KHUNG GIỜ LÂM SÀNG
         </div>
 
         <button
           type="button"
           onClick={() => setShowAddForm(!showAddForm)}
-          className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold text-xs shadow-lg shadow-teal-950 flex items-center gap-1.5 transition-all"
+          className="h-8 px-3 bg-slate-900 hover:bg-slate-800 text-white font-mono font-bold text-xs flex items-center gap-1.5 transition-colors"
         >
-          <Plus size={16} />
-          <span>Thêm Nhắc Nhở</span>
+          <Plus size={14} />
+          <span>THÊM NHẮC NHỞ</span>
         </button>
       </div>
 
       {/* ── Inline Add Form ── */}
       {showAddForm && (
-        <form onSubmit={handleAddReminder} className="bg-slate-900/90 rounded-2xl border border-teal-900/60 p-5 shadow-2xl space-y-4 animate-in fade-in duration-200">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <span className="text-xs font-bold text-teal-300 uppercase tracking-wider flex items-center gap-1.5">
-              <Sparkles size={14} />
-              Tạo Lịch Nhắc Nhở Uống Thuốc Mới
-            </span>
-            <button type="button" onClick={() => setShowAddForm(false)} className="text-slate-500 hover:text-white">
-              <XCircle size={16} />
+        <form onSubmit={handleAddReminder} className="bg-white border border-slate-300 p-4 space-y-3 font-mono text-xs">
+          <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+            <span className="font-bold text-slate-900 uppercase">KHỞI TẠO LỊCH UỐNG THUỐC MỚI</span>
+            <button type="button" onClick={() => setShowAddForm(false)} className="text-slate-400 hover:text-slate-900">
+              <X size={15} />
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Tên thuốc *</label>
+              <label className="block font-bold text-slate-700 uppercase mb-1">Tên thuốc *</label>
               <input
                 type="text"
                 value={newDrugName}
                 onChange={(e) => setNewDrugName(e.target.value)}
-                placeholder="VD: Panadol Extra 500mg"
-                className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 outline-none focus:border-teal-500"
+                placeholder="VD: Amlodipine 5mg"
+                className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 text-slate-900 outline-none focus:border-slate-900"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Liều dùng (Tùy chọn)</label>
+              <label className="block font-bold text-slate-700 uppercase mb-1">Liều dùng (Tùy chọn)</label>
               <input
                 type="text"
                 value={newDosage}
                 onChange={(e) => setNewDosage(e.target.value)}
-                placeholder="VD: 1 viên sau khi ăn"
-                className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 outline-none focus:border-teal-500"
+                placeholder="VD: 1 viên sau ăn sáng"
+                className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 text-slate-900 outline-none focus:border-slate-900"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Buổi trong ngày</label>
+              <label className="block font-bold text-slate-700 uppercase mb-1">Buổi trong ngày</label>
               <select
                 value={newTimeOfDay}
                 onChange={(e) => {
@@ -215,167 +195,158 @@ export function ReminderSchedule() {
                   const slot = TIME_OF_DAY_SLOTS.find((s) => s.key === val);
                   if (slot) setNewTime(slot.defaultTime);
                 }}
-                className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white outline-none focus:border-teal-500 font-semibold"
+                className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 text-slate-900 outline-none focus:border-slate-900 font-mono"
               >
-                <option value="morning">🌅 Buổi Sáng (08:00)</option>
-                <option value="noon">☀️ Buổi Trưa (12:00)</option>
-                <option value="afternoon">🌇 Buổi Chiều (17:00)</option>
-                <option value="evening">🌙 Buổi Tối (21:00)</option>
+                <option value="morning">Buổi Sáng (08:00)</option>
+                <option value="noon">Buổi Trưa (12:00)</option>
+                <option value="afternoon">Buổi Chiều (17:00)</option>
+                <option value="evening">Buổi Tối (21:00)</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Giờ nhắc nhở cụ thể</label>
+              <label className="block font-bold text-slate-700 uppercase mb-1">Giờ nhắc nhở</label>
               <input
                 type="time"
                 value={newTime}
                 onChange={(e) => setNewTime(e.target.value)}
-                className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white outline-none focus:border-teal-500 font-semibold"
+                className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 text-slate-900 outline-none focus:border-slate-900 font-mono"
               />
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
             <button
               type="button"
               onClick={() => setShowAddForm(false)}
-              className="px-4 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-300 font-bold text-xs border border-slate-800"
+              className="px-3 py-1.5 border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold"
             >
-              Hủy
+              HỦY
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs flex items-center gap-1.5 disabled:opacity-50"
+              className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold flex items-center gap-1.5"
             >
-              {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-              <span>Lưu Nhắc Nhở</span>
+              {isSubmitting ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+              <span>LƯU LỊCH UỐNG</span>
             </button>
           </div>
         </form>
       )}
 
-      {/* ── 4 Time of Day Slot Columns / Grid ── */}
+      {/* ── 4 Slot Grid ── */}
       {isLoadingReminders ? (
-        <div className="p-10 text-center text-xs text-slate-400 flex flex-col items-center gap-2">
-          <Loader2 size={24} className="animate-spin text-teal-400" />
-          <span>Đang tải danh sách nhắc nhở...</span>
+        <div className="p-8 text-center text-slate-500 text-xs font-mono flex items-center justify-center gap-2 border border-slate-200 bg-white">
+          <Loader2 size={16} className="animate-spin text-slate-700" />
+          <span>ĐANG TẢI LỊCH NHẮC NHỞ...</span>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {TIME_OF_DAY_SLOTS.map((slot) => {
             const SlotIcon = slot.icon;
             const slotReminders = reminders.filter((r) => r.timeOfDay === slot.key);
 
             return (
-              <div key={slot.key} className="bg-slate-900/90 rounded-2xl border border-slate-800 p-4 shadow-xl backdrop-blur-md space-y-3">
-                {/* Slot Header */}
-                <div className={`p-2.5 rounded-xl border flex items-center justify-between ${slot.color}`}>
-                  <div className="flex items-center gap-2">
-                    <SlotIcon size={18} />
-                    <span className="font-extrabold text-xs tracking-tight">{slot.label}</span>
+              <div key={slot.key} className="bg-white border border-slate-200 p-3.5 space-y-2.5">
+                {/* Header */}
+                <div className="p-2 border border-slate-200 bg-slate-50 flex items-center justify-between font-mono text-xs">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-900">
+                    <SlotIcon size={14} className="text-slate-700" />
+                    <span>{slot.label}</span>
                   </div>
-                  <span className="text-[11px] font-mono font-bold opacity-80">Mặc định: {slot.defaultTime}</span>
+                  <span className="text-[10px] text-slate-500 font-bold">Mặc định: {slot.defaultTime}</span>
                 </div>
 
-                {/* Reminders List in this Slot */}
+                {/* Items */}
                 {slotReminders.length === 0 ? (
-                  <div className="p-4 text-center text-slate-500 text-xs italic border border-dashed border-slate-800/80 rounded-xl">
-                    Chưa có nhắc nhở nào cho {slot.label.toLowerCase()}
+                  <div className="p-3 text-center text-slate-400 font-mono text-[11px] border border-dashed border-slate-200">
+                    Chưa có thuốc trong khung giờ này
                   </div>
                 ) : (
-                  <div className="space-y-2.5">
+                  <div className="space-y-2">
                     {slotReminders.map((r) => {
                       const latestLog = r.logs && r.logs.length > 0 ? r.logs[0] : null;
 
                       return (
                         <div
                           key={r.id}
-                          className={`p-3.5 rounded-xl border transition-all space-y-2.5 ${
-                            r.isActive
-                              ? 'bg-slate-950/80 border-slate-800'
-                              : 'bg-slate-950/30 border-slate-900 opacity-60'
+                          className={`p-2.5 border font-mono text-xs space-y-2 ${
+                            r.isActive ? 'bg-white border-slate-300' : 'bg-slate-50 border-slate-200 opacity-60'
                           }`}
                         >
-                          {/* Card Title Row */}
                           <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <Pill size={15} className="text-teal-400 shrink-0" />
+                            <div className="flex items-center gap-1.5">
+                              <Pill size={13} className="text-slate-600 shrink-0" />
                               <div>
-                                <h4 className="text-xs font-bold text-white">{r.drugName}</h4>
+                                <span className="font-bold text-slate-900 block">{r.drugName}</span>
                                 {r.dosageInstruction && (
-                                  <p className="text-[11px] text-slate-400 mt-0.5">{r.dosageInstruction}</p>
+                                  <span className="text-[11px] text-slate-500 block">{r.dosageInstruction}</span>
                                 )}
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2">
-                              {/* Active Switch Toggle */}
+                            <div className="flex items-center gap-1">
                               <button
                                 type="button"
                                 onClick={() => handleToggleActive(r)}
-                                title={r.isActive ? 'Đang bật nhắc nhở' : 'Đang tắt'}
-                                className={`p-1.5 rounded-lg border transition-colors ${
+                                title={r.isActive ? 'Bật' : 'Tắt'}
+                                className={`p-1 border text-xs ${
                                   r.isActive
-                                    ? 'bg-teal-950 text-teal-300 border-teal-800'
-                                    : 'bg-slate-900 text-slate-600 border-slate-800'
+                                    ? 'bg-slate-900 text-white border-slate-900'
+                                    : 'bg-slate-100 text-slate-400 border-slate-200'
                                 }`}
                               >
-                                <Power size={13} />
+                                <Power size={11} />
                               </button>
-
-                              {/* Delete Button */}
                               <button
                                 type="button"
                                 onClick={() => handleDelete(r.id, r.drugName)}
-                                className="p-1.5 rounded-lg bg-slate-900 text-slate-500 hover:text-rose-400 border border-slate-800 transition-colors"
+                                className="p-1 border border-slate-200 bg-slate-50 text-slate-400 hover:text-rose-600 hover:border-rose-300"
                               >
-                                <Trash2 size={13} />
+                                <Trash2 size={11} />
                               </button>
                             </div>
                           </div>
 
-                          {/* Time & Last Status Row */}
-                          <div className="flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-900 pt-2">
-                            <span className="font-mono font-semibold text-slate-300 flex items-center gap-1">
-                              <Clock size={12} className="text-teal-500" />
+                          <div className="flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-100 pt-1.5">
+                            <span className="flex items-center gap-1 font-bold text-slate-700">
+                              <Clock size={10} />
                               {r.reminderTime}
                             </span>
 
                             {latestLog && (
-                              <span className={`font-semibold px-2 py-0.5 rounded text-[10px] ${
+                              <span className={`px-1.5 py-0.2 border font-bold ${
                                 latestLog.status === 'taken'
-                                  ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                                  : 'bg-rose-950 text-rose-300 border border-rose-800'
+                                  ? 'text-emerald-800 bg-emerald-50 border-emerald-300'
+                                  : 'text-rose-800 bg-rose-50 border-rose-300'
                               }`}>
-                                Gần nhất: {latestLog.status === 'taken' ? 'Đã uống' : 'Bỏ qua'}
+                                {latestLog.status === 'taken' ? 'Đã uống' : 'Bỏ qua'}
                               </span>
                             )}
                           </div>
 
-                          {/* Action Buttons: Taken / Skipped */}
-                          <div className="grid grid-cols-2 gap-2 pt-1">
+                          <div className="grid grid-cols-2 gap-1.5 pt-0.5">
                             <button
                               type="button"
                               onClick={() => handleLogStatus(r.id, 'taken', r.drugName)}
                               disabled={!r.isActive}
-                              className="py-1.5 px-2.5 rounded-lg bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-800/80 font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-40"
+                              className="py-1 px-2 border border-slate-900 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[10px] flex items-center justify-center gap-1 disabled:opacity-40"
                             >
-                              <CheckCircle2 size={13} />
-                              <span>Đã uống</span>
+                              <CheckCircle2 size={11} />
+                              <span>ĐÃ UỐNG</span>
                             </button>
 
                             <button
                               type="button"
                               onClick={() => handleLogStatus(r.id, 'skipped', r.drugName)}
                               disabled={!r.isActive}
-                              className="py-1.5 px-2.5 rounded-lg bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800/80 font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-40"
+                              className="py-1 px-2 border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] flex items-center justify-center gap-1 disabled:opacity-40"
                             >
-                              <XCircle size={13} />
-                              <span>Bỏ qua</span>
+                              <XCircle size={11} />
+                              <span>BỎ QUA</span>
                             </button>
                           </div>
-
                         </div>
                       );
                     })}

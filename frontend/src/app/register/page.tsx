@@ -1,14 +1,14 @@
 'use client';
 
 /**
- * Register Page — Màn hình Đăng ký tài khoản chuẩn Clinical UI (Stage 8).
- * Tích hợp Live Password Strength Meter & validation trực quan.
+ * Register Page — Màn hình Đăng ký Minimalist Clinical Grade.
+ * Form vuông vức (rounded-none), đơn sắc (#0F172A, #334155, #FFFFFF, #E2E8F0).
+ * Sau khi đăng ký thành công ➔ Chuyển hướng về /login với thông báo sẵn sàng.
  */
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthLayout } from '@/components/auth/AuthLayout';
-import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/components/common/Toast';
 import { User, Mail, Lock, Eye, EyeOff, Loader2, ArrowRight, AlertCircle, ShieldCheck } from 'lucide-react';
@@ -22,29 +22,47 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState('');
+
+  const calculateStrength = (pwd: string) => {
+    let score = 0;
+    if (pwd.length >= 8) score++;
+    if (/[A-Z]/.test(pwd)) score++;
+    if (/[0-9]/.test(pwd)) score++;
+    if (/[^A-Za-z0-9]/.test(pwd)) score++;
+    return score;
+  };
+
+  const strength = calculateStrength(password);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
     setFormError('');
 
-    if (!username.trim() || username.length < 3) {
-      setFormError('Tên đăng nhập phải có ít nhất 3 ký tự');
+    if (!username.trim()) {
+      setFormError('Vui lòng nhập Tên đăng nhập');
       return;
     }
-    if (!email.trim() || !email.includes('@')) {
-      setFormError('Email không hợp lệ');
+    if (username.length < 3) {
+      setFormError('Tên đăng nhập tối thiểu 3 ký tự');
       return;
     }
-    if (!password || password.length < 6) {
-      setFormError('Mật khẩu phải có ít nhất 6 ký tự');
+    if (!email.trim()) {
+      setFormError('Vui lòng nhập Địa chỉ Email');
+      return;
+    }
+    if (!password) {
+      setFormError('Vui lòng nhập Mật khẩu');
+      return;
+    }
+    if (password.length < 8) {
+      setFormError('Mật khẩu tối thiểu 8 ký tự');
       return;
     }
     if (password !== confirmPassword) {
-      setFormError('Mật khẩu nhập lại không khớp');
+      setFormError('Mật khẩu xác nhận không khớp');
       return;
     }
 
@@ -55,55 +73,57 @@ export default function RegisterPage() {
         password,
         fullName: fullName.trim() || undefined,
       });
-      toast.success('Đăng ký tài khoản thành công!');
-      router.push('/onboarding');
+
+      toast.success('Đăng ký tài khoản thành công! Vui lòng đăng nhập để bắt đầu.');
+      // Chuyển về /login sau khi đăng ký
+      router.replace('/login');
     } catch {
-      // Lỗi đã lưu ở authStore.error
+      // Error handled in store
     }
   };
 
   return (
     <AuthLayout
-      title="Tạo Tài Khoản Mới"
-      subtitle="Đăng ký để cá nhân hóa hồ sơ sức khỏe và cảnh báo an toàn thuốc"
+      title="ĐĂNG KÝ TÀI KHOẢN MỚI"
+      subtitle="Khởi tạo định danh tài khoản y tế trên hệ sinh thái Mediscan AI"
       mode="register"
     >
       <form onSubmit={handleSubmit} className="space-y-3.5">
-        {/* Error Alert Banner */}
+        {/* Error Alert */}
         {(error || formError) && (
-          <div className="p-3 rounded-xl bg-red-950/60 border border-red-800/60 text-red-300 text-xs font-medium flex items-start gap-2.5 animate-in fade-in duration-200">
-            <AlertCircle size={16} className="text-red-400 shrink-0 mt-0.5" />
+          <div className="p-3 border border-rose-300 bg-rose-50 text-rose-800 text-xs font-mono flex items-start gap-2">
+            <AlertCircle size={15} className="text-rose-600 shrink-0 mt-0.5" />
             <span>{formError || error}</span>
           </div>
         )}
 
-        {/* Full Name Input (Optional) */}
+        {/* Full Name */}
         <div>
-          <label className="block text-xs font-bold text-slate-300 mb-1">
-            Họ và Tên <span className="text-slate-500 font-normal">— Tùy chọn</span>
+          <label className="block text-xs font-mono font-bold text-slate-700 uppercase mb-1">
+            Họ và tên (Tùy chọn)
           </label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
-              <User size={15} />
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <User size={14} />
             </div>
             <input
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder="VD: Nguyễn Văn A"
-              className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
+              placeholder="BS. Nguyễn Văn A"
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-900 placeholder-slate-400 outline-none focus:border-slate-900 focus:bg-white transition-colors"
             />
           </div>
         </div>
 
-        {/* Username Input */}
+        {/* Username */}
         <div>
-          <label className="block text-xs font-bold text-slate-300 mb-1">
-            Tên đăng nhập <span className="text-teal-400">*</span>
+          <label className="block text-xs font-mono font-bold text-slate-700 uppercase mb-1">
+            Tên đăng nhập <span className="text-rose-600">*</span>
           </label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
-              <ShieldCheck size={15} />
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <span className="font-mono text-xs">@</span>
             </div>
             <input
               type="text"
@@ -112,20 +132,20 @@ export default function RegisterPage() {
                 setUsername(e.target.value);
                 setFormError('');
               }}
-              placeholder="VD: doctordev"
-              className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all font-medium"
+              placeholder="bs_nguyenvana"
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-900 placeholder-slate-400 outline-none focus:border-slate-900 focus:bg-white transition-colors font-mono"
             />
           </div>
         </div>
 
-        {/* Email Input */}
+        {/* Email */}
         <div>
-          <label className="block text-xs font-bold text-slate-300 mb-1">
-            Địa chỉ Email <span className="text-teal-400">*</span>
+          <label className="block text-xs font-mono font-bold text-slate-700 uppercase mb-1">
+            Địa chỉ Email <span className="text-rose-600">*</span>
           </label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
-              <Mail size={15} />
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <Mail size={14} />
             </div>
             <input
               type="email"
@@ -134,20 +154,20 @@ export default function RegisterPage() {
                 setEmail(e.target.value);
                 setFormError('');
               }}
-              placeholder="VD: user@example.com"
-              className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all font-medium"
+              placeholder="nguyenvana@hospital.vn"
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-900 placeholder-slate-400 outline-none focus:border-slate-900 focus:bg-white transition-colors font-mono"
             />
           </div>
         </div>
 
-        {/* Password Input */}
+        {/* Password */}
         <div>
-          <label className="block text-xs font-bold text-slate-300 mb-1">
-            Mật khẩu <span className="text-teal-400">*</span>
+          <label className="block text-xs font-mono font-bold text-slate-700 uppercase mb-1">
+            Mật khẩu bảo mật <span className="text-rose-600">*</span>
           </label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
-              <Lock size={15} />
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <Lock size={14} />
             </div>
             <input
               type={showPassword ? 'text' : 'password'}
@@ -156,30 +176,48 @@ export default function RegisterPage() {
                 setPassword(e.target.value);
                 setFormError('');
               }}
-              placeholder="Tạo mật khẩu an toàn"
-              className="w-full pl-9 pr-9 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all font-medium"
+              placeholder="Tối thiểu 8 ký tự"
+              className="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-900 placeholder-slate-400 outline-none focus:border-slate-900 focus:bg-white transition-colors font-mono"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-300 transition-colors"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-700"
             >
-              {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+              {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
             </button>
           </div>
 
-          {/* Live Password Strength Meter */}
-          <PasswordStrengthMeter password={password} />
+          {/* Minimalist Strength Meter */}
+          {password && (
+            <div className="mt-1.5 flex items-center gap-1">
+              {[1, 2, 3, 4].map((level) => (
+                <div
+                  key={level}
+                  className={`h-1 flex-1 transition-colors ${
+                    strength >= level
+                      ? strength <= 2
+                        ? 'bg-amber-600'
+                        : 'bg-emerald-600'
+                      : 'bg-slate-200'
+                  }`}
+                />
+              ))}
+              <span className="text-[10px] font-mono text-slate-500 ml-1">
+                {strength <= 1 ? 'Yếu' : strength <= 3 ? 'Khá' : 'Mạnh'}
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* Confirm Password Input */}
+        {/* Confirm Password */}
         <div>
-          <label className="block text-xs font-bold text-slate-300 mb-1">
-            Nhập lại mật khẩu <span className="text-teal-400">*</span>
+          <label className="block text-xs font-mono font-bold text-slate-700 uppercase mb-1">
+            Xác nhận mật khẩu <span className="text-rose-600">*</span>
           </label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
-              <Lock size={15} />
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <ShieldCheck size={14} />
             </div>
             <input
               type={showPassword ? 'text' : 'password'}
@@ -188,8 +226,8 @@ export default function RegisterPage() {
                 setConfirmPassword(e.target.value);
                 setFormError('');
               }}
-              placeholder="Xác nhận lại mật khẩu"
-              className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all font-medium"
+              placeholder="Nhập lại mật khẩu"
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-900 placeholder-slate-400 outline-none focus:border-slate-900 focus:bg-white transition-colors font-mono"
             />
           </div>
         </div>
@@ -198,17 +236,17 @@ export default function RegisterPage() {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full mt-3 py-3 px-4 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold text-xs shadow-lg shadow-teal-900/30 flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full h-10 bg-slate-900 hover:bg-slate-800 text-white font-mono font-bold text-xs uppercase flex items-center justify-center gap-2 rounded-none transition-colors disabled:opacity-50 mt-2"
         >
           {isLoading ? (
             <>
-              <Loader2 size={16} className="animate-spin" />
-              <span>Đang Khởi Tạo...</span>
+              <Loader2 size={14} className="animate-spin" />
+              <span>ĐANG TẠO TÀI KHOẢN...</span>
             </>
           ) : (
             <>
-              <span>HOÀN TẤT ĐĂNG KÝ TÀI KHOẢN</span>
-              <ArrowRight size={16} />
+              <span>HOÀN TẤT ĐĂNG KÝ</span>
+              <ArrowRight size={14} />
             </>
           )}
         </button>

@@ -94,5 +94,29 @@
     "full_name": "Bệnh Nhân Model",
     "hashed_password": "$2b$12$gcxIJKWyyiDiWorznw/0pewWHQYcIYInSbBiPBU1bAIdwpP3oWk4.",
     "created_at": "2026-08-27T09:34:58.331340+00:00"
+  },
+  "usr_743fb7ba09ee": {
+    "id": "usr_743fb7ba09ee",
+    "email": "doc_2d17b8@mediscan.ai",
+    "username": "user_2d17b8",
+    "full_name": "Bác Sĩ Test",
+    "hashed_password": "$2b$12$iZNuxofyS1/lyvruy8KZXe0QY5A0d6dof5GBUzYTILeHXA5VeA47G",
+    "created_at": "2026-08-27T10:12:31.763631+00:00"
+  },
+  "usr_e3b5c9100253": {
+    "id": "usr_e3b5c9100253",
+    "email": "history_d73d48@mediscan.ai",
+    "username": "user_hist_d73d48",
+    "full_name": "Bệnh Nhân Stage 10",
+    "hashed_password": "$2b$12$5VgC8B4exmbvFmDaMTIMQuSWarZbhNmKgxIWdw0ITvQErAQ6KFJFC",
+    "created_at": "2026-08-27T10:12:32.904373+00:00"
+  },
+  "usr_046b0269231a": {
+    "id": "usr_046b0269231a",
+    "email": "profile_6b244e@mediscan.ai",
+    "username": "prof_6b244e",
+    "full_name": "Bệnh Nhân Model",
+    "hashed_password": "$2b$12$5uNJg2k/INXLL8HTa4d5je9e34/OrF3nfG9U7kkMtO9I0jJVV.SvW",
+    "created_at": "2026-08-27T10:12:33.376436+00:00"
   }
 }

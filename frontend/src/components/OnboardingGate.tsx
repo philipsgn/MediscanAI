@@ -1,56 +1,71 @@
 'use client';
 
 /**
- * OnboardingGate — Client Component bọc {children} trong root layout.
+ * OnboardingGate — Client Component bọc {children} trong root layout (Stage 10+ Harmonization).
  *
- * Logic:
- * - useEffect đọc localStorage key `mediscan_user_profile`
- * - Nếu thiếu/invalid VÀ pathname !== '/onboarding' → router.replace('/onboarding')
- * - Nếu profile hợp lệ HOẶC đang ở /onboarding → render children bình thường
- *
- * ⚠️ [F4.10 lesson]: Đây là 'use client' Component RIÊNG, KHÔNG đặt hook
- * trực tiếp vào layout.tsx (Server Component) — tránh crash runtime khi next build.
- *
- * Pattern tương tự QueryProvider và MedicalDisclaimerModal.
+ * State Machine Logic:
+ * - Bỏ qua kiểm tra nếu đang ở các trang công khai /login hoặc /register.
+ * - Kiểm tra session xác thực (token trong localStorage/cookies).
+ * - Nếu đã xác thực nhưng chưa hoàn tất hồ sơ y tế (/onboarding) ➔ Bắt buộc điều hướng về /onboarding.
+ * - Nếu đã có hồ sơ y tế ➔ Cho phép truy cập /cabinet, /scan, /history.
  */
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useUserProfileStore, isOnboardingComplete } from '@/store/userProfileStore';
+import { useAuthStore } from '@/store/authStore';
+
+const PUBLIC_PAGES = ['/login', '/register'];
 
 export function OnboardingGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const hydrateFromStorage = useUserProfileStore((s) => s.hydrateFromStorage);
+  const { hydrateFromStorage: hydrateProfile, fetchProfile } = useUserProfileStore();
+  const { hydrateFromStorage: hydrateAuth, isAuthenticated } = useAuthStore();
 
-  // 'checking' = đang kiểm tra localStorage, 'ready' = đã quyết định
   const [status, setStatus] = useState<'checking' | 'ready'>('checking');
 
   useEffect(() => {
-    // Hydrate store từ localStorage
-    hydrateFromStorage();
+    // 1. Nếu đang ở các trang Auth công khai -> render ngay lập tức
+    if (PUBLIC_PAGES.includes(pathname)) {
+      setStatus('ready');
+      return;
+    }
 
-    // Nếu đang ở /onboarding rồi → cho qua luôn
+    // 2. Hydrate auth & profile state
+    hydrateAuth();
+    hydrateProfile();
+
+    const token = typeof window !== 'undefined' ? localStorage.getItem('mediscan_access_token') : null;
+
+    // 3. Nếu chưa có token -> chuyển về /login
+    if (!token) {
+      router.replace('/login');
+      return;
+    }
+
+    // 4. Nếu đang ở /onboarding -> cho phép truy cập
     if (pathname === '/onboarding') {
       setStatus('ready');
       return;
     }
 
-    // Kiểm tra profile hợp lệ
+    // 5. Kiểm tra trạng thái hoàn thành onboarding
     if (!isOnboardingComplete()) {
       router.replace('/onboarding');
-      // Không setStatus('ready') — sẽ giữ skeleton cho đến khi navigate xong
       return;
     }
 
     setStatus('ready');
-  }, [pathname, router, hydrateFromStorage]);
+  }, [pathname, router, hydrateAuth, hydrateProfile]);
 
-  // Trong lúc check: hiển thị skeleton nhẹ (không chặn hoàn toàn — chỉ flash nhẹ)
-  if (status === 'checking') {
+  if (status === 'checking' && !PUBLIC_PAGES.includes(pathname)) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="w-8 h-8 border-3 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center font-mono text-xs text-slate-500">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 bg-slate-900 animate-ping" />
+          <span>INITIALIZING CLINICAL SESSION...</span>
+        </div>
       </div>
     );
   }

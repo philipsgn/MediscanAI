@@ -2,36 +2,44 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 /**
- * Next.js Middleware — Kiểm tra cookie xác thực cho các protected routes.
+ * Next.js Middleware — Strict User Lifecycle Routing (State Machine).
+ * Chặn các truy cập chưa xác thực và điều hướng theo trạng thái session.
  */
 
-// Các route bắt buộc phải đăng nhập mới được truy cập
-const PROTECTED_ROUTES = ['/account', '/history', '/reminders'];
-// Các route dành cho khách (chưa đăng nhập)
-const AUTH_ROUTES = ['/login', '/register'];
+const PUBLIC_AUTH_ROUTES = ['/login', '/register'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get('mediscan_auth_token')?.value;
 
-  const isProtectedRoute = PROTECTED_ROUTES.some((route) => pathname.startsWith(route));
-  const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route));
+  const isAuthRoute = PUBLIC_AUTH_ROUTES.some((route) => pathname.startsWith(route));
 
-  // Nếu vào protected route mà chưa đăng nhập -> chuyển về /login
-  if (isProtectedRoute && !token) {
+  // 1. Nếu chưa đăng nhập và cố vào bất kỳ route nào khác /login hoặc /register
+  if (!token && !isAuthRoute) {
     const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('redirect', pathname);
+    if (pathname !== '/') {
+      loginUrl.searchParams.set('redirect', pathname);
+    }
     return NextResponse.redirect(loginUrl);
   }
 
-  // Nếu đã đăng nhập mà lại vào /login hoặc /register -> chuyển về /scan
-  if (isAuthRoute && token) {
-    return NextResponse.redirect(new URL('/scan', request.url));
+  // 2. Nếu đã đăng nhập mà lại truy cập /login hoặc /register -> điều hướng tới /cabinet
+  if (token && isAuthRoute) {
+    return NextResponse.redirect(new URL('/cabinet', request.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/account/:path*', '/history/:path*', '/reminders/:path*', '/login', '/register'],
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+  ],
 };

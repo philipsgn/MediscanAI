@@ -16,6 +16,8 @@ class UserProfileCreate(BaseModel):
     height_cm: Optional[float] = Field(None, ge=0.0, le=250.0, description="Chiều cao (cm)")
     conditions: List[str] = Field(default=[], description="Danh sách bệnh nền")
     allergies: List[str] = Field(default=[], description="Danh sách dị ứng thuốc")
+    is_pregnant: Optional[bool] = Field(default=False, description="Đang mang thai")
+    is_breastfeeding: Optional[bool] = Field(default=False, description="Đang cho con bú")
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
@@ -28,6 +30,8 @@ class UserProfileUpdate(BaseModel):
     height_cm: Optional[float] = Field(None, ge=0.0, le=250.0, description="Chiều cao (cm)")
     conditions: Optional[List[str]] = Field(None, description="Danh sách bệnh nền")
     allergies: Optional[List[str]] = Field(None, description="Danh sách dị ứng thuốc")
+    is_pregnant: Optional[bool] = Field(None, description="Đang mang thai")
+    is_breastfeeding: Optional[bool] = Field(None, description="Đang cho con bú")
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
@@ -42,6 +46,8 @@ class UserProfileResponse(BaseModel):
     bmi: Optional[float] = Field(None, description="Chỉ số khối cơ thể BMI")
     conditions: List[str] = Field(default=[], description="Danh sách bệnh nền")
     allergies: List[str] = Field(default=[], description="Danh sách dị ứng thuốc")
+    is_pregnant: Optional[bool] = Field(default=False, description="Đang mang thai")
+    is_breastfeeding: Optional[bool] = Field(default=False, description="Đang cho con bú")
     updated_at: str = Field(..., description="Thời gian cập nhật gần nhất (ISO 8601 string)")
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
