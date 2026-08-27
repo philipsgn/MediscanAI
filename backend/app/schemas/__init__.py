@@ -22,6 +22,9 @@ from app.schemas.ocr_schema import (  # noqa: E402
 
 class UserProfile(BaseModel):
     age: int = Field(..., ge=0, le=120, description="Tuổi bệnh nhân")
+    weight_kg: Optional[float] = Field(None, ge=0, le=300, description="Cân nặng (kg)")
+    height_cm: Optional[float] = Field(None, ge=0, le=250, description="Chiều cao (cm)")
+    gender: Optional[str] = Field(None, description="'male' | 'female' | 'other'")
     conditions: List[str] = Field(default=[], description="Danh sách mã/tên bệnh nền (Ví dụ: Hypertension, Diabetes)")
     allergies: List[str] = Field(default=[], description="Danh sách hoạt chất dị ứng")
 
