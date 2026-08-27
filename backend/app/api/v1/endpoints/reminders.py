@@ -1,15 +1,17 @@
 """
 Smart Dosage Reminders Endpoints (Stage 10).
 API: GET /reminders/me, POST /reminders, PUT /reminders/{id}, DELETE /reminders/{id}, POST /reminders/{id}/log.
-Yêu cầu Bearer Token xác thực.
+Tích hợp AsyncSession kết nối PostgreSQL Database.
 """
 
 from typing import Any, Dict, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.auth import get_current_user
+from app.db.session import get_db
 from app.schemas.history_reminder_schema import (
     AdherenceStats,
     ReminderCreate,
@@ -38,10 +40,11 @@ class RemindersOverviewResponse(BaseModel):
 )
 async def get_my_reminders(
     current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> RemindersOverviewResponse:
-    """Truy xuất danh sách lịch nhắc uống thuốc và chỉ số tuân thủ của user."""
-    reminders = reminder_service.get_reminders(current_user.id)
-    stats = reminder_service.get_adherence_stats(current_user.id)
+    """Truy xuất danh sách lịch nhắc uống thuốc và chỉ số tuân thủ từ PostgreSQL."""
+    reminders = await reminder_service.get_reminders(db, current_user.id)
+    stats = await reminder_service.get_adherence_stats(db, current_user.id)
     return RemindersOverviewResponse(reminders=reminders, stats=stats)
 
 
@@ -54,9 +57,10 @@ async def get_my_reminders(
 async def create_reminder(
     payload: ReminderCreate,
     current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> ReminderResponse:
-    """Tạo lịch nhắc uống thuốc theo khung giờ cho tài khoản hiện tại."""
-    return reminder_service.create_reminder(current_user.id, payload)
+    """Tạo lịch nhắc uống thuốc theo khung giờ lưu vào PostgreSQL."""
+    return await reminder_service.create_reminder(db, current_user.id, payload)
 
 
 @router.put(
@@ -69,10 +73,11 @@ async def update_reminder(
     reminder_id: str,
     payload: ReminderUpdate,
     current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> ReminderResponse:
-    """Sửa đổi thông tin liều dùng, giờ nhắc hoặc bật/tắt nhắc nhở."""
+    """Sửa đổi thông tin liều dùng, giờ nhắc hoặc bật/tắt nhắc nhở trong PostgreSQL."""
     try:
-        return reminder_service.update_reminder(current_user.id, reminder_id, payload)
+        return await reminder_service.update_reminder(db, current_user.id, reminder_id, payload)
     except ValueError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -88,9 +93,10 @@ async def update_reminder(
 async def delete_reminder(
     reminder_id: str,
     current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> Dict[str, Any]:
-    """Xóa một nhắc nhở uống thuốc."""
-    deleted = reminder_service.delete_reminder(current_user.id, reminder_id)
+    """Xóa một nhắc nhở uống thuốc khỏi PostgreSQL."""
+    deleted = await reminder_service.delete_reminder(db, current_user.id, reminder_id)
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -109,10 +115,11 @@ async def log_reminder_status(
     reminder_id: str,
     payload: ReminderLogCreate,
     current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> ReminderResponse:
-    """Đánh dấu 'Đã uống' (taken) hoặc 'Bỏ qua' (skipped) để tính toán tỉ lệ tuân thủ."""
+    """Đánh dấu 'Đã uống' (taken) hoặc 'Bỏ qua' (skipped) trong PostgreSQL."""
     try:
-        return reminder_service.log_reminder(current_user.id, reminder_id, payload)
+        return await reminder_service.log_reminder(db, current_user.id, reminder_id, payload)
     except ValueError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

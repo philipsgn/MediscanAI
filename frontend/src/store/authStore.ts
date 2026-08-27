@@ -1,10 +1,10 @@
 /**
- * Zustand store cho Authentication State (Stage 8).
+ * Zustand store cho Authentication State (Stage 8/10).
  * Quản lý user session, tokens, đồng bộ localStorage & Cookies (phục vụ Next.js Middleware).
  */
 
 import { create } from 'zustand';
-import { IUser, ILoginRequest, IRegisterRequest } from '@/types/auth';
+import { IUser, ILoginRequest, IRegisterRequest, ITokenResponse } from '@/types/auth';
 import { authService } from '@/services/authService';
 
 const TOKEN_KEY = 'mediscan_access_token';
@@ -19,11 +19,12 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
 
-  login: (credentials: ILoginRequest) => Promise<void>;
-  register: (data: IRegisterRequest) => Promise<void>;
+  login: (credentials: ILoginRequest) => Promise<ITokenResponse>;
+  register: (data: IRegisterRequest) => Promise<ITokenResponse>;
   logout: () => void;
   hydrateFromStorage: () => Promise<void>;
   clearError: () => void;
+  updateUser: (partial: Partial<IUser>) => void;
 }
 
 function setAuthCookie(token: string) {
@@ -47,7 +48,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   clearError: () => set({ error: null }),
 
-  login: async (credentials: ILoginRequest) => {
+  updateUser: (partial: Partial<IUser>) => {
+    const current = get().user;
+    if (!current) return;
+    const updated = { ...current, ...partial };
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(USER_KEY, JSON.stringify(updated));
+    }
+    set({ user: updated });
+  },
+
+  login: async (credentials: ILoginRequest): Promise<ITokenResponse> => {
     set({ isLoading: true, error: null });
     try {
       const res = await authService.login(credentials);
@@ -66,16 +77,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
         error: null,
       });
+      return res;
     } catch (err: unknown) {
       const errorMsg =
-        (err as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
-        'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.';
+        err instanceof Error
+          ? err.message
+          : (err as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
+            'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.';
       set({ error: errorMsg, isLoading: false });
       throw new Error(errorMsg);
     }
   },
 
-  register: async (data: IRegisterRequest) => {
+  register: async (data: IRegisterRequest): Promise<ITokenResponse> => {
     set({ isLoading: true, error: null });
     try {
       const res = await authService.register(data);
@@ -94,10 +108,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
         error: null,
       });
+      return res;
     } catch (err: unknown) {
       const errorMsg =
-        (err as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
-        'Đăng ký thất bại. Vui lòng kiểm tra thông tin nhập vào.';
+        err instanceof Error
+          ? err.message
+          : (err as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
+            'Đăng ký thất bại. Vui lòng kiểm tra thông tin nhập vào.';
       set({ error: errorMsg, isLoading: false });
       throw new Error(errorMsg);
     }
@@ -134,7 +151,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         storedUser = JSON.parse(storedUserRaw);
       }
 
-      // Đã có token, thử gọi /auth/me để kiểm tra token còn sống không
+      // Đã có token, gọi /auth/me để cập nhật thông tin user mới nhất
       const me = await authService.getMe(storedToken);
 
       localStorage.setItem(USER_KEY, JSON.stringify(me));

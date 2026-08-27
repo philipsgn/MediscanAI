@@ -20,6 +20,7 @@ from app.schemas import (
     EvaluationResponse,
     InteractionAlert,
 )
+from app.db.init_db import init_db
 from app.services.clinical_service import ClinicalAssessmentRequest, clinical_service
 from app.services.evaluation_service import evaluation_service
 
@@ -28,6 +29,8 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    # Khởi tạo Database schema nếu cần
+    await init_db()
     # Khởi tạo chậm: OCR engine được load lazy tại request scan đầu tiên.
     yield
     from app.services.ocr_engine import ocr_engine

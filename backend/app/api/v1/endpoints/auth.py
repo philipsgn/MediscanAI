@@ -1,12 +1,15 @@
 """
-Authentication API Endpoints (Stage 8).
+Authentication API Endpoints (Stage 8/10).
 Cung cấp các API: Register (201), Login (200), Get Current User Profile (200).
+Tích hợp AsyncSession kết nối PostgreSQL Database.
 """
 
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.session import get_db
 from app.schemas.user_schema import (
     TokenResponse,
     UserLogin,
@@ -21,6 +24,7 @@ security = HTTPBearer(auto_error=False)
 
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
     """Dependency trích xuất và xác thực JWT token từ Header Authorization: Bearer <token>."""
     if not credentials or not credentials.credentials:
@@ -47,7 +51,7 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user = auth_service.get_user_by_id(user_id)
+    user = await auth_service.get_user_by_id(db, user_id)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -63,10 +67,13 @@ async def get_current_user(
     status_code=status.HTTP_201_CREATED,
     summary="Đăng ký tài khoản mới",
 )
-async def register(payload: UserRegister) -> TokenResponse:
-    """Tạo tài khoản mới, tự động băm mật khẩu và trả về JWT Session."""
+async def register(
+    payload: UserRegister,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """Tạo tài khoản mới trong PostgreSQL, tự động băm mật khẩu và trả về JWT Session."""
     try:
-        user = auth_service.register_user(payload)
+        user = await auth_service.register_user(db, payload)
         access_token = auth_service.create_access_token(user.id)
         refresh_token = auth_service.create_refresh_token(user.id)
         return TokenResponse(
@@ -88,10 +95,13 @@ async def register(payload: UserRegister) -> TokenResponse:
     status_code=status.HTTP_200_OK,
     summary="Đăng nhập tài khoản",
 )
-async def login(payload: UserLogin) -> TokenResponse:
-    """Xác thực Username/Email + Mật khẩu và trả về JWT Session."""
+async def login(
+    payload: UserLogin,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """Xác thực Username/Email + Mật khẩu từ PostgreSQL và trả về JWT Session."""
     try:
-        user = auth_service.authenticate_user(payload)
+        user = await auth_service.authenticate_user(db, payload)
         access_token = auth_service.create_access_token(user.id)
         refresh_token = auth_service.create_refresh_token(user.id)
         return TokenResponse(
@@ -115,5 +125,5 @@ async def login(payload: UserLogin) -> TokenResponse:
     summary="Lấy thông tin tài khoản hiện tại",
 )
 async def get_me(current_user: UserResponse = Depends(get_current_user)) -> UserResponse:
-    """Trả về thông tin chi tiết người dùng dựa vào JWT Access Token."""
+    """Trả về thông tin chi tiết người dùng (bao gồm cờ is_profile_completed)."""
     return current_user

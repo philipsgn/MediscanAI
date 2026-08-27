@@ -39,11 +39,17 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 giờ
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7          # 7 ngày
 
+    # Database Connection (PostgreSQL 16 Async via asyncpg / SQLite Async fallback)
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/mediscan_db"
+
     # CORS Settings
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
         "http://localhost:8000",
+        "http://127.0.0.1:8000",
     ]
 
     # ── OCR Engine (Stage 2) — env-driven tuning & feature toggles ─────────

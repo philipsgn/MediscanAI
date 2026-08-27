@@ -6,6 +6,27 @@
 name: mediscan-ai
 
 services:
+  # ---------- Database: PostgreSQL 16 (Port 5432) ----------
+  db:
+    image: postgres:16-alpine
+    container_name: mediscan-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-mediscan_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - mediscan-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d mediscan_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   # ---------- Backend: FastAPI (Port 8000) ----------
   backend:
     build:
@@ -18,8 +39,8 @@ services:
       APP_ENV: production
       APP_HOST: 0.0.0.0
       APP_PORT: 8000
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@db:5432/mediscan_db}
       # Truyền API Keys từ file .env ở root / biến môi trường của host
-      # (KHÔNG hardcode key trực tiếp trong file này)
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       # Local LLM (for Clinical Assessment) - Ollama hoặc tương tự
       LOCAL_LLM_BASE_URL: ${LOCAL_LLM_BASE_URL:-http://localhost:11434}
@@ -30,11 +51,14 @@ services:
     env_file:
       - path: backend/.env
         required: false
+    depends_on:
+      db:
+        condition: service_healthy
     networks:
       - mediscan-network
     restart: unless-stopped
 
-  # ---------- Frontend: Next.js (Port 3000) ----------
+  # ---------- Frontend: Next.js (Port 3001) ----------
   frontend:
     build:
       context: .
@@ -54,7 +78,11 @@ services:
       - mediscan-network
     restart: unless-stopped
 
-# ---------- Network Bridge nội bộ ----------
+# ---------- Volumes & Networks ----------
+volumes:
+  postgres_data:
+    driver: local
+
 networks:
   mediscan-network:
     driver: bridge

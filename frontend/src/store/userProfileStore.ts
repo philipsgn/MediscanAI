@@ -119,5 +119,17 @@ function logger_warn(msg: string, err: unknown) {
 
 /** Utility: kiểm tra nhanh user đã hoàn tất onboarding chưa. */
 export function isOnboardingComplete(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const rawUser = localStorage.getItem('mediscan_auth_user');
+    if (rawUser) {
+      const user = JSON.parse(rawUser);
+      if (user && user.isProfileCompleted === true) {
+        return true;
+      }
+    }
+  } catch {
+    // fallback
+  }
   return readProfileFromStorage() !== null;
 }

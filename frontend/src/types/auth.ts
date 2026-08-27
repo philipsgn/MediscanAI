@@ -1,5 +1,5 @@
 /**
- * TypeScript Interfaces cho Authentication System (Stage 8).
+ * TypeScript Interfaces cho Authentication System (Stage 8/10).
  * Đồng bộ 100% camelCase wire format với Pydantic Schemas của Backend.
  */
 
@@ -8,6 +8,7 @@ export interface IUser {
   email: string;
   username: string;
   fullName?: string | null;
+  isProfileCompleted?: boolean;
   createdAt: string;
 }
 

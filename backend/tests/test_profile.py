@@ -1,6 +1,6 @@
 """
-Unit tests cho Personalized Clinical Health Profile System (Stage 9).
-Kiểm thử các API: GET /profile/me, POST /profile, PUT /profile, BMI calculation & Auth integration.
+Unit tests cho Personalized Clinical Health Profile System (Stage 9/10).
+Kiểm thử các API: GET /profile/me, POST /profile, PUT /profile, BMI calculation & is_profile_completed lifecycle.
 """
 
 import uuid
@@ -21,6 +21,7 @@ def test_profile_full_flow():
     }
     reg_resp = client.post("/api/v1/auth/register", json=reg_payload)
     assert reg_resp.status_code == 201
+    assert reg_resp.json()["user"]["isProfileCompleted"] is False
     token = reg_resp.json()["accessToken"]
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -49,12 +50,17 @@ def test_profile_full_flow():
     assert "Cao huyết áp" in p_data["conditions"]
     assert "Dị ứng Penicillin" in p_data["allergies"]
 
-    # 4. Lấy lại profile qua GET /me -> 200 OK
+    # 4. Kiểm tra User.is_profile_completed đã được kích hoạt thành True
+    user_me = client.get("/api/v1/auth/me", headers=headers)
+    assert user_me.status_code == 200
+    assert user_me.json()["isProfileCompleted"] is True
+
+    # 5. Lấy lại profile qua GET /me -> 200 OK
     get_resp = client.get("/api/v1/profile/me", headers=headers)
     assert get_resp.status_code == 200
     assert get_resp.json()["bmi"] == 22.5
 
-    # 5. Cập nhật profile qua PUT -> 200 OK
+    # 6. Cập nhật profile qua PUT -> 200 OK
     update_payload = {
         "conditions": ["Cao huyết áp", "Suy thận", "Viêm loét dạ dày"],
         "weightKg": 68.0,

@@ -10,14 +10,14 @@ import React, { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AuthLayout } from '@/components/auth/AuthLayout';
 import { useAuthStore } from '@/store/authStore';
-import { profileService } from '@/services/profileService';
 import { toast } from '@/components/common/Toast';
-import { User, Lock, Eye, EyeOff, Loader2, ArrowRight, AlertCircle } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, Loader2, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 function LoginFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectParam = searchParams.get('redirect');
+  const registeredParam = searchParams.get('registered');
 
   const { login, isLoading, error, clearError } = useAuthStore();
 
@@ -41,19 +41,13 @@ function LoginFormContent() {
     }
 
     try {
-      await login({ usernameOrEmail: usernameOrEmail.trim(), password });
-      toast.success('Xác thực thành công!');
+      const response = await login({ usernameOrEmail: usernameOrEmail.trim(), password });
+      toast.success('Xác thực phiên làm việc thành công!');
 
-      // Kiểm tra hồ sơ y tế từ Backend API
-      try {
-        const profile = await profileService.getProfile();
-        if (profile && profile.age) {
-          router.replace(redirectParam || '/cabinet');
-        } else {
-          router.replace('/onboarding');
-        }
-      } catch {
-        // Chưa có profile trên server
+      // Kiểm tra trạng thái hồ sơ y tế:
+      if (response.user.isProfileCompleted) {
+        router.replace(redirectParam || '/cabinet');
+      } else {
         router.replace('/onboarding');
       }
     } catch {
@@ -63,6 +57,14 @@ function LoginFormContent() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Registration Success Banner */}
+      {registeredParam === 'true' && !error && !formError && (
+        <div className="p-3 border border-emerald-300 bg-emerald-50 text-emerald-800 text-xs font-mono flex items-start gap-2">
+          <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+          <span>Đăng ký thành công! Hãy đăng nhập để hoàn tất khai báo hồ sơ y tế.</span>
+        </div>
+      )}
+
       {/* Error Alert Banner */}
       {(error || formError) && (
         <div className="p-3 border border-rose-300 bg-rose-50 text-rose-800 text-xs font-mono flex items-start gap-2">

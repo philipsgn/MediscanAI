@@ -1,12 +1,15 @@
 """
 Scan & Evaluation History Endpoints (Stage 10).
 API: GET /history/me, POST /history.
-Yêu cầu Bearer Token xác thực.
+Tích hợp AsyncSession kết nối PostgreSQL Database.
 """
 
 from typing import List
 from fastapi import APIRouter, Depends, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.v1.endpoints.auth import get_current_user
+from app.db.session import get_db
 from app.schemas.history_reminder_schema import (
     ScanHistoryCreate,
     ScanHistoryResponse,
@@ -25,9 +28,10 @@ router = APIRouter(prefix="/history", tags=["Scan & Evaluation History"])
 )
 async def get_my_history(
     current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> List[ScanHistoryResponse]:
-    """Truy xuất dòng thời gian các phiên quét và cảnh báo tương tác đã lưu."""
-    return history_service.get_histories(current_user.id)
+    """Truy xuất dòng thời gian các phiên quét và cảnh báo tương tác đã lưu từ PostgreSQL."""
+    return await history_service.get_histories(db, current_user.id)
 
 
 @router.post(
@@ -39,6 +43,7 @@ async def get_my_history(
 async def save_scan_history(
     payload: ScanHistoryCreate,
     current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> ScanHistoryResponse:
-    """Lưu lại kết quả trích xuất và phân tích tương tác gắn với tài khoản người dùng."""
-    return history_service.save_history(current_user.id, payload)
+    """Lưu lại kết quả trích xuất và phân tích tương tác vào PostgreSQL."""
+    return await history_service.save_history(db, current_user.id, payload)

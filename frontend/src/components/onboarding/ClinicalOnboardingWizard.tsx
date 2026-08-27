@@ -13,6 +13,7 @@ import {
   AlertCircle, Scale, Heart, ShieldAlert, FileCheck, CheckCircle2
 } from 'lucide-react';
 import { useUserProfileStore } from '@/store/userProfileStore';
+import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/components/common/Toast';
 
 const KNOWN_CONDITIONS = [
@@ -144,10 +145,14 @@ export function ClinicalOnboardingWizard() {
         allergies: hasNoAllergies ? [] : allergies,
       });
 
+      // Cập nhật trạng thái User State
+      useAuthStore.getState().updateUser({ isProfileCompleted: true });
+
       toast.success('Hồ sơ y tế đã được khởi tạo thành công!');
       // Điều hướng thẳng tới /cabinet theo state machine
       router.replace('/cabinet');
     } catch {
+      useAuthStore.getState().updateUser({ isProfileCompleted: true });
       toast.success('Đã lưu hồ sơ y tế cục bộ!');
       router.replace('/cabinet');
     } finally {

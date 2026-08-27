@@ -1,17 +1,17 @@
 """
-Reminder Service — Quản lý Nhắc Nhở Uống Thuốc & Nhật Ký Tuân Thủ (Stage 10).
-Lưu trữ thread-safe theo `user_id` tại backend/app/data/reminders.json.
-Tự động tính chỉ số Tuân thủ điều trị (Adherence Rate %).
+Reminder Service — Quản lý Nhắc Nhở Uống Thuốc & Nhật Ký Tuân Thủ trong PostgreSQL.
 """
 
-import json
+import copy
 import logging
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
-from threading import Lock
-from typing import Any, Dict, List, Optional
+from typing import List
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.reminder import ReminderModel
 from app.schemas.history_reminder_schema import (
     AdherenceStats,
     ReminderCreate,
@@ -23,154 +23,169 @@ from app.schemas.history_reminder_schema import (
 
 logger = logging.getLogger(__name__)
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-REMINDERS_FILE = DATA_DIR / "reminders.json"
-
 
 class ReminderService:
-    def __init__(self) -> None:
-        self._lock = Lock()
-        self._reminders: Dict[str, List[Dict[str, Any]]] = {}
-        self._load_reminders()
-
-    def _load_reminders(self) -> None:
-        """Đọc danh sách nhắc nhở từ file JSON (nếu có)."""
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        if REMINDERS_FILE.exists():
-            try:
-                with open(REMINDERS_FILE, "r", encoding="utf-8") as f:
-                    self._reminders = json.load(f)
-            except Exception as exc:
-                logger.warning("Không thể đọc reminders.json, khởi tạo bộ nhớ trống: %s", exc)
-                self._reminders = {}
-
-    def _save_reminders(self) -> None:
-        """Ghi danh sách nhắc nhở vào file JSON thread-safe."""
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        try:
-            with open(REMINDERS_FILE, "w", encoding="utf-8") as f:
-                json.dump(self._reminders, f, ensure_ascii=False, indent=2)
-        except Exception as exc:
-            logger.error("Lỗi khi ghi reminders.json: %s", exc)
-
-    def create_reminder(self, user_id: str, data: ReminderCreate) -> ReminderResponse:
-        """Tạo một nhắc nhở uống thuốc mới cho user."""
+    async def create_reminder(self, db: AsyncSession, user_id: str, data: ReminderCreate) -> ReminderResponse:
+        """Tạo một nhắc nhở uống thuốc mới cho user vào PostgreSQL."""
         reminder_id = f"rem_{uuid.uuid4().hex[:12]}"
-        created_at = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(timezone.utc)
 
-        record = {
-            "id": reminder_id,
-            "user_id": user_id,
-            "drug_name": data.drug_name.strip(),
-            "dosage_instruction": data.dosage_instruction.strip() if data.dosage_instruction else None,
-            "time_of_day": data.time_of_day,
-            "reminder_time": data.reminder_time,
-            "is_active": data.is_active,
-            "created_at": created_at,
-            "logs": [],
-        }
+        record = ReminderModel(
+            id=reminder_id,
+            user_id=user_id,
+            drug_name=data.drug_name.strip(),
+            dosage_instruction=data.dosage_instruction.strip() if data.dosage_instruction else None,
+            time_of_day=data.time_of_day,
+            reminder_time=data.reminder_time,
+            is_active=data.is_active,
+            logs=[],
+            created_at=now,
+        )
 
-        with self._lock:
-            if user_id not in self._reminders:
-                self._reminders[user_id] = []
-            self._reminders[user_id].append(record)
-            self._save_reminders()
+        db.add(record)
+        await db.commit()
+        await db.refresh(record)
 
-        return ReminderResponse(**record)
+        return ReminderResponse(
+            id=record.id,
+            user_id=record.user_id,
+            drug_name=record.drug_name,
+            dosage_instruction=record.dosage_instruction,
+            time_of_day=record.time_of_day,
+            reminder_time=record.reminder_time,
+            is_active=record.is_active,
+            created_at=record.created_at.isoformat(),
+            logs=[],
+        )
 
-    def get_reminders(self, user_id: str) -> List[ReminderResponse]:
+    async def get_reminders(self, db: AsyncSession, user_id: str) -> List[ReminderResponse]:
         """Lấy tất cả các nhắc nhở của user."""
-        with self._lock:
-            user_items = self._reminders.get(user_id, [])
-            return [ReminderResponse(**item) for item in user_items]
+        stmt = select(ReminderModel).where(ReminderModel.user_id == user_id).order_by(ReminderModel.created_at)
+        result = await db.execute(stmt)
+        items = result.scalars().all()
 
-    def update_reminder(self, user_id: str, reminder_id: str, data: ReminderUpdate) -> ReminderResponse:
+        return [
+            ReminderResponse(
+                id=r.id,
+                user_id=r.user_id,
+                drug_name=r.drug_name,
+                dosage_instruction=r.dosage_instruction,
+                time_of_day=r.time_of_day,
+                reminder_time=r.reminder_time,
+                is_active=r.is_active,
+                created_at=r.created_at.isoformat() if hasattr(r.created_at, "isoformat") else str(r.created_at),
+                logs=[ReminderLogItem(**log) for log in (r.logs or [])],
+            )
+            for r in items
+        ]
+
+    async def update_reminder(self, db: AsyncSession, user_id: str, reminder_id: str, data: ReminderUpdate) -> ReminderResponse:
         """Cập nhật nhắc nhở của user."""
-        with self._lock:
-            user_items = self._reminders.get(user_id, [])
-            target: Optional[Dict[str, Any]] = None
-            for item in user_items:
-                if item["id"] == reminder_id:
-                    target = item
-                    break
+        stmt = select(ReminderModel).where(ReminderModel.id == reminder_id, ReminderModel.user_id == user_id)
+        result = await db.execute(stmt)
+        record = result.scalar_one_or_none()
 
-            if not target:
-                raise ValueError("Không tìm thấy nhắc nhở.")
+        if not record:
+            raise ValueError("Không tìm thấy nhắc nhở.")
 
-            if data.dosage_instruction is not None:
-                target["dosage_instruction"] = data.dosage_instruction
-            if data.time_of_day is not None:
-                target["time_of_day"] = data.time_of_day
-            if data.reminder_time is not None:
-                target["reminder_time"] = data.reminder_time
-            if data.is_active is not None:
-                target["is_active"] = data.is_active
+        if data.dosage_instruction is not None:
+            record.dosage_instruction = data.dosage_instruction
+        if data.time_of_day is not None:
+            record.time_of_day = data.time_of_day
+        if data.reminder_time is not None:
+            record.reminder_time = data.reminder_time
+        if data.is_active is not None:
+            record.is_active = data.is_active
 
-            self._save_reminders()
-            return ReminderResponse(**target)
+        await db.commit()
+        await db.refresh(record)
 
-    def delete_reminder(self, user_id: str, reminder_id: str) -> bool:
+        return ReminderResponse(
+            id=record.id,
+            user_id=record.user_id,
+            drug_name=record.drug_name,
+            dosage_instruction=record.dosage_instruction,
+            time_of_day=record.time_of_day,
+            reminder_time=record.reminder_time,
+            is_active=record.is_active,
+            created_at=record.created_at.isoformat() if hasattr(record.created_at, "isoformat") else str(record.created_at),
+            logs=[ReminderLogItem(**log) for log in (record.logs or [])],
+        )
+
+    async def delete_reminder(self, db: AsyncSession, user_id: str, reminder_id: str) -> bool:
         """Xóa nhắc nhở của user."""
-        with self._lock:
-            user_items = self._reminders.get(user_id, [])
-            initial_len = len(user_items)
-            self._reminders[user_id] = [r for r in user_items if r["id"] != reminder_id]
-            if len(self._reminders[user_id]) < initial_len:
-                self._save_reminders()
-                return True
+        stmt = select(ReminderModel).where(ReminderModel.id == reminder_id, ReminderModel.user_id == user_id)
+        result = await db.execute(stmt)
+        record = result.scalar_one_or_none()
+
+        if not record:
             return False
 
-    def log_reminder(self, user_id: str, reminder_id: str, data: ReminderLogCreate) -> ReminderResponse:
+        await db.delete(record)
+        await db.commit()
+        return True
+
+    async def log_reminder(self, db: AsyncSession, user_id: str, reminder_id: str, data: ReminderLogCreate) -> ReminderResponse:
         """Ghi nhận nhật ký trạng thái uống ('taken' | 'skipped')."""
-        with self._lock:
-            user_items = self._reminders.get(user_id, [])
-            target: Optional[Dict[str, Any]] = None
-            for item in user_items:
-                if item["id"] == reminder_id:
-                    target = item
-                    break
+        stmt = select(ReminderModel).where(ReminderModel.id == reminder_id, ReminderModel.user_id == user_id)
+        result = await db.execute(stmt)
+        record = result.scalar_one_or_none()
 
-            if not target:
-                raise ValueError("Không tìm thấy nhắc nhở.")
+        if not record:
+            raise ValueError("Không tìm thấy nhắc nhở.")
 
-            log_entry = {
-                "log_id": f"log_{uuid.uuid4().hex[:8]}",
-                "status": data.status,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "notes": data.notes,
-            }
+        log_entry = {
+            "log_id": f"log_{uuid.uuid4().hex[:8]}",
+            "status": data.status,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "notes": data.notes,
+        }
 
-            if "logs" not in target:
-                target["logs"] = []
-            target["logs"].insert(0, log_entry)
+        current_logs = list(record.logs or [])
+        current_logs.insert(0, log_entry)
+        record.logs = current_logs
 
-            self._save_reminders()
-            return ReminderResponse(**target)
+        await db.commit()
+        await db.refresh(record)
 
-    def get_adherence_stats(self, user_id: str) -> AdherenceStats:
+        return ReminderResponse(
+            id=record.id,
+            user_id=record.user_id,
+            drug_name=record.drug_name,
+            dosage_instruction=record.dosage_instruction,
+            time_of_day=record.time_of_day,
+            reminder_time=record.reminder_time,
+            is_active=record.is_active,
+            created_at=record.created_at.isoformat() if hasattr(record.created_at, "isoformat") else str(record.created_at),
+            logs=[ReminderLogItem(**log) for log in record.logs],
+        )
+
+    async def get_adherence_stats(self, db: AsyncSession, user_id: str) -> AdherenceStats:
         """Tính toán thống kê tuân thủ điều trị (Adherence Rate %)."""
-        with self._lock:
-            user_items = self._reminders.get(user_id, [])
-            total_reminders = len(user_items)
-            taken_count = 0
-            skipped_count = 0
+        stmt = select(ReminderModel).where(ReminderModel.user_id == user_id)
+        result = await db.execute(stmt)
+        items = result.scalars().all()
 
-            for r in user_items:
-                for log in r.get("logs", []):
-                    if log.get("status") == "taken":
-                        taken_count += 1
-                    elif log.get("status") == "skipped":
-                        skipped_count += 1
+        total_reminders = len(items)
+        taken_count = 0
+        skipped_count = 0
 
-            total_logs = taken_count + skipped_count
-            rate = round((taken_count / total_logs) * 100.0, 1) if total_logs > 0 else 0.0
+        for r in items:
+            for log in (r.logs or []):
+                if log.get("status") == "taken":
+                    taken_count += 1
+                elif log.get("status") == "skipped":
+                    skipped_count += 1
 
-            return AdherenceStats(
-                total_reminders=total_reminders,
-                taken_count=taken_count,
-                skipped_count=skipped_count,
-                adherence_rate=rate,
-            )
+        total_logs = taken_count + skipped_count
+        rate = round((taken_count / total_logs) * 100.0, 1) if total_logs > 0 else 0.0
+
+        return AdherenceStats(
+            total_reminders=total_reminders,
+            taken_count=taken_count,
+            skipped_count=skipped_count,
+            adherence_rate=rate,
+        )
 
 
 reminder_service = ReminderService()

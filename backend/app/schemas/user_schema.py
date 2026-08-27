@@ -1,5 +1,5 @@
 """
-Pydantic Schemas cho Authentication System (Stage 8).
+Pydantic Schemas cho Authentication System (Stage 8/10).
 Đồng bộ 100% Data Contract với Frontend TypeScript Interfaces (frontend/src/types/auth.ts).
 """
 
@@ -10,19 +10,19 @@ from pydantic.alias_generators import to_camel
 
 
 class UserRegister(BaseModel):
-    email: EmailStr = Field(..., description="Email người dùng")
     username: str = Field(..., min_length=3, max_length=50, description="Tên đăng nhập (chữ và số)")
+    email: EmailStr = Field(..., description="Email người dùng")
     password: str = Field(..., min_length=6, description="Mật khẩu (ít nhất 6 ký tự)")
     full_name: Optional[str] = Field(None, description="Họ và tên người dùng")
 
-    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel, extra="ignore")
 
 
 class UserLogin(BaseModel):
     username_or_email: str = Field(..., description="Tên đăng nhập hoặc Email")
     password: str = Field(..., description="Mật khẩu")
 
-    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel, extra="ignore")
 
 
 class UserResponse(BaseModel):
@@ -30,9 +30,10 @@ class UserResponse(BaseModel):
     email: str = Field(..., description="Email người dùng")
     username: str = Field(..., description="Tên đăng nhập")
     full_name: Optional[str] = Field(None, description="Họ và tên người dùng")
+    is_profile_completed: bool = Field(False, description="Đã hoàn thành hồ sơ y tế /onboarding")
     created_at: str = Field(..., description="Thời gian tạo tài khoản (ISO 8601 string)")
 
-    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel, extra="ignore")
 
 
 class TokenResponse(BaseModel):
@@ -41,7 +42,7 @@ class TokenResponse(BaseModel):
     token_type: str = Field("bearer", description="Loại token")
     user: UserResponse = Field(..., description="Thông tin chi tiết người dùng")
 
-    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel, extra="ignore")
 
 
 class TokenPayload(BaseModel):
