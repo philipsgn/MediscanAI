@@ -18,6 +18,10 @@ export const API_ENDPOINTS = {
   evaluate: '/evaluate',
   /** [S4-Closeout/F4.3] Autocomplete từ điển thuốc (GET ?q=...&limit=...). */
   drugSearch: '/drugs/search',
+  /** Auth endpoints (Stage 8) */
+  authRegister: '/auth/register',
+  authLogin: '/auth/login',
+  authMe: '/auth/me',
 } as const;
 
 export type ApiEndpointPath = keyof typeof API_ENDPOINTS;
@@ -26,6 +30,17 @@ export type ApiEndpointPath = keyof typeof API_ENDPOINTS;
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30_000,
+});
+
+/** Thêm Interceptor đính kèm JWT Token vào Header nếu có */
+apiClient.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('mediscan_access_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
 });
 
 /** Dựng URL đầy đủ từ bảng endpoint (dùng trong service layer / script kiểm chứng). */
