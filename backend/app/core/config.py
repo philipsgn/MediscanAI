@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     # client có thể override qua query param (giới hạn cứng 1..50 ở router).
     DRUG_SEARCH_DEFAULT_LIMIT: int = 10
 
+    # JWT Authentication (Stage 8)
+    JWT_SECRET: str = "mediscan-jwt-secret-key-production-change-me-2026"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 giờ
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7          # 7 ngày
+
     # CORS Settings
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",

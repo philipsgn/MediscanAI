@@ -135,6 +135,14 @@ class DrugEvaluationRequest(BaseModel):
 
 # (Khối re-export OCR schemas cũ đã gộp vào import canonical ở đầu file — P0/F3.1.)
 
+from app.schemas.user_schema import (
+    UserRegister,
+    UserLogin,
+    UserResponse,
+    TokenResponse,
+    TokenPayload,
+)
+
 __all__ = [
     "UserProfile",
     "DrugItem",
@@ -151,4 +159,9 @@ __all__ = [
     "ClinicalAssessmentResponse",
     "ClinicalAlertSummary",
     "FullScanResponse",
+    "UserRegister",
+    "UserLogin",
+    "UserResponse",
+    "TokenResponse",
+    "TokenPayload",
 ]

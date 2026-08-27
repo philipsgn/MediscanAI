@@ -8,6 +8,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.endpoints.drugs import router as drugs_router
 from app.api.v1.endpoints.ocr import router as ocr_router
 from app.core.config import settings
@@ -46,6 +47,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Route Authentication System (Stage 8)
+app.include_router(auth_router, prefix=settings.API_V1_STR)
 
 # Route OCR + Clinical Assessment Pipeline
 app.include_router(ocr_router, prefix=settings.API_V1_STR)
