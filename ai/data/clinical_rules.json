@@ -1,0 +1,110 @@
+{
+  "version": "1.0.0",
+  "drug_drug_interactions": [
+    {
+      "id": "INT_001",
+      "drug_a": "Aspirin",
+      "drug_b": "Ibuprofen",
+      "severity": "HIGH",
+      "title": "Nguy cơ xuất huyết tiêu hóa & giảm tác dụng tim mạch",
+      "description": "Kết hợp Aspirin và Ibuprofen làm tăng đáng kể nguy cơ loét và chảy máu dạ dày, đồng thời Ibuprofen có thể ức chế tác dụng bảo vệ tim mạch chống kết tập tiểu cầu của Aspirin.",
+      "recommendation": "Tránh dùng đồng thời. Nếu cần giảm đau hạ sốt khi đang dùng Aspirin tim mạch, ưu tiên sử dụng Paracetamol ở liều khuyến cáo."
+    },
+    {
+      "id": "INT_002",
+      "drug_a": "Aspirin",
+      "drug_b": "Clopidogrel",
+      "severity": "MEDIUM",
+      "title": "Nguy cơ chảy máu tăng cường (Dual Antiplatelet)",
+      "description": "Phối hợp 2 thuốc chống kết tập tiểu cầu làm tăng nguy cơ xuất huyết. Thường được chỉ định sau can thiệp mạch vành nhưng cần theo dõi chặt chẽ.",
+      "recommendation": "Chỉ dùng khi có chỉ định cụ thể của bác sĩ tim mạch. Theo dõi dấu hiệu bầm tím bất thường, chảy máu chân răng hoặc phân đen."
+    },
+    {
+      "id": "INT_003",
+      "drug_a": "Clopidogrel",
+      "drug_b": "Esomeprazole",
+      "severity": "HIGH",
+      "title": "Giảm hoạt hóa Clopidogrel qua enzym CYP2C19",
+      "description": "Esomeprazole ức chế CYP2C19, làm giảm chuyển hóa Clopidogrel thành dạng hoạt tính, làm tăng nguy cơ biến cố huyết khối tái phát.",
+      "recommendation": "Thay thế Esomeprazole/Omeprazole bằng Pantoprazole (ít ức chế CYP2C19 hơn) khi bệnh nhân bắt buộc phải dùng PPI bảo vệ dạ dày."
+    },
+    {
+      "id": "INT_004",
+      "drug_a": "Amlodipine",
+      "drug_b": "Simvastatin",
+      "severity": "MEDIUM",
+      "title": "Tăng nồng độ Statin gây nguy cơ tiêu cơ vân",
+      "description": "Amlodipine ức chế CYP3A4 nhẹ, làm tăng phơi nhiễm Simvastatin trong máu.",
+      "recommendation": "Không vượt quá liều Simvastatin 20mg/ngày khi dùng chung với Amlodipine, hoặc chuyển sang Atorvastatin/Rosuvastatin theo dõi."
+    },
+    {
+      "id": "INT_005",
+      "drug_a": "Ciprofloxacin",
+      "drug_b": "Aluminium Phosphate",
+      "severity": "HIGH",
+      "title": "Giảm hấp thu kháng sinh do tạo phức chelate",
+      "description": "Các ion nhôm trong Phosphalugel tạo phức không tan với kháng sinh Quinolone (Ciprofloxacin), làm mất tác dụng diệt khuẩn.",
+      "recommendation": "Uống Ciprofloxacin trước ít nhất 2 giờ hoặc sau 4-6 giờ khi dùng thuốc kháng acid dạ dày chứa nhôm/magnesi."
+    },
+    {
+      "id": "INT_006",
+      "drug_a": "Metformin",
+      "drug_b": "Cimetidine",
+      "severity": "MEDIUM",
+      "title": "Tăng nồng độ Metformin trong huyết tương",
+      "description": "Cimetidine làm giảm thải trừ Metformin qua thận, tăng nguy cơ nhiễm toan lactic.",
+      "recommendation": "Theo dõi đường huyết và các dấu hiệu nhiễm toan lactic. Cân nhắc giảm liều Metformin hoặc đổi sang thuốc kháng H2 khác."
+    },
+    {
+      "id": "INT_007",
+      "drug_a": "Bisoprolol",
+      "drug_b": "Amlodipine",
+      "severity": "LOW",
+      "title": "Hạ huyết áp phối hợp (Tác dụng hiệp đồng điều trị)",
+      "description": "Phối hợp thường gặp trong điều trị tăng huyết áp và đau thắt ngực để tối ưu kiểm soát huyết áp.",
+      "recommendation": "Theo dõi huyết áp định kỳ và nhịp tim, tránh hạ huyết áp tư thế đứng khi mới bắt đầu điều trị."
+    }
+  ],
+  "drug_condition_contraindications": [
+    {
+      "id": "CON_001",
+      "ingredient": "Ibuprofen",
+      "condition": "Peptic Ulcer",
+      "condition_name_vi": "Loét dạ dày tá tràng",
+      "severity": "HIGH",
+      "title": "Chống chỉ định NSAID trên bệnh nhân loét dạ dày",
+      "description": "Ibuprofen ức chế COX-1 làm giảm tổng hợp Prostaglandin bảo vệ niêm mạc dạ dày, có thể gây thủng hoặc xuất huyết tiêu hóa nghiêm trọng.",
+      "recommendation": "Tuyệt đối không sử dụng NSAID đường uống. Thay thế bằng Paracetamol để hạ sốt/giảm đau nhẹ."
+    },
+    {
+      "id": "CON_002",
+      "ingredient": "Metformin",
+      "condition": "Chronic Kidney Disease",
+      "condition_name_vi": "Suy thận mạn tính",
+      "severity": "HIGH",
+      "title": "Nguy cơ nhiễm toan Axit Lactic trên bệnh nhân suy thận",
+      "description": "Metformin thải trừ qua thận; suy giảm chức năng thận (eGFR < 30 ml/min) làm tích lũy thuốc và gây nhiễm toan lactic đe dọa tính mạng.",
+      "recommendation": "Chống chỉ định khi eGFR < 30. Giảm liều tối đa 1000mg/ngày khi eGFR 30-44 ml/min. Cần xét nghiệm chức năng thận trước khi dùng."
+    },
+    {
+      "id": "CON_003",
+      "ingredient": "Bisoprolol",
+      "condition": "Asthma",
+      "condition_name_vi": "Hen suyễn / COPD",
+      "severity": "HIGH",
+      "title": "Nguy cơ co thắt phế quản cấp do thuốc chẹn Beta",
+      "description": "Thuốc chẹn Beta có thể làm tăng trương lực cơ trơn phế quản, khởi phát cơn hen cấp tính nghiêm trọng.",
+      "recommendation": "Chống chỉ định trong hen phế quản nặng. Thận trọng tối đa và ưu tiên nhóm thuốc hạ áp khác (CCB, ARB) nếu bệnh nhân có tiền sử hen."
+    },
+    {
+      "id": "CON_004",
+      "ingredient": "Amlodipine",
+      "condition": "Severe Heart Failure",
+      "condition_name_vi": "Suy tim sung huyết nặng",
+      "severity": "MEDIUM",
+      "title": "Thận trọng khi dùng thuốc chẹn kênh Canxi ở bệnh nhân suy tim",
+      "description": "Có thể làm tăng nguy cơ phù phổi hoặc ứ trệ dịch ở bệnh nhân suy tim phân suất tống máu giảm nặng.",
+      "recommendation": "Theo dõi sát tình trạng phù mắt cá chân và khó thở. Báo cho bác sĩ tim mạch để điều chỉnh liều."
+    }
+  ]
+}
