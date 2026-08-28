@@ -36,6 +36,21 @@ export interface IDrugItem {
   strengthMismatchWarning?: string | null;
 }
 
+export interface IExtractedDrugItem {
+  id: string;
+  drugName: string;
+  activeIngredient?: string | null;
+  strength?: string | null;
+  dosageForm?: string | null;
+  dosageInstruction?: string | null;
+  timeSlots: string[]; // ['morning', 'noon', 'afternoon', 'evening']
+  slotTimes: Record<string, string>; // { morning: '08:00', noon: '12:00', afternoon: '17:00', evening: '21:00' }
+  durationDays?: number | null;
+  startDate?: string | null; // YYYY-MM-DD
+  isTimeExtracted: boolean;
+  sourceStream: 'prescription' | 'packaging' | 'manual';
+}
+
 export interface IPrescription {
   sourceType: 'prescription' | 'packaging';
   items: IDrugItem[];

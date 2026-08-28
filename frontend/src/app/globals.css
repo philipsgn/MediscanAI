@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f4faff;
+  --foreground: #0e1d25;
 }
 
 @theme inline {
@@ -10,17 +10,34 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  
+  /* Material 3 Clinical Design System Tokens */
+  --color-surface: #f4faff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #e7f6ff;
+  --color-surface-container: #e0f0fb;
+  --color-surface-container-high: #daebf5;
+  
+  --color-primary: #003b43;
+  --color-primary-container: #1a535c;
+  --color-on-primary: #ffffff;
+  
+  --color-secondary: #006a65;
+  --color-secondary-container: #79f3ea;
+  
+  --color-on-background: #0e1d25;
+  --color-on-surface: #0e1d25;
+  --color-on-surface-variant: #40484a;
+  --color-outline-variant: #c0c8ca;
+  --color-error-container: #ffdad6;
+  --color-error: #ba1a1a;
+  
+  --shadow-ambient: 0 4px 20px rgba(26, 83, 92, 0.05);
+  --shadow-layer-1: 0 4px 20px rgba(26, 83, 92, 0.05);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Public Sans', Arial, Helvetica, sans-serif;
 }

@@ -1,6 +1,6 @@
 # Pydantic models cho kết quả OCR (ONNX PP-OCRv6) - Internal use
 import logging
-from typing import List, Literal, Optional
+from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 from pydantic.alias_generators import to_camel
@@ -80,6 +80,24 @@ class MedicineScanResult(BaseModel):
 # ─────────────────────────────────────────────────────────────────────────────
 # Full Pipeline Response Models (Public API)
 # ─────────────────────────────────────────────────────────────────────────────
+
+class ExtractedDrugItem(BaseModel):
+    """Unified Clinical Feature Schema cho cả 2 luồng Prescription & Packaging."""
+    id: str = Field(..., description="ID định danh duy nhất cho item thuốc trích xuất")
+    drug_name: str = Field(..., description="Tên biệt dược hoặc tên thuốc gốc")
+    active_ingredient: Optional[str] = Field(None, description="Tên hoạt chất chuẩn hóa")
+    strength: Optional[str] = Field(None, description="Hàm lượng (VD: 500mg)")
+    dosage_form: Optional[str] = Field(None, description="Dạng bào chế (viên, gói, chai...)")
+    dosage_instruction: Optional[str] = Field(None, description="Hướng dẫn liều dùng (VD: Sáng 1v, Tối 1v sau ăn)")
+    time_slots: List[str] = Field(default=[], description="Các buổi uống thuốc: ['morning', 'noon', 'afternoon', 'evening']")
+    slot_times: Dict[str, str] = Field(default={}, description="Khung giờ cụ thể {'morning': '08:00', 'evening': '20:00'}")
+    duration_days: Optional[int] = Field(None, description="Số ngày uống thuốc")
+    start_date: Optional[str] = Field(None, description="Ngày bắt đầu (YYYY-MM-DD)")
+    is_time_extracted: bool = Field(False, description="True nếu OCR trích xuất được giờ, False nếu cần nhập tay")
+    source_stream: str = Field("prescription", description="Nguồn trích xuất: 'prescription' hoặc 'packaging'")
+
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
 
 class MappedDrugItem(BaseModel):
     """Thuốc đã được map từ OCR raw text -> Drug Database."""

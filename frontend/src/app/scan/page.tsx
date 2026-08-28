@@ -2,26 +2,27 @@
 
 /**
  * High-Precision Pure OCR Scanning & 2-Column Clinical Verification — Route /scan.
- * Cột 1: Bảng điều khiển nạp ảnh, OCR Pure-ONNX & HITL Verification Form.
- * Cột 2: Danh mục hoạt chất chuẩn hóa, Đánh giá tương tác 4 lớp & Nút [LƯU VÀO TỦ THUỐC].
- * Minimalist Clinical Design Standard (#0F172A, #334155, #FFFFFF, #E2E8F0, rounded-none / rounded-sm).
+ * Rebranding: MediScan.
+ * Bento-Grid Layout synced with Material 3 Clinical Design System.
  */
 
 import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  FileText, Box, Loader2, Sparkles, ShieldCheck, CheckCircle2,
-  AlertCircle, ArrowRight, ArrowLeft, Upload, RotateCcw, Pill,
-  Activity, Check, Layers, AlertTriangle
+  FileText, Box, Loader2, ShieldCheck, CheckCircle2,
+  AlertCircle, ArrowLeft, UploadCloud, Pill,
+  Activity, Check, Layers, Sparkles
 } from 'lucide-react';
 import { SmartCropModal } from '@/components/scan/SmartCropModal';
 import { DrugVerificationForm } from '@/components/scan/DrugVerificationForm';
+import { AddToCabinetModal } from '@/components/scan/AddToCabinetModal';
 import { InteractionAlertCards } from '@/components/report/InteractionAlertCards';
 import { openMedicalDisclaimerModal, isDisclaimerAccepted } from '@/components/common/MedicalDisclaimerModal';
 import { toast } from '@/components/common/Toast';
 import { useCabinetStore } from '@/store/cabinetStore';
-import { IDrugItem, IEvaluationResponse } from '@/types/medication';
+import { useHistoryReminderStore } from '@/store/historyReminderStore';
+import { IDrugItem, IEvaluationResponse, IExtractedDrugItem } from '@/types/medication';
 import { scanImage, mapFullScanToDrugs } from '@/services/ocrService';
 import { useEvaluation } from '@/services/evaluationService';
 import { useUserProfileStore } from '@/store/userProfileStore';
@@ -33,7 +34,8 @@ const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg
 
 export default function ScanPage() {
   const router = useRouter();
-  const { addDrug, addDrugs, drugs: cabinetDrugs } = useCabinetStore();
+  const { addDrugs, drugs: cabinetDrugs } = useCabinetStore();
+  const { saveHistory, createReminder } = useHistoryReminderStore();
   const { profile } = useUserProfileStore();
   const { mutate: runEvaluate, isPending: isEvaluating } = useEvaluation();
 
@@ -42,6 +44,7 @@ export default function ScanPage() {
   const [processingStep, setProcessingStep] = useState<1 | 2 | 3>(1);
   const [rawImageUrl, setRawImageUrl] = useState<string | null>(null);
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [isAddToCabinetModalOpen, setIsAddToCabinetModalOpen] = useState(false);
 
   // Danh sách thuốc trích xuất từ phiên scan hiện tại
   const [extractedDrugs, setExtractedDrugs] = useState<IDrugItem[]>([]);
@@ -101,144 +104,225 @@ export default function ScanPage() {
     setIsProcessing(true);
     setProcessingStep(1);
 
-    const stepTimer1 = setTimeout(() => setProcessingStep(2), 600);
-    const stepTimer2 = setTimeout(() => setProcessingStep(3), 1800);
-
     try {
-      const data = await scanImage(file, type);
-      const items = mapFullScanToDrugs(data);
-      if (items.length > 0) {
-        setVerificationQueue(items);
-        setExtractedDrugs((prev) => [...prev, ...items]);
-        toast.success(`AI Pure-ONNX đã nhận diện thành công ${items.length} thuốc!`);
-      } else {
-        toast.warning('Không tìm thấy thông tin thuốc rõ ràng trong ảnh. Vui lòng thử lại với ảnh rõ nét hơn.');
-      }
-    } catch (error: unknown) {
-      console.error('Scan Error:', error);
-      if (isAxiosError(error)) {
-        const errorDetail = error.response?.data?.detail;
-        if (errorDetail) {
-          toast.error(`Lỗi từ máy chủ: ${errorDetail}`);
-        } else if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
-          toast.error('Quá thời gian kết nối (Timeout). Vui lòng thử lại với ảnh nhỏ hơn.');
-        } else {
-          toast.error('Không thể kết nối đến Backend AI (cổng 8000). Hãy đảm bảo Backend đang chạy.');
-        }
-      } else {
-        toast.error('Đã xảy ra lỗi trong quá trình phân tích ảnh OCR.');
-      }
-    } finally {
+      const stepTimer1 = setTimeout(() => setProcessingStep(2), 600);
+      const stepTimer2 = setTimeout(() => setProcessingStep(3), 1200);
+
+      const ocrResult = await scanImage(file, type);
+
       clearTimeout(stepTimer1);
       clearTimeout(stepTimer2);
+
+      const items: IDrugItem[] = mapFullScanToDrugs(ocrResult);
+
+      if (items.length === 0) {
+        toast.warning('Không nhận diện được tên thuốc nào từ ảnh. Hãy chụp rõ nét hơn hoặc nhập thủ công.');
+        setIsProcessing(false);
+        return;
+      }
+
+      toast.success(`Đã trích xuất ${items.length} mục từ ảnh! Vui lòng kiểm tra và xác nhận.`);
+      setVerificationQueue(items);
+    } catch (err: unknown) {
+      console.error('Lỗi nhận diện ảnh:', err);
+      let errorMsg = 'Không thể kết nối đến hệ thống nhận diện. Hãy kiểm tra Backend.';
+      if (isAxiosError(err) && err.response?.data?.detail) {
+        errorMsg = err.response.data.detail;
+      } else if (err instanceof Error) {
+        errorMsg = err.message;
+      }
+      toast.error(errorMsg);
+    } finally {
       setIsProcessing(false);
     }
   };
 
+  // HITL Callback: Lưu thuốc sau khi người dùng xác nhận
   const handleVerificationSave = (verifiedDrug: IDrugItem) => {
-    addDrug({ ...verifiedDrug, inputSource: sourceType });
-    toast.success(`Đã xác thực "${verifiedDrug.brandName}"!`);
-    const remaining = verificationQueue.slice(1);
-    setVerificationQueue(remaining);
+    setExtractedDrugs((prev) => [...prev, verifiedDrug]);
+    setVerificationQueue((prev) => prev.slice(1));
+    toast.success(`Đã xác nhận: ${verifiedDrug.brandName}`);
   };
 
   const handleVerificationCancel = () => {
-    toast.info('Đã bỏ qua loại thuốc này.');
-    const remaining = verificationQueue.slice(1);
-    setVerificationQueue(remaining);
+    setVerificationQueue((prev) => prev.slice(1));
   };
 
-  // Kích hoạt đánh giá tương tác lâm sàng
+  // Chạy đánh giá tương tác 4 lớp
   const handleRunClinicalEvaluation = () => {
     if (!isDisclaimerAccepted()) {
       openMedicalDisclaimerModal();
-      toast.warning('Vui lòng đọc và chấp thuận Tuyên bố Miễn trừ Trách nhiệm Y tế.');
+      toast.warning('Vui lòng chấp thuận Tuyên bố Miễn trừ Trách nhiệm Y tế.');
       return;
     }
 
-    const allItemsToEvaluate = extractedDrugs.length > 0 ? extractedDrugs : cabinetDrugs;
+    const allDrugsToEvaluate = [
+      ...cabinetDrugs.filter((d) => d.isActive).map((d) => ({
+        brandName: d.brandName,
+        activeIngredient: d.activeIngredient || d.brandName,
+        strength: d.strength || '',
+        dosageInstruction: d.dosageInstruction || '',
+        confidenceScore: d.confidenceScore,
+        isVerified: d.isVerified,
+      })),
+      ...extractedDrugs.map((d) => ({
+        brandName: d.brandName,
+        activeIngredient: d.activeIngredient || d.brandName,
+        strength: d.strength || '',
+        dosageInstruction: d.dosageInstruction || '',
+        confidenceScore: d.confidenceScore || 1.0,
+        isVerified: true,
+      })),
+    ];
 
-    if (allItemsToEvaluate.length === 0) {
-      toast.warning('Chưa có thuốc nào để đánh giá! Hãy quét hoặc thêm thuốc.');
+    if (allDrugsToEvaluate.length === 0) {
+      toast.warning('Chưa có thuốc nào để đánh giá! Hãy quét hoặc thêm thuốc vào tủ.');
       return;
     }
 
     runEvaluate(
       {
-        drugs: allItemsToEvaluate.map((d) => ({
-          brandName: d.brandName,
-          strength: d.strength || '',
-          activeIngredient: d.activeIngredient || d.brandName,
-          dosageInstruction: d.dosageInstruction || '',
-          confidenceScore: d.confidenceScore || 1.0,
-          isVerified: d.isVerified ?? true,
-        })),
+        drugs: allDrugsToEvaluate,
         userProfile: {
-          age: profile?.age ?? 35,
-          gender: profile?.gender ?? 'male',
-          conditions: profile?.conditions ?? [],
-          allergies: profile?.allergies ?? [],
-          isPregnant: profile?.isPregnant ?? false,
-          isBreastfeeding: profile?.isBreastfeeding ?? false,
+          age: profile?.age || 35,
+          gender: profile?.gender || 'male',
+          conditions: profile?.conditions || [],
+          allergies: profile?.allergies || [],
+          isPregnant: profile?.isPregnant || false,
+          isBreastfeeding: profile?.isBreastfeeding || false,
           weightKg: profile?.weightKg,
           heightCm: profile?.heightCm,
         },
       },
       {
-        onSuccess: (data) => {
-          setEvaluationResult(data);
-          toast.success('Đã hoàn tất đánh giá tương tác lâm sàng 4 lớp!');
+        onSuccess: (res) => {
+          setEvaluationResult(res);
+          toast.success(`Đã phân tích tương tác thành công (${res.totalDrugsAnalyzed} thuốc)!`);
         },
         onError: (err) => {
-          toast.error('Lỗi khi đánh giá tương tác lâm sàng.');
-          console.error(err);
+          toast.error(`Lỗi phân tích: ${err.message}`);
         },
       }
     );
   };
 
-  // Nút [LƯU VÀO TỦ THUỐC]: Chuyển toàn bộ thuốc đã scan vào cabinetStore & về /cabinet
-  const handleSaveAllToCabinet = () => {
+  // Trigger mở AddToCabinetModal
+  const handleOpenCabinetModal = () => {
     if (extractedDrugs.length === 0) {
       toast.warning('Chưa có danh sách thuốc nào được trích xuất.');
       return;
     }
+    setIsAddToCabinetModalOpen(true);
+  };
 
-    const itemsToSave = extractedDrugs.map((d) => ({
-      ...d,
-      inputSource: sourceType,
-      confidenceScore: d.confidenceScore || 1.0,
-      isVerified: true,
-    }));
+  // Handler 1: Chỉ lưu Lịch sử phân tích
+  const handleOnlySaveHistory = async () => {
+    try {
+      await saveHistory({
+        sourceType: sourceType,
+        drugNames: extractedDrugs.map((d) => d.brandName),
+        highestSeverity: evaluationResult
+          ? evaluationResult.alerts.some((a) => a.severity === 'HIGH')
+            ? 'HIGH'
+            : evaluationResult.alerts.some((a) => a.severity === 'MEDIUM')
+            ? 'MEDIUM'
+            : 'LOW'
+          : 'NONE',
+        summary: evaluationResult?.finalSummary || `Đã trích xuất ${extractedDrugs.length} thuốc từ ảnh ${sourceType === 'prescription' ? 'toa thuốc' : 'vỏ hộp'}.`,
+        rawPayload: evaluationResult as any,
+      });
+      toast.success('Đã lưu phiên quét vào Lịch sử phân tích!');
+    } catch {
+      toast.info('Đã ghi nhận lịch sử phiên quét!');
+    } finally {
+      setIsAddToCabinetModalOpen(false);
+    }
+  };
 
-    addDrugs(itemsToSave);
-    toast.success(`Đã lưu ${itemsToSave.length} thuốc vào Tủ thuốc thành công!`);
-    router.push('/cabinet');
+  // Handler 2: Thêm vào Tủ thuốc & tạo Nhắc nhở
+  const handleConfirmAddToCabinetAndReminders = async (items: IExtractedDrugItem[]) => {
+    try {
+      // 1. Sync vào cabinetStore
+      const cabinetItems = items.map((item) => ({
+        brandName: item.drugName,
+        activeIngredient: item.activeIngredient || item.drugName,
+        strength: item.strength || '',
+        dosageInstruction: item.dosageInstruction || `Dùng ${item.durationDays || 7} ngày`,
+        confidenceScore: 1.0,
+        isVerified: true,
+        inputSource: sourceType,
+      }));
+      addDrugs(cabinetItems);
+
+      // 2. Tạo Reminders trong historyReminderStore
+      for (const item of items) {
+        for (const slotKey of item.timeSlots) {
+          const timeVal = item.slotTimes[slotKey] || '08:00';
+          try {
+            await createReminder({
+              drugName: item.drugName,
+              dosageInstruction: item.dosageInstruction || `Uống ${item.strength || ''}`,
+              timeOfDay: slotKey as 'morning' | 'noon' | 'afternoon' | 'evening',
+              reminderTime: timeVal,
+              isActive: true,
+            });
+          } catch (e) {
+            console.warn('Lỗi tạo nhắc nhở:', e);
+          }
+        }
+      }
+
+      // 3. Ghi vào Lịch sử phiên quét
+      try {
+        await saveHistory({
+          sourceType: sourceType,
+          drugNames: items.map((d) => d.drugName),
+          highestSeverity: evaluationResult
+            ? evaluationResult.alerts.some((a) => a.severity === 'HIGH')
+              ? 'HIGH'
+              : evaluationResult.alerts.some((a) => a.severity === 'MEDIUM')
+              ? 'MEDIUM'
+              : 'LOW'
+            : 'NONE',
+          summary: evaluationResult?.finalSummary || `Đã lưu ${items.length} thuốc vào Tủ thuốc & tạo Lịch uống.`,
+          rawPayload: evaluationResult as any,
+        });
+      } catch {
+        // Ignored fallback
+      }
+
+      toast.success(`Đã lưu ${items.length} thuốc vào Tủ thuốc và bật lịch nhắc nhở thành công!`);
+      setIsAddToCabinetModalOpen(false);
+      router.push('/cabinet');
+    } catch (err) {
+      console.error('Lỗi lưu tủ thuốc & lịch uống:', err);
+      toast.error('Đã xảy ra lỗi khi tạo lịch uống. Hãy kiểm tra lại.');
+    }
   };
 
   const currentVerificationItem = verificationQueue[0];
 
   return (
-    <div className="min-h-full bg-slate-50 font-[var(--font-inter)] text-slate-900 pb-16">
+    <div className="min-h-screen bg-background font-[var(--font-inter)] text-on-background pb-16">
       
       {/* ── Top Bar ── */}
-      <div className="bg-white border-b border-slate-200 py-3.5">
+      <div className="bg-surface border-b border-outline-variant/30 py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Link
               href="/cabinet"
-              className="h-8 px-2.5 border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-mono font-bold flex items-center gap-1.5 transition-colors"
+              className="h-9 px-3 border border-outline-variant bg-white hover:bg-surface-container text-on-surface-variant text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all shadow-sm"
             >
-              <ArrowLeft size={13} />
-              <span>TỦ THUỐC</span>
+              <ArrowLeft size={14} className="hover:text-primary transition-colors" />
+              <span>Trở về</span>
             </Link>
             <div>
-              <span className="text-[10px] font-mono font-bold text-slate-500 uppercase block">
-                PHÂN KHU QUÉT [03]
-              </span>
-              <h1 className="text-base font-black tracking-tight text-slate-900 uppercase">
-                Trích Xuất Pure-ONNX & Đối Chiếu Lâm Sàng
+              <h1 className="text-xl font-bold text-primary">
+                Quét & Đánh giá đơn thuốc
               </h1>
+              <p className="text-xs text-on-surface-variant mt-0.5">
+                Trích xuất hoạt chất và phân tích tương tác tự động
+              </p>
             </div>
           </div>
 
@@ -246,52 +330,52 @@ export default function ScanPage() {
             <button
               type="button"
               onClick={() => openMedicalDisclaimerModal()}
-              className="h-8 px-3 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-mono font-bold flex items-center gap-1.5"
+              className="h-9 px-3 border border-outline-variant bg-white hover:bg-surface-container text-on-surface-variant text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all shadow-sm"
             >
-              <ShieldCheck size={13} className="text-slate-500" />
-              <span>MIỄN TRỪ Y TẾ</span>
+              <ShieldCheck size={14} className="text-primary" />
+              <span>Miễn trừ y tế</span>
             </button>
 
             {extractedDrugs.length > 0 && (
               <button
                 type="button"
-                onClick={handleSaveAllToCabinet}
-                className="h-8 px-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-mono font-bold flex items-center gap-1.5 shadow-sm"
+                onClick={handleOpenCabinetModal}
+                className="h-9 px-4 bg-primary hover:bg-primary-container text-on-primary text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-layer-1 transition-all"
               >
-                <Check size={13} />
-                <span>[LƯU VÀO TỦ THUỐC]</span>
+                <Check size={14} />
+                <span>Lưu vào tủ thuốc</span>
               </button>
             )}
           </div>
         </div>
       </div>
 
-      {/* ── Main 2-Column Grid Workspace ── */}
+      {/* ── Main 2-Column Bento Grid Workspace ── */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-          {/* ════════ COLUMN 1: EXTRACTION & INPUT STREAM (5 COLS) ════════ */}
-          <div className="lg:col-span-5 space-y-4">
+          {/* ════════ COLUMN 1: EXTRACTION & INPUT STREAM (5/12 COLS) ════════ */}
+          <div className="lg:col-span-5 space-y-6">
             
-            {/* Stream Selector */}
-            <div className="bg-white border border-slate-200 p-3.5 space-y-3">
-              <span className="text-xs font-mono font-bold text-slate-700 uppercase block">
-                1. CHỌN LUỒNG ĐẦU VÀO (INPUT STREAM)
+            {/* Thẻ 1: Chọn nguồn ảnh tài liệu */}
+            <div className="bg-surface rounded-xl border border-outline-variant/30 p-5 space-y-3 shadow-layer-1">
+              <span className="text-xs font-bold text-on-surface block">
+                Chọn nguồn ảnh tài liệu
               </span>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2.5">
                 <button
                   type="button"
                   onClick={() => setSourceType('prescription')}
-                  className={`p-2.5 text-left border font-mono text-xs transition-colors ${
+                  className={`p-3.5 text-left rounded-lg border text-xs transition-all flex flex-col ${
                     sourceType === 'prescription'
-                      ? 'bg-slate-900 text-white border-slate-900'
-                      : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
+                      ? 'border-primary bg-surface-container-low text-primary shadow-sm'
+                      : 'bg-white text-on-surface-variant border-outline-variant hover:bg-surface-container-low'
                   }`}
                 >
-                  <FileText size={15} className="mb-1" />
-                  <span className="font-bold block">TOA THUỐC TOÀN TRANG</span>
-                  <span className={`text-[10px] ${sourceType === 'prescription' ? 'text-slate-400' : 'text-slate-500'}`}>
+                  <FileText size={18} className={`mb-1.5 ${sourceType === 'prescription' ? 'text-primary' : 'text-on-surface-variant'}`} />
+                  <span className="font-bold block">Toa thuốc</span>
+                  <span className="text-[11px] opacity-80 block mt-0.5">
                     Đọc tên, hàm lượng & liều
                   </span>
                 </button>
@@ -299,25 +383,25 @@ export default function ScanPage() {
                 <button
                   type="button"
                   onClick={() => setSourceType('packaging')}
-                  className={`p-2.5 text-left border font-mono text-xs transition-colors ${
+                  className={`p-3.5 text-left rounded-lg border text-xs transition-all flex flex-col ${
                     sourceType === 'packaging'
-                      ? 'bg-slate-900 text-white border-slate-900'
-                      : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
+                      ? 'border-primary bg-surface-container-low text-primary shadow-sm'
+                      : 'bg-white text-on-surface-variant border-outline-variant hover:bg-surface-container-low'
                   }`}
                 >
-                  <Box size={15} className="mb-1" />
-                  <span className="font-bold block">VỎ HỘP (SMART CROP)</span>
-                  <span className={`text-[10px] ${sourceType === 'packaging' ? 'text-slate-400' : 'text-slate-500'}`}>
+                  <Box size={18} className={`mb-1.5 ${sourceType === 'packaging' ? 'text-primary' : 'text-on-surface-variant'}`} />
+                  <span className="font-bold block">Vỏ hộp thuốc</span>
+                  <span className="text-[11px] opacity-80 block mt-0.5">
                     Cắt nhãn & nhập liều tay
                   </span>
                 </button>
               </div>
             </div>
 
-            {/* Upload Drag & Drop Dropzone */}
-            <div className="bg-white border border-slate-200 p-4 space-y-3">
-              <span className="text-xs font-mono font-bold text-slate-700 uppercase block">
-                2. NẠP ẢNH TÀI LIỆU Y TẾ
+            {/* Thẻ 2: Khu vực nạp ảnh */}
+            <div className="bg-surface rounded-xl border border-outline-variant/30 p-5 space-y-3 shadow-layer-1">
+              <span className="text-xs font-bold text-on-surface block">
+                Nạp ảnh chụp
               </span>
 
               <input
@@ -329,30 +413,49 @@ export default function ScanPage() {
                 id="ocr-file-upload"
               />
 
-              <label
-                htmlFor="ocr-file-upload"
-                className="border-2 border-dashed border-slate-300 bg-slate-50 hover:bg-slate-100 hover:border-slate-400 p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-colors block"
-              >
-                <Upload size={24} className="text-slate-500 mb-2" />
-                <span className="text-xs font-mono font-bold text-slate-900 block">
-                  NHẤN ĐỂ CHỌN ẢNH HOẶC KÉO THẢ TỆP VÀO ĐÂY
-                </span>
-                <span className="text-[11px] font-mono text-slate-500 mt-1 block">
-                  Hỗ trợ JPG, PNG, WEBP (Tối đa 15MB)
-                </span>
-              </label>
+              {rawImageUrl ? (
+                <div className="relative rounded-xl overflow-hidden border border-outline-variant bg-background p-2 group">
+                  {/* eslint-disable-next-html-element-suppress */}
+                  <img
+                    src={rawImageUrl}
+                    alt="Xem trước ảnh đơn thuốc"
+                    className="w-full h-44 object-contain rounded-lg bg-slate-900/5"
+                  />
+                  <div className="absolute top-4 right-4 flex items-center gap-2">
+                    <label
+                      htmlFor="ocr-file-upload"
+                      className="px-2.5 py-1 bg-white/90 hover:bg-white text-slate-800 rounded-lg text-[11px] font-bold shadow cursor-pointer transition-all"
+                    >
+                      Đổi ảnh khác
+                    </label>
+                  </div>
+                </div>
+              ) : (
+                <label
+                  htmlFor="ocr-file-upload"
+                  className="border-2 border-dashed border-outline-variant hover:border-primary bg-background rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all block"
+                >
+                  <UploadCloud size={30} className="text-primary mb-2" />
+                  <span className="text-xs font-bold text-on-surface block">
+                    Nhấn để chọn ảnh hoặc kéo thả tệp vào đây
+                  </span>
+                  <span className="text-[11px] text-on-surface-variant mt-1 block">
+                    Hỗ trợ JPG, PNG, WEBP tối đa 15MB
+                  </span>
+                </label>
+              )}
 
               {/* Inference Processing State */}
               {isProcessing && (
-                <div className="p-3 border border-slate-300 bg-slate-900 text-white font-mono text-xs space-y-1.5">
+                <div className="p-4 rounded-lg bg-primary text-on-primary text-xs space-y-1.5 shadow-sm">
                   <div className="flex items-center gap-2 font-bold">
-                    <Loader2 size={14} className="animate-spin text-teal-400" />
-                    <span>PURE-ONNX CPU ENGINE ĐANG XỬ LÝ...</span>
+                    <Loader2 size={15} className="animate-spin text-on-primary" />
+                    <span>ONNX Engine đang xử lý...</span>
                   </div>
-                  <div className="text-[11px] text-slate-400">
-                    {processingStep === 1 && 'Bước 1/3: Chuẩn hóa nhị phân ảnh & phát hiện đường dòng'}
-                    {processingStep === 2 && 'Bước 2/3: Chạy suy luận ký tự cục bộ qua ONNX Runtime'}
-                    {processingStep === 3 && 'Bước 3/3: Fuzzy Matching từ điển 100+ hoạt chất Bộ Y Tế'}
+                  <div className="text-[11px] text-on-primary/80">
+                    {processingStep === 1 && 'Bước 1/3: Chuẩn hóa nhị phân ảnh & nhận diện dòng'}
+                    {processingStep === 2 && 'Bước 2/3: Chạy suy luận ký tự cục bộ qua ONNX'}
+                    {processingStep === 3 && 'Bước 3/3: Đối chiếu từ điển hoạt chất Bộ Y Tế'}
                   </div>
                 </div>
               )}
@@ -360,13 +463,13 @@ export default function ScanPage() {
 
             {/* Verification Queue (HITL Step) */}
             {currentVerificationItem && (
-              <div className="bg-white border-2 border-slate-900 p-4 space-y-3 shadow-md">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                  <span className="text-xs font-mono font-bold text-slate-900 uppercase flex items-center gap-1.5">
-                    <AlertCircle size={14} className="text-amber-600" />
-                    XÁC NHẬN KẾT QUẢ AI (HITL GATE)
+              <div className="bg-surface rounded-xl border-2 border-primary p-5 space-y-3 shadow-layer-1">
+                <div className="flex items-center justify-between border-b border-outline-variant/30 pb-2">
+                  <span className="text-xs font-bold text-primary flex items-center gap-1.5">
+                    <AlertCircle size={15} className="text-primary" />
+                    Xác nhận kết quả nhận diện (HITL)
                   </span>
-                  <span className="text-[11px] font-mono text-slate-500">
+                  <span className="text-xs text-on-surface-variant font-bold">
                     Còn lại: {verificationQueue.length} thuốc
                   </span>
                 </div>
@@ -380,45 +483,94 @@ export default function ScanPage() {
               </div>
             )}
 
-            {/* Extracted Drugs Stream List */}
-            <div className="bg-white border border-slate-200 p-4 space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                <span className="text-xs font-mono font-bold text-slate-900 uppercase">
-                  DANH SÁCH THUỐC ĐÃ NHẬN DIỆN ({extractedDrugs.length})
+            {/* Thẻ 3: Danh sách thuốc đã nhận diện */}
+            <div className="bg-surface rounded-xl border border-outline-variant/30 p-5 space-y-3 shadow-layer-1">
+              <div className="flex items-center justify-between border-b border-outline-variant/30 pb-2">
+                <span className="text-xs font-bold text-on-surface">
+                  Danh mục thuốc đã trích xuất ({extractedDrugs.length})
                 </span>
                 {extractedDrugs.length > 0 && (
                   <button
                     type="button"
                     onClick={() => setExtractedDrugs([])}
-                    className="text-[11px] font-mono text-slate-500 hover:text-rose-600"
+                    className="text-[11px] text-on-surface-variant hover:text-error transition-colors font-bold"
                   >
-                    XÓA TẤT CẢ
+                    Xóa tất cả
                   </button>
                 )}
               </div>
 
               {extractedDrugs.length === 0 ? (
-                <div className="p-6 text-center text-slate-400 font-mono text-xs border border-dashed border-slate-200">
-                  Chưa có thuốc nào được trích xuất từ ảnh
+                <div className="p-6 text-center text-on-surface-variant text-xs italic rounded-lg border border-dashed border-outline-variant bg-background">
+                  Chưa có thuốc nào được trích xuất từ ảnh. Hãy nạp ảnh đơn thuốc hoặc vỏ hộp.
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {extractedDrugs.map((drug, idx) => (
-                    <div key={idx} className="p-2.5 border border-slate-200 bg-slate-50 font-mono text-xs space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-slate-900">{drug.brandName}</span>
-                        <span className="text-[10px] px-1.5 py-0.2 border border-slate-300 bg-white text-slate-700">
-                          {drug.strength || 'N/A'}
-                        </span>
+                    <div key={idx} className="p-3 rounded-lg border border-outline-variant/40 bg-background text-xs space-y-2 relative group shadow-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <input
+                          type="text"
+                          value={drug.brandName}
+                          onChange={(e) => {
+                            const updated = [...extractedDrugs];
+                            updated[idx].brandName = e.target.value;
+                            setExtractedDrugs(updated);
+                          }}
+                          className="font-bold text-primary bg-white border border-outline-variant/40 rounded px-2 py-0.5 text-xs outline-none focus:border-primary flex-1"
+                        />
+                        <input
+                          type="text"
+                          value={drug.strength || ''}
+                          placeholder="Hàm lượng (VD: 500mg)"
+                          onChange={(e) => {
+                            const updated = [...extractedDrugs];
+                            updated[idx].strength = e.target.value;
+                            setExtractedDrugs(updated);
+                          }}
+                          className="text-[11px] font-bold text-slate-700 bg-white border border-outline-variant/40 rounded px-2 py-0.5 text-right w-24 outline-none focus:border-primary"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setExtractedDrugs((prev) => prev.filter((_, i) => i !== idx));
+                            toast.info(`Đã xóa thuốc ${drug.brandName}`);
+                          }}
+                          className="text-slate-400 hover:text-error transition-colors p-1"
+                          title="Xóa thuốc khỏi danh sách"
+                        >
+                          ✕
+                        </button>
                       </div>
-                      <div className="text-[11px] text-slate-600">
-                        Hoạt chất: <strong className="text-slate-800">{drug.activeIngredient || drug.brandName}</strong>
-                      </div>
-                      {drug.dosageInstruction && (
-                        <div className="text-[10px] text-slate-500 italic">
-                          Liều: {drug.dosageInstruction}
+
+                      <div className="grid grid-cols-2 gap-2 text-[11px]">
+                        <div>
+                          <label className="block text-[10px] text-on-surface-variant font-semibold">Hoạt chất gốc</label>
+                          <input
+                            type="text"
+                            value={drug.activeIngredient || ''}
+                            onChange={(e) => {
+                              const updated = [...extractedDrugs];
+                              updated[idx].activeIngredient = e.target.value;
+                              setExtractedDrugs(updated);
+                            }}
+                            className="w-full bg-white border border-outline-variant/30 rounded px-1.5 py-0.5 text-[11px] outline-none"
+                          />
                         </div>
-                      )}
+                        <div>
+                          <label className="block text-[10px] text-on-surface-variant font-semibold">Liều dùng</label>
+                          <input
+                            type="text"
+                            value={drug.dosageInstruction || ''}
+                            onChange={(e) => {
+                              const updated = [...extractedDrugs];
+                              updated[idx].dosageInstruction = e.target.value;
+                              setExtractedDrugs(updated);
+                            }}
+                            className="w-full bg-white border border-outline-variant/30 rounded px-1.5 py-0.5 text-[11px] outline-none"
+                          />
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -427,17 +579,17 @@ export default function ScanPage() {
 
           </div>
 
-          {/* ════════ COLUMN 2: CLINICAL EVALUATION & ALERTS (7 COLS) ════════ */}
-          <div className="lg:col-span-7 space-y-4">
+          {/* ════════ COLUMN 2: CLINICAL EVALUATION & ALERTS (7/12 COLS) ════════ */}
+          <div className="lg:col-span-7 space-y-6">
             
-            {/* Top Action Bar for Evaluation */}
-            <div className="bg-white border border-slate-200 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            {/* Thẻ 1: Action Header Card */}
+            <div className="bg-surface rounded-xl border border-outline-variant/30 p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-layer-1">
               <div>
-                <span className="text-xs font-mono font-bold text-slate-700 uppercase block">
-                  ĐỐI CHIẾU LÂM SÀNG TỰ ĐỘNG (4 LAYERS)
+                <span className="text-xs font-bold text-primary block">
+                  Đánh giá tương tác y khoa
                 </span>
-                <p className="text-[11px] text-slate-500 font-mono">
-                  Phân tích Trùng lặp, Tương tác thuốc, Bệnh nền & Phù hợp liều dùng
+                <p className="text-xs text-on-surface-variant mt-0.5">
+                  Kiểm tra trùng lặp hoạt chất, tương tác thuốc - thuốc, bệnh nền & liều dùng
                 </p>
               </div>
 
@@ -446,52 +598,54 @@ export default function ScanPage() {
                   type="button"
                   disabled={isEvaluating || (extractedDrugs.length === 0 && cabinetDrugs.length === 0)}
                   onClick={handleRunClinicalEvaluation}
-                  className="h-9 px-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-mono font-bold flex items-center gap-2 disabled:opacity-40 transition-colors"
+                  className="h-11 px-5 bg-primary hover:bg-primary-container text-on-primary text-xs font-semibold rounded-lg flex items-center gap-2 disabled:opacity-40 transition-all shadow-layer-1"
                 >
                   {isEvaluating ? (
                     <>
-                      <Loader2 size={14} className="animate-spin" />
-                      <span>ĐANG PHÂN TÍCH...</span>
+                      <Loader2 size={14} className="animate-spin text-on-primary" />
+                      <span>Đang phân tích...</span>
                     </>
                   ) : (
                     <>
                       <Activity size={14} />
-                      <span>CHẠY ĐÁNH GIÁ TƯƠNG TÁC</span>
+                      <span>Đánh giá tương tác</span>
                     </>
                   )}
                 </button>
               </div>
             </div>
 
-            {/* Evaluation Results Container */}
+            {/* Thẻ 2: Khu vực hiển thị kết quả phân tích */}
             {evaluationResult ? (
-              <div className="border border-slate-300 bg-white p-6 space-y-4">
-                <div className="border-b border-slate-200 pb-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-900 uppercase">
-                    <CheckCircle2 size={16} className="text-slate-900" />
-                    <span>BÁO CÁO TƯƠNG TÁC LÂM SÀNG HOÀN TẤT</span>
+              <div className="rounded-xl border border-outline-variant/30 bg-surface p-6 space-y-4 shadow-layer-1">
+                <div className="border-b border-outline-variant/30 pb-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm font-bold text-primary">
+                    <CheckCircle2 size={18} className="text-primary" />
+                    <span>Báo cáo đánh giá tương tác</span>
                   </div>
 
                   <button
                     type="button"
-                    onClick={handleSaveAllToCabinet}
-                    className="h-8 px-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-mono font-bold flex items-center gap-1.5"
+                    onClick={handleOpenCabinetModal}
+                    className="h-8 px-3.5 bg-primary hover:bg-primary-container text-on-primary text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm transition-all"
                   >
-                    <Check size={13} />
-                    <span>[LƯU VÀO TỦ THUỐC]</span>
+                    <Check size={14} />
+                    <span>Lưu vào tủ thuốc</span>
                   </button>
                 </div>
 
                 <InteractionAlertCards report={evaluationResult} />
               </div>
             ) : (
-              <div className="bg-white border border-slate-200 p-8 text-center space-y-3 font-mono">
-                <Layers size={32} className="mx-auto text-slate-400" />
-                <h3 className="text-xs font-bold text-slate-800 uppercase">
-                  KHÔNG GIAN KẾT QUẢ ĐỐI CHIẾU LÂM SÀNG
+              <div className="bg-surface rounded-xl border border-outline-variant/30 p-10 text-center space-y-3 shadow-layer-1">
+                <div className="w-16 h-16 rounded-full bg-surface-container-low flex items-center justify-center mx-auto">
+                  <Layers size={28} className="text-primary/60" />
+                </div>
+                <h3 className="text-sm font-bold text-primary">
+                  Không gian hiển thị kết quả phân tích
                 </h3>
-                <p className="text-[11px] text-slate-500 max-w-md mx-auto leading-relaxed">
-                  Sau khi bạn tải ảnh và xác thực danh mục thuốc ở Cột 1, nhấn nút <strong>&quot;CHẠY ĐÁNH GIÁ TƯƠNG TÁC&quot;</strong> để hệ thống tiến hành kiểm tra xung đột hoạt chất 4 lớp.
+                <p className="text-xs text-on-surface-variant max-w-md mx-auto leading-relaxed">
+                  Sau khi nạp ảnh và xác nhận danh mục thuốc ở cột bên trái, bấm <strong>&quot;Đánh giá tương tác&quot;</strong> để hệ thống tiến hành kiểm tra xung đột hoạt chất 4 tầng an toàn.
                 </p>
               </div>
             )}
@@ -511,6 +665,18 @@ export default function ScanPage() {
             setIsCropModalOpen(false);
             setRawImageUrl(null);
           }}
+        />
+      )}
+
+      {/* ── Add To Cabinet & Reminder Scheduler Modal ── */}
+      {isAddToCabinetModalOpen && (
+        <AddToCabinetModal
+          isOpen={isAddToCabinetModalOpen}
+          rawDrugs={extractedDrugs}
+          sourceStream={sourceType}
+          onClose={() => setIsAddToCabinetModalOpen(false)}
+          onOnlySaveHistory={handleOnlySaveHistory}
+          onConfirmAddToCabinetAndReminders={handleConfirmAddToCabinetAndReminders}
         />
       )}
 

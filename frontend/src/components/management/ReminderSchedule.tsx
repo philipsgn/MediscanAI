@@ -1,9 +1,8 @@
 'use client';
 
 /**
- * ReminderSchedule — Nhắc Nhở Uống Thuốc & Theo Dõi Tuân Thủ (Minimalist Clinical Grade).
- * Border 1px slate-200, Nền trắng/xám, rounded-none / rounded-sm.
- * Khung giờ 4 buổi trong ngày, Nút đánh dấu Đã uống / Bỏ qua & Chỉ số Tuân thủ điều trị %.
+ * ReminderSchedule — Nhắc Nhở Uống Thuốc & Theo Dõi Tuân Thủ (Sky Blue & Borderless Minimalism).
+ * Rebranding: MediScan.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -16,10 +15,10 @@ import { IReminderCreate, IReminderItem } from '@/types/history_reminder';
 import { toast } from '@/components/common/Toast';
 
 const TIME_OF_DAY_SLOTS = [
-  { key: 'morning', label: 'BUỔI SÁNG', defaultTime: '08:00', icon: Sunrise },
-  { key: 'noon', label: 'BUỔI TRƯA', defaultTime: '12:00', icon: Sun },
-  { key: 'afternoon', label: 'BUỔI CHIỀU', defaultTime: '17:00', icon: Sunset },
-  { key: 'evening', label: 'BUỔI TỐI', defaultTime: '21:00', icon: Moon },
+  { key: 'morning', label: 'Buổi sáng', defaultTime: '08:00', icon: Sunrise, color: 'text-amber-500 bg-amber-50' },
+  { key: 'noon', label: 'Buổi trưa', defaultTime: '12:00', icon: Sun, color: 'text-orange-500 bg-orange-50' },
+  { key: 'afternoon', label: 'Buổi chiều', defaultTime: '17:00', icon: Sunset, color: 'text-sky-500 bg-sky-50' },
+  { key: 'evening', label: 'Buổi tối', defaultTime: '21:00', icon: Moon, color: 'text-indigo-500 bg-indigo-50' },
 ] as const;
 
 export function ReminderSchedule() {
@@ -105,88 +104,89 @@ export function ReminderSchedule() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 font-[var(--font-inter)] text-xs">
 
-      {/* ── Treatment Adherence Metric Bar ── */}
-      <div className="bg-white border border-slate-200 p-4 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
-          <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-900 uppercase">
-            <TrendingUp size={15} className="text-slate-700" />
-            <span>CHỈ SỐ TUÂN THỦ ĐIỀU TRỊ (TREATMENT ADHERENCE RATE)</span>
+      {/* ── Treatment Adherence Metric Card ── */}
+      <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
+            <TrendingUp size={18} className="text-sky-600" />
+            <span>Chỉ số tuân thủ điều trị</span>
           </div>
 
-          <div className="px-2.5 py-0.5 border border-slate-900 bg-slate-900 text-white text-xs font-mono font-bold">
-            {stats.adherenceRate}% TUÂN THỦ
+          <div className="px-3 py-1 rounded-full bg-sky-50 border border-sky-100 text-sky-700 text-xs font-bold">
+            {stats.adherenceRate}% Tuân thủ
           </div>
         </div>
 
         {/* Progress bar */}
-        <div className="space-y-1.5 font-mono text-xs">
-          <div className="w-full h-2 bg-slate-100 border border-slate-200">
+        <div className="space-y-2">
+          <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
             <div
-              className="h-full bg-slate-900 transition-all duration-300"
+              className="h-full bg-sky-500 rounded-full transition-all duration-300"
               style={{ width: `${Math.min(stats.adherenceRate, 100)}%` }}
             />
           </div>
-          <div className="flex justify-between text-[11px] text-slate-600">
-            <span>Đã uống: <strong className="text-slate-900">{stats.takenCount}</strong> lần</span>
-            <span>Bỏ qua: <strong className="text-slate-900">{stats.skippedCount}</strong> lần</span>
-            <span>Tổng số lịch: <strong className="text-slate-900">{stats.totalReminders}</strong></span>
+          <div className="flex justify-between text-xs text-slate-500 pt-1">
+            <span>Đã uống: <strong className="text-slate-800">{stats.takenCount}</strong> lần</span>
+            <span>Bỏ qua: <strong className="text-slate-800">{stats.skippedCount}</strong> lần</span>
+            <span>Tổng số thuốc: <strong className="text-slate-800">{stats.totalReminders}</strong></span>
           </div>
         </div>
       </div>
 
-      {/* ── Top Header & Add Button ── */}
-      <div className="flex items-center justify-between pt-1">
-        <div className="text-xs font-mono font-bold text-slate-900 uppercase">
-          LỊCH UỐNG THEO 4 KHUNG GIỜ LÂM SÀNG
+      {/* ── Header & Add Button ── */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-bold text-slate-900">Lịch uống theo buổi trong ngày</h2>
+          <p className="text-xs text-slate-500 mt-0.5">Theo dõi lịch uống và ghi nhận trạng thái hàng ngày</p>
         </div>
 
         <button
           type="button"
           onClick={() => setShowAddForm(!showAddForm)}
-          className="h-8 px-3 bg-slate-900 hover:bg-slate-800 text-white font-mono font-bold text-xs flex items-center gap-1.5 transition-colors"
+          className="h-9 px-3.5 bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs rounded-lg flex items-center gap-1.5 transition-all shadow-sm shadow-sky-500/20"
         >
-          <Plus size={14} />
-          <span>THÊM NHẮC NHỞ</span>
+          <Plus size={15} />
+          <span>Thêm nhắc nhở</span>
         </button>
       </div>
 
       {/* ── Inline Add Form ── */}
       {showAddForm && (
-        <form onSubmit={handleAddReminder} className="bg-white border border-slate-300 p-4 space-y-3 font-mono text-xs">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-            <span className="font-bold text-slate-900 uppercase">KHỞI TẠO LỊCH UỐNG THUỐC MỚI</span>
-            <button type="button" onClick={() => setShowAddForm(false)} className="text-slate-400 hover:text-slate-900">
-              <X size={15} />
+        <form onSubmit={handleAddReminder} className="bg-white rounded-2xl border border-sky-100 p-5 shadow-sm space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+            <span className="font-bold text-slate-900 text-xs">Tạo lịch nhắc uống thuốc mới</span>
+            <button type="button" onClick={() => setShowAddForm(false)} className="text-slate-400 hover:text-slate-700">
+              <X size={16} />
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1">Tên thuốc *</label>
+              <label className="block font-semibold text-slate-700 mb-1">Tên thuốc *</label>
               <input
                 type="text"
                 value={newDrugName}
                 onChange={(e) => setNewDrugName(e.target.value)}
                 placeholder="VD: Amlodipine 5mg"
-                className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 text-slate-900 outline-none focus:border-slate-900"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100 text-xs"
               />
             </div>
 
             <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1">Liều dùng (Tùy chọn)</label>
+              <label className="block font-semibold text-slate-700 mb-1">Liều dùng (Tùy chọn)</label>
               <input
                 type="text"
                 value={newDosage}
                 onChange={(e) => setNewDosage(e.target.value)}
                 placeholder="VD: 1 viên sau ăn sáng"
-                className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 text-slate-900 outline-none focus:border-slate-900"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100 text-xs"
               />
             </div>
 
             <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1">Buổi trong ngày</label>
+              <label className="block font-semibold text-slate-700 mb-1">Buổi trong ngày</label>
               <select
                 value={newTimeOfDay}
                 onChange={(e) => {
@@ -195,7 +195,7 @@ export function ReminderSchedule() {
                   const slot = TIME_OF_DAY_SLOTS.find((s) => s.key === val);
                   if (slot) setNewTime(slot.defaultTime);
                 }}
-                className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 text-slate-900 outline-none focus:border-slate-900 font-mono"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100 text-xs"
               >
                 <option value="morning">Buổi Sáng (08:00)</option>
                 <option value="noon">Buổi Trưa (12:00)</option>
@@ -205,12 +205,12 @@ export function ReminderSchedule() {
             </div>
 
             <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1">Giờ nhắc nhở</label>
+              <label className="block font-semibold text-slate-700 mb-1">Giờ nhắc nhở</label>
               <input
                 type="time"
                 value={newTime}
                 onChange={(e) => setNewTime(e.target.value)}
-                className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 text-slate-900 outline-none focus:border-slate-900 font-mono"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100 text-xs"
               />
             </div>
           </div>
@@ -219,17 +219,17 @@ export function ReminderSchedule() {
             <button
               type="button"
               onClick={() => setShowAddForm(false)}
-              className="px-3 py-1.5 border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold"
+              className="px-3.5 py-1.5 border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold rounded-lg text-xs"
             >
-              HỦY
+              Hủy
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold flex items-center gap-1.5"
+              className="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white font-semibold rounded-lg flex items-center gap-1.5 text-xs shadow-sm shadow-sky-500/20"
             >
-              {isSubmitting ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
-              <span>LƯU LỊCH UỐNG</span>
+              {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+              <span>Lưu lịch uống</span>
             </button>
           </div>
         </form>
@@ -237,51 +237,53 @@ export function ReminderSchedule() {
 
       {/* ── 4 Slot Grid ── */}
       {isLoadingReminders ? (
-        <div className="p-8 text-center text-slate-500 text-xs font-mono flex items-center justify-center gap-2 border border-slate-200 bg-white">
-          <Loader2 size={16} className="animate-spin text-slate-700" />
-          <span>ĐANG TẢI LỊCH NHẮC NHỞ...</span>
+        <div className="p-8 text-center text-slate-500 text-xs flex items-center justify-center gap-2 rounded-2xl border border-slate-100 bg-white">
+          <Loader2 size={16} className="animate-spin text-sky-600" />
+          <span>Đang tải lịch nhắc nhở...</span>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {TIME_OF_DAY_SLOTS.map((slot) => {
             const SlotIcon = slot.icon;
             const slotReminders = reminders.filter((r) => r.timeOfDay === slot.key);
 
             return (
-              <div key={slot.key} className="bg-white border border-slate-200 p-3.5 space-y-2.5">
+              <div key={slot.key} className="bg-white rounded-2xl border border-slate-100 p-4 space-y-3 shadow-sm">
                 {/* Header */}
-                <div className="p-2 border border-slate-200 bg-slate-50 flex items-center justify-between font-mono text-xs">
-                  <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                    <SlotIcon size={14} className="text-slate-700" />
+                <div className="p-2.5 bg-slate-50/80 rounded-xl flex items-center justify-between">
+                  <div className="flex items-center gap-2 font-bold text-slate-900 text-xs">
+                    <div className={`p-1 rounded-lg ${slot.color}`}>
+                      <SlotIcon size={15} />
+                    </div>
                     <span>{slot.label}</span>
                   </div>
-                  <span className="text-[10px] text-slate-500 font-bold">Mặc định: {slot.defaultTime}</span>
+                  <span className="text-[11px] text-slate-500 font-medium">{slot.defaultTime}</span>
                 </div>
 
                 {/* Items */}
                 {slotReminders.length === 0 ? (
-                  <div className="p-3 text-center text-slate-400 font-mono text-[11px] border border-dashed border-slate-200">
-                    Chưa có thuốc trong khung giờ này
+                  <div className="p-4 text-center text-slate-400 text-xs rounded-xl border border-dashed border-slate-200">
+                    Chưa có lịch uống trong buổi này
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-2.5">
                     {slotReminders.map((r) => {
                       const latestLog = r.logs && r.logs.length > 0 ? r.logs[0] : null;
 
                       return (
                         <div
                           key={r.id}
-                          className={`p-2.5 border font-mono text-xs space-y-2 ${
-                            r.isActive ? 'bg-white border-slate-300' : 'bg-slate-50 border-slate-200 opacity-60'
+                          className={`p-3 rounded-xl border transition-all space-y-2 ${
+                            r.isActive ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-50/60 border-slate-100 opacity-60'
                           }`}
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-1.5">
-                              <Pill size={13} className="text-slate-600 shrink-0" />
+                            <div className="flex items-center gap-2">
+                              <Pill size={15} className="text-sky-600 shrink-0" />
                               <div>
-                                <span className="font-bold text-slate-900 block">{r.drugName}</span>
+                                <span className="font-bold text-slate-900 text-xs block">{r.drugName}</span>
                                 {r.dosageInstruction && (
-                                  <span className="text-[11px] text-slate-500 block">{r.dosageInstruction}</span>
+                                  <span className="text-xs text-slate-500 block">{r.dosageInstruction}</span>
                                 )}
                               </div>
                             </div>
@@ -291,60 +293,61 @@ export function ReminderSchedule() {
                                 type="button"
                                 onClick={() => handleToggleActive(r)}
                                 title={r.isActive ? 'Bật' : 'Tắt'}
-                                className={`p-1 border text-xs ${
+                                className={`p-1.5 rounded-lg text-xs transition-all ${
                                   r.isActive
-                                    ? 'bg-slate-900 text-white border-slate-900'
-                                    : 'bg-slate-100 text-slate-400 border-slate-200'
+                                    ? 'bg-sky-50 text-sky-600 hover:bg-sky-100'
+                                    : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
                                 }`}
                               >
-                                <Power size={11} />
+                                <Power size={13} />
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleDelete(r.id, r.drugName)}
-                                className="p-1 border border-slate-200 bg-slate-50 text-slate-400 hover:text-rose-600 hover:border-rose-300"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all"
+                                title="Xóa lịch"
                               >
-                                <Trash2 size={11} />
+                                <Trash2 size={13} />
                               </button>
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-100 pt-1.5">
-                            <span className="flex items-center gap-1 font-bold text-slate-700">
-                              <Clock size={10} />
+                          <div className="flex items-center justify-between text-xs text-slate-500 border-t border-slate-100 pt-2">
+                            <span className="flex items-center gap-1 font-medium text-slate-700">
+                              <Clock size={12} className="text-slate-400" />
                               {r.reminderTime}
                             </span>
 
                             {latestLog && (
-                              <span className={`px-1.5 py-0.2 border font-bold ${
+                              <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${
                                 latestLog.status === 'taken'
-                                  ? 'text-emerald-800 bg-emerald-50 border-emerald-300'
-                                  : 'text-rose-800 bg-rose-50 border-rose-300'
+                                  ? 'text-emerald-700 bg-emerald-50'
+                                  : 'text-rose-700 bg-rose-50'
                               }`}>
                                 {latestLog.status === 'taken' ? 'Đã uống' : 'Bỏ qua'}
                               </span>
                             )}
                           </div>
 
-                          <div className="grid grid-cols-2 gap-1.5 pt-0.5">
+                          <div className="grid grid-cols-2 gap-2 pt-0.5">
                             <button
                               type="button"
                               onClick={() => handleLogStatus(r.id, 'taken', r.drugName)}
                               disabled={!r.isActive}
-                              className="py-1 px-2 border border-slate-900 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[10px] flex items-center justify-center gap-1 disabled:opacity-40"
+                              className="py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-lg flex items-center justify-center gap-1.5 disabled:opacity-40 shadow-sm transition-all"
                             >
-                              <CheckCircle2 size={11} />
-                              <span>ĐÃ UỐNG</span>
+                              <CheckCircle2 size={13} />
+                              <span>Đã uống</span>
                             </button>
 
                             <button
                               type="button"
                               onClick={() => handleLogStatus(r.id, 'skipped', r.drugName)}
                               disabled={!r.isActive}
-                              className="py-1 px-2 border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] flex items-center justify-center gap-1 disabled:opacity-40"
+                              className="py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg flex items-center justify-center gap-1.5 disabled:opacity-40 transition-all"
                             >
-                              <XCircle size={11} />
-                              <span>BỎ QUA</span>
+                              <XCircle size={13} />
+                              <span>Bỏ qua</span>
                             </button>
                           </div>
                         </div>

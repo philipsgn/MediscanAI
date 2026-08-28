@@ -5,7 +5,7 @@ Tích hợp AsyncSession kết nối PostgreSQL Database.
 """
 
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -83,9 +83,11 @@ async def register(
             user=user,
         )
     except ValueError as err:
+        err_msg = str(err)
+        status_code = status.HTTP_409_CONFLICT if "đã được sử dụng" in err_msg else status.HTTP_400_BAD_REQUEST
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(err),
+            status_code=status_code,
+            detail=err_msg,
         ) from err
 
 
@@ -96,12 +98,30 @@ async def register(
     summary="Đăng nhập tài khoản",
 )
 async def login(
-    payload: UserLogin,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
     """Xác thực Username/Email + Mật khẩu từ PostgreSQL và trả về JWT Session."""
+    content_type = request.headers.get("content-type", "")
+    login_data: Optional[UserLogin] = None
+
+    if "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:
+        form_data = await request.form()
+        username_val = str(form_data.get("username") or form_data.get("usernameOrEmail") or "")
+        password_val = str(form_data.get("password") or "")
+        login_data = UserLogin(username=username_val, password=password_val)
+    else:
+        try:
+            body_json = await request.json()
+            login_data = UserLogin.model_validate(body_json)
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Thiếu hoặc sai định dạng dữ liệu đăng nhập.",
+            )
+
     try:
-        user = await auth_service.authenticate_user(db, payload)
+        user = await auth_service.authenticate_user(db, login_data)
         access_token = auth_service.create_access_token(user.id)
         refresh_token = auth_service.create_refresh_token(user.id)
         return TokenResponse(

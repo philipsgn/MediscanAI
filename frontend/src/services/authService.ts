@@ -14,6 +14,7 @@ export const authService = {
         username: payload.username.trim(),
         email: payload.email.trim(),
         password: payload.password,
+        full_name: payload.fullName?.trim() || undefined,
         fullName: payload.fullName?.trim() || undefined,
       };
       const response = await apiClient.post<ITokenResponse>(
@@ -23,14 +24,22 @@ export const authService = {
       return response.data;
     } catch (error: unknown) {
       if (isAxiosError(error)) {
-        console.error('Register API Error:', error.response?.data);
+        console.error('[AUTH_REGISTER_ERROR]', error.response?.status, error.response?.data || error.message);
+        if (!error.response) {
+          throw new Error('Không thể kết nối đến máy chủ Backend (http://localhost:8000). Vui lòng kiểm tra lại dịch vụ Backend.');
+        }
         const detail = error.response?.data?.detail;
         const msg =
           typeof detail === 'string'
             ? detail
             : Array.isArray(detail)
-            ? detail.map((d: { msg?: string }) => d.msg || 'Lỗi dữ liệu').join(', ')
-            : 'Đăng ký không thành công. Vui lòng kiểm tra lại thông tin.';
+            ? detail
+                .map((d: { msg?: string; loc?: string[] }) => {
+                  const field = d.loc ? d.loc[d.loc.length - 1] : '';
+                  return field ? `Trường ${field}: ${d.msg || 'Lỗi dữ liệu'}` : d.msg || 'Lỗi dữ liệu';
+                })
+                .join('; ')
+            : error.message || 'Đăng ký không thành công. Vui lòng kiểm tra lại thông tin.';
         throw new Error(msg);
       }
       throw error;
@@ -40,6 +49,7 @@ export const authService = {
   async login(payload: ILoginRequest): Promise<ITokenResponse> {
     try {
       const cleanPayload = {
+        username: payload.usernameOrEmail.trim(),
         usernameOrEmail: payload.usernameOrEmail.trim(),
         password: payload.password,
       };
@@ -50,11 +60,21 @@ export const authService = {
       return response.data;
     } catch (error: unknown) {
       if (isAxiosError(error)) {
-        console.error('Login API Error:', error.response?.data);
+        console.error('[AUTH_LOGIN_ERROR]', error.response?.status, error.response?.data || error.message);
+        if (!error.response) {
+          throw new Error('Không thể kết nối đến máy chủ Backend (http://localhost:8000). Vui lòng kiểm tra lại dịch vụ Backend.');
+        }
         const detail = error.response?.data?.detail;
         const msg =
           typeof detail === 'string'
             ? detail
+            : Array.isArray(detail)
+            ? detail
+                .map((d: { msg?: string; loc?: string[] }) => {
+                  const field = d.loc ? d.loc[d.loc.length - 1] : '';
+                  return field ? `Trường ${field}: ${d.msg || 'Lỗi dữ liệu'}` : d.msg || 'Lỗi dữ liệu';
+                })
+                .join('; ')
             : 'Tên đăng nhập hoặc mật khẩu không chính xác.';
         throw new Error(msg);
       }

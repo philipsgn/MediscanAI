@@ -1,16 +1,16 @@
 'use client';
 
 /**
- * ClinicalOnboardingWizard — Hồ Sơ Y Tế Lâm Sàng Minimalist (Stage 10+ Harmonization).
- * Bảng khai báo 4 phân khu tối giản, vuông vức (rounded-none / rounded-sm), đơn sắc (#0F172A, #334155, #FFFFFF, #E2E8F0).
- * Hoàn tất ➔ Lưu Backend API & chuyển thẳng tới /cabinet.
+ * ClinicalOnboardingWizard — Khai Báo Hồ Sơ Y Tế (Material 3 Clinical Design System).
+ * Rebranding: MediScan.
+ * 4 Bước: Cơ bản ➔ Bệnh nền ➔ Dị ứng ➔ Hoàn tất (bỏ số thứ tự).
  */
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Activity, ArrowRight, ArrowLeft, Check, ShieldCheck,
-  AlertCircle, Scale, Heart, ShieldAlert, FileCheck, CheckCircle2
+  ArrowRight, ArrowLeft, Check, ShieldCheck,
+  Scale, Heart, ShieldAlert, FileCheck, CheckCircle2
 } from 'lucide-react';
 import { useUserProfileStore } from '@/store/userProfileStore';
 import { useAuthStore } from '@/store/authStore';
@@ -70,16 +70,16 @@ export function ClinicalOnboardingWizard() {
       const heightM = heightCm / 100;
       const bmiVal = parseFloat((weightKg / (heightM * heightM)).toFixed(1));
       let label = 'Bình thường';
-      let color = 'text-emerald-700 bg-emerald-50 border-emerald-300';
+      let color = 'text-emerald-700 bg-emerald-50 border-emerald-200';
       if (bmiVal < 18.5) {
         label = 'Nhẹ cân';
-        color = 'text-sky-700 bg-sky-50 border-sky-300';
+        color = 'text-sky-700 bg-sky-50 border-sky-200';
       } else if (bmiVal >= 23 && bmiVal < 25) {
-        label = 'Thừa cân (Chuẩn Châu Á)';
-        color = 'text-amber-700 bg-amber-50 border-amber-300';
+        label = 'Thừa cân';
+        color = 'text-amber-700 bg-amber-50 border-amber-200';
       } else if (bmiVal >= 25) {
         label = 'Béo phì';
-        color = 'text-rose-700 bg-rose-50 border-rose-300';
+        color = 'text-rose-700 bg-rose-50 border-rose-200';
       }
       return { bmi: bmiVal, label, color };
     }
@@ -112,6 +112,26 @@ export function ClinicalOnboardingWizard() {
     );
   };
 
+  const isBasicDone =
+    typeof age === 'number' &&
+    age > 0 &&
+    (gender === 'male' || gender === 'female' || gender === 'other') &&
+    typeof weightKg === 'number' &&
+    weightKg > 0 &&
+    typeof heightCm === 'number' &&
+    heightCm > 0;
+
+  const isConditionsDone = conditions.length > 0 || hasNoConditions === true;
+  const isAllergiesDone = allergies.length > 0 || hasNoAllergies === true;
+  const isCompleteUnlocked = isBasicDone && isConditionsDone && isAllergiesDone;
+
+  const isStepDone = (num: number) => {
+    if (num === 1) return isBasicDone;
+    if (num === 2) return isConditionsDone;
+    if (num === 3) return isAllergiesDone;
+    return false;
+  };
+
   const handleNext = () => {
     if (step === 1) {
       if (!age || age <= 0 || age > 130) {
@@ -122,7 +142,11 @@ export function ClinicalOnboardingWizard() {
     } else if (step === 2) {
       setStep(3);
     } else if (step === 3) {
-      setStep(4);
+      if (isCompleteUnlocked) {
+        setStep(4);
+      } else {
+        toast.error('Vui lòng hoàn thành 3 mục trước để mở khóa bước Hoàn tất');
+      }
     }
   };
 
@@ -145,11 +169,9 @@ export function ClinicalOnboardingWizard() {
         allergies: hasNoAllergies ? [] : allergies,
       });
 
-      // Cập nhật trạng thái User State
       useAuthStore.getState().updateUser({ isProfileCompleted: true });
 
-      toast.success('Hồ sơ y tế đã được khởi tạo thành công!');
-      // Điều hướng thẳng tới /cabinet theo state machine
+      toast.success('Hồ sơ y tế đã được thiết lập thành công!');
       router.replace('/cabinet');
     } catch {
       useAuthStore.getState().updateUser({ isProfileCompleted: true });
@@ -160,61 +182,84 @@ export function ClinicalOnboardingWizard() {
     }
   };
 
-  const stepsHeader = [
-    { num: 1, label: '[01] SINH TRẮC HỌC' },
-    { num: 2, label: '[02] TIỀN SỬ BỆNH NỀN' },
-    { num: 3, label: '[03] DỊ ỨNG THUỐC' },
-    { num: 4, label: '[04] XÁC NHẬN PHÁP LÝ' },
+  const stepsList = [
+    { num: 1, label: 'Cơ bản' },
+    { num: 2, label: 'Bệnh nền' },
+    { num: 3, label: 'Dị ứng' },
+    { num: 4, label: 'Hoàn tất' },
   ];
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
+    <div className="w-full max-w-3xl mx-auto p-4 sm:p-6 space-y-6">
       
-      {/* ── Top Wizard Progress Index ── */}
-      <div className="border border-slate-200 bg-white p-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {stepsHeader.map((s) => {
-            const isCurrent = step === s.num;
-            const isDone = step > s.num;
-            return (
-              <div
-                key={s.num}
-                className={`p-2 border text-xs font-mono font-bold flex items-center gap-2 ${
+      {/* ── Top Wizard Progress Indicator (Stepper) ── */}
+      <div className="bg-surface-container-lowest rounded-xl shadow-ambient p-2 flex gap-2">
+        {stepsList.map((s) => {
+          const isCurrent = step === s.num;
+          const isDone = isStepDone(s.num);
+          const isLocked = s.num === 4 && !isCompleteUnlocked;
+          
+          return (
+            <button
+              key={s.num}
+              type="button"
+              onClick={() => {
+                if (s.num <= 3) {
+                  setStep(s.num as 1 | 2 | 3 | 4);
+                } else {
+                  if (isCompleteUnlocked) {
+                    setStep(4);
+                  } else {
+                    toast.error('Vui lòng hoàn thành 3 mục trước để mở khóa bước Hoàn tất');
+                  }
+                }
+              }}
+              className={`flex-1 py-2 px-4 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+                isCurrent
+                  ? 'bg-primary text-on-primary shadow-sm'
+                  : isLocked
+                  ? 'bg-surface-container text-on-surface opacity-40 cursor-not-allowed'
+                  : 'bg-surface-container text-on-surface'
+              }`}
+            >
+              <Check
+                size={14}
+                className={`shrink-0 ${
                   isCurrent
-                    ? 'bg-slate-900 text-white border-slate-900'
+                    ? 'text-on-primary'
                     : isDone
-                    ? 'bg-slate-50 text-slate-700 border-slate-300'
-                    : 'bg-white text-slate-400 border-slate-200'
+                    ? 'text-primary font-bold'
+                    : 'opacity-50'
                 }`}
-              >
-                {isDone ? <Check size={13} className="text-emerald-600" /> : <span>{s.num}.</span>}
-                <span className="truncate">{s.label}</span>
-              </div>
-            );
-          })}
-        </div>
+              />
+              <span className={isCurrent ? 'truncate' : 'truncate opacity-70'}>
+                {s.label}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* ── Main Step Card ── */}
-      <div className="border border-slate-200 bg-white p-6 sm:p-8 space-y-6">
+      {/* ── Main Step Content Card ── */}
+      <div className="bg-surface-container-lowest rounded-xl shadow-ambient p-6 md:p-8 space-y-6">
 
         {/* ── STEP 1: Sinh trắc học ── */}
         {step === 1 && (
           <div className="space-y-6">
-            <div className="border-b border-slate-200 pb-3">
-              <h2 className="text-sm font-mono font-black text-slate-900 uppercase flex items-center gap-2">
-                <Scale size={16} />
-                PHÂN KHU 1: THÔNG SỐ SINH TRẮC HỌC CƠ BẢN
+            <div className="border-b border-outline-variant pb-3">
+              <h2 className="text-xl md:text-2xl text-primary font-semibold flex items-center gap-2">
+                <Scale size={20} className="text-primary" />
+                Thông tin cơ bản
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Các chỉ số dùng để tính toán phân tầng liều dùng tối đa và chống chỉ định tuổi.
+              <p className="text-xs text-on-surface-variant mt-1">
+                Dùng để tính toán liều dùng an toàn và các cảnh báo y khoa theo độ tuổi.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-mono font-bold text-slate-700 uppercase mb-1">
-                  Tuổi hiện tại <span className="text-rose-600">*</span>
+                <label className="block text-xs font-bold text-on-surface mb-1.5">
+                  Tuổi hiện tại <span className="text-error">*</span>
                 </label>
                 <input
                   type="number"
@@ -222,13 +267,13 @@ export function ClinicalOnboardingWizard() {
                   max="125"
                   value={age}
                   onChange={(e) => handleAgeChange(e.target.value)}
-                  placeholder="VD: 35"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 text-xs text-slate-900 outline-none focus:border-slate-900 focus:bg-white font-mono"
+                  placeholder="35"
+                  className="w-full border border-outline-variant rounded-lg p-3 bg-white text-xs text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all font-sans"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-mono font-bold text-slate-700 uppercase mb-1">
+                <label className="block text-xs font-bold text-on-surface mb-1.5">
                   Giới tính sinh học
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -241,10 +286,10 @@ export function ClinicalOnboardingWizard() {
                       key={g.id}
                       type="button"
                       onClick={() => setGender(g.id as typeof gender)}
-                      className={`py-2 text-xs font-mono font-bold border transition-colors ${
+                      className={`py-3 text-xs font-semibold rounded-lg transition-all border ${
                         gender === g.id
-                          ? 'bg-slate-900 text-white border-slate-900'
-                          : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
+                          ? 'bg-primary text-on-primary border-primary shadow-sm'
+                          : 'bg-white border-outline-variant text-on-surface-variant hover:bg-surface-container'
                       }`}
                     >
                       {g.label}
@@ -254,7 +299,7 @@ export function ClinicalOnboardingWizard() {
               </div>
 
               <div>
-                <label className="block text-xs font-mono font-bold text-slate-700 uppercase mb-1">
+                <label className="block text-xs font-bold text-on-surface mb-1.5">
                   Cân nặng (kg)
                 </label>
                 <input
@@ -263,13 +308,13 @@ export function ClinicalOnboardingWizard() {
                   max="250"
                   value={weightKg}
                   onChange={(e) => setWeightKg(e.target.value ? parseFloat(e.target.value) : '')}
-                  placeholder="VD: 65"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 text-xs text-slate-900 outline-none focus:border-slate-900 focus:bg-white font-mono"
+                  placeholder="65"
+                  className="w-full border border-outline-variant rounded-lg p-3 bg-white text-xs text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all font-sans"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-mono font-bold text-slate-700 uppercase mb-1">
+                <label className="block text-xs font-bold text-on-surface mb-1.5">
                   Chiều cao (cm)
                 </label>
                 <input
@@ -278,19 +323,19 @@ export function ClinicalOnboardingWizard() {
                   max="230"
                   value={heightCm}
                   onChange={(e) => setHeightCm(e.target.value ? parseFloat(e.target.value) : '')}
-                  placeholder="VD: 170"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 text-xs text-slate-900 outline-none focus:border-slate-900 focus:bg-white font-mono"
+                  placeholder="170"
+                  className="w-full border border-outline-variant rounded-lg p-3 bg-white text-xs text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all font-sans"
                 />
               </div>
             </div>
 
             {/* Live BMI Indicator */}
             {bmiInfo && (
-              <div className="p-3 border border-slate-200 bg-slate-50 flex items-center justify-between">
-                <span className="text-xs font-mono font-bold text-slate-700">
-                  CHỈ SỐ BMI ƯỚC TÍNH: <strong className="font-mono text-slate-900">{bmiInfo.bmi}</strong>
+              <div className="bg-error-container/20 border border-error-container/50 rounded-lg p-4 flex justify-between items-center">
+                <span className="text-xs font-medium text-on-surface">
+                  Chỉ số BMI: <strong className="text-on-surface font-bold ml-1">{bmiInfo.bmi}</strong>
                 </span>
-                <span className={`px-2 py-0.5 border text-xs font-mono font-bold ${bmiInfo.color}`}>
+                <span className="bg-error-container text-error rounded px-3 py-1 text-xs font-bold">
                   {bmiInfo.label}
                 </span>
               </div>
@@ -298,26 +343,26 @@ export function ClinicalOnboardingWizard() {
 
             {/* Female Specific Questions */}
             {gender === 'female' && (
-              <div className="p-4 border border-slate-200 bg-slate-50 space-y-2">
-                <span className="text-xs font-mono font-bold text-slate-700 block mb-1">
-                  TÌNH TRẠNG ĐẶC BIỆT (NỮ GIỚI):
+              <div className="p-4 bg-surface-container border border-outline-variant rounded-lg space-y-2.5">
+                <span className="text-xs font-bold text-on-surface block">
+                  Tình trạng đặc biệt:
                 </span>
-                <div className="flex flex-wrap gap-4 text-xs font-mono">
-                  <label className="flex items-center gap-2 cursor-pointer">
+                <div className="flex flex-wrap gap-4 text-xs">
+                  <label className="flex items-center gap-2 cursor-pointer text-on-surface">
                     <input
                       type="checkbox"
                       checked={isPregnant}
                       onChange={(e) => setIsPregnant(e.target.checked)}
-                      className="rounded-none border-slate-300"
+                      className="rounded text-primary focus:ring-primary"
                     />
-                    <span>Đang trong thai kỳ (Mang thai)</span>
+                    <span>Đang mang thai</span>
                   </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
+                  <label className="flex items-center gap-2 cursor-pointer text-on-surface">
                     <input
                       type="checkbox"
                       checked={isBreastfeeding}
                       onChange={(e) => setIsBreastfeeding(e.target.checked)}
-                      className="rounded-none border-slate-300"
+                      className="rounded text-primary focus:ring-primary"
                     />
                     <span>Đang cho con bú</span>
                   </label>
@@ -330,19 +375,19 @@ export function ClinicalOnboardingWizard() {
         {/* ── STEP 2: Tiền sử Bệnh nền ── */}
         {step === 2 && (
           <div className="space-y-6">
-            <div className="border-b border-slate-200 pb-3">
-              <h2 className="text-sm font-mono font-black text-slate-900 uppercase flex items-center gap-2">
-                <Heart size={16} />
-                PHÂN KHU 2: TIỀN SỬ BỆNH NỀN MÃN TÍNH
+            <div className="border-b border-outline-variant pb-3">
+              <h2 className="text-xl md:text-2xl text-primary font-semibold flex items-center gap-2">
+                <Heart size={20} className="text-primary" />
+                Tiền sử bệnh nền
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Hệ thống sẽ đối chiếu chống chỉ định lâm sàng giữa thuốc quét được và bệnh nền.
+              <p className="text-xs text-on-surface-variant mt-1">
+                Giúp phát hiện các thuốc chống chỉ định với tình trạng sức khỏe hiện tại của bạn.
               </p>
             </div>
 
             {/* None Checkbox */}
-            <div className="p-3 border border-slate-200 bg-slate-50">
-              <label className="flex items-center gap-2 cursor-pointer text-xs font-mono font-bold text-slate-900">
+            <div className="p-3.5 bg-surface-container border border-outline-variant rounded-lg">
+              <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-on-surface">
                 <input
                   type="checkbox"
                   checked={hasNoConditions}
@@ -350,14 +395,14 @@ export function ClinicalOnboardingWizard() {
                     setHasNoConditions(e.target.checked);
                     if (e.target.checked) setConditions([]);
                   }}
-                  className="rounded-none border-slate-300"
+                  className="rounded text-primary focus:ring-primary"
                 />
-                <span>TÔI KHÔNG CÓ BỆNH NỀN MÃN TÍNH NÀO</span>
+                <span>Tôi không có bệnh nền mãn tính</span>
               </label>
             </div>
 
             {/* Condition Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {KNOWN_CONDITIONS.map((c) => {
                 const isSelected = conditions.includes(c.id);
                 return (
@@ -366,19 +411,19 @@ export function ClinicalOnboardingWizard() {
                     type="button"
                     disabled={hasNoConditions}
                     onClick={() => toggleCondition(c.id)}
-                    className={`p-3 text-left border font-mono transition-colors flex items-center justify-between ${
+                    className={`p-3.5 text-left rounded-lg border transition-all flex items-center justify-between ${
                       isSelected
-                        ? 'bg-slate-900 text-white border-slate-900'
-                        : 'bg-slate-50 text-slate-800 border-slate-200 hover:bg-slate-100 disabled:opacity-40'
+                        ? 'bg-surface-container border-primary text-primary shadow-sm font-semibold'
+                        : 'bg-white text-on-surface border-outline-variant hover:bg-surface-container-lowest disabled:opacity-40'
                     }`}
                   >
                     <div>
-                      <span className="text-xs font-bold block">{c.label}</span>
-                      <span className={`text-[10px] ${isSelected ? 'text-slate-400' : 'text-slate-500'}`}>
+                      <span className="text-xs font-semibold block">{c.label}</span>
+                      <span className="text-[11px] text-on-surface-variant">
                         {c.category}
                       </span>
                     </div>
-                    {isSelected && <Check size={14} className="text-emerald-400" />}
+                    {isSelected && <Check size={16} className="text-primary shrink-0" />}
                   </button>
                 );
               })}
@@ -389,19 +434,19 @@ export function ClinicalOnboardingWizard() {
         {/* ── STEP 3: Dị ứng Thuốc ── */}
         {step === 3 && (
           <div className="space-y-6">
-            <div className="border-b border-slate-200 pb-3">
-              <h2 className="text-sm font-mono font-black text-slate-900 uppercase flex items-center gap-2">
-                <ShieldAlert size={16} />
-                PHÂN KHU 3: TIỀN SỬ DỊ ỨNG THUỐC
+            <div className="border-b border-outline-variant pb-3">
+              <h2 className="text-xl md:text-2xl text-primary font-semibold flex items-center gap-2">
+                <ShieldAlert size={20} className="text-primary" />
+                Dị ứng thuốc
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Cảnh báo nguy cơ phản vệ hoặc quá mẫn tức thì nếu phát hiện hoạt chất cùng nhóm.
+              <p className="text-xs text-on-surface-variant mt-1">
+                Cảnh báo nguy cơ quá mẫn hoặc dị ứng chéo khi phát hiện hoạt chất tương đồng.
               </p>
             </div>
 
             {/* None Checkbox */}
-            <div className="p-3 border border-slate-200 bg-slate-50">
-              <label className="flex items-center gap-2 cursor-pointer text-xs font-mono font-bold text-slate-900">
+            <div className="p-3.5 bg-surface-container border border-outline-variant rounded-lg">
+              <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-on-surface">
                 <input
                   type="checkbox"
                   checked={hasNoAllergies}
@@ -409,14 +454,14 @@ export function ClinicalOnboardingWizard() {
                     setHasNoAllergies(e.target.checked);
                     if (e.target.checked) setAllergies([]);
                   }}
-                  className="rounded-none border-slate-300"
+                  className="rounded text-primary focus:ring-primary"
                 />
-                <span>TÔI CHƯA TỪNG CÓ TIỀN SỬ DỊ ỨNG THUỐC</span>
+                <span>Tôi không có tiền sử dị ứng thuốc</span>
               </label>
             </div>
 
             {/* Allergy Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {KNOWN_ALLERGIES.map((a) => {
                 const isSelected = allergies.includes(a.id);
                 return (
@@ -425,19 +470,19 @@ export function ClinicalOnboardingWizard() {
                     type="button"
                     disabled={hasNoAllergies}
                     onClick={() => toggleAllergy(a.id)}
-                    className={`p-3 text-left border font-mono transition-colors flex items-center justify-between ${
+                    className={`p-3.5 text-left rounded-lg border transition-all flex items-center justify-between ${
                       isSelected
-                        ? 'bg-slate-900 text-white border-slate-900'
-                        : 'bg-slate-50 text-slate-800 border-slate-200 hover:bg-slate-100 disabled:opacity-40'
+                        ? 'bg-surface-container border-primary text-primary shadow-sm font-semibold'
+                        : 'bg-white text-on-surface border-outline-variant hover:bg-surface-container-lowest disabled:opacity-40'
                     }`}
                   >
                     <div>
-                      <span className="text-xs font-bold block">{a.label}</span>
-                      <span className={`text-[10px] ${isSelected ? 'text-slate-400' : 'text-slate-500'}`}>
+                      <span className="text-xs font-semibold block">{a.label}</span>
+                      <span className="text-[11px] text-on-surface-variant">
                         {a.category}
                       </span>
                     </div>
-                    {isSelected && <Check size={14} className="text-emerald-400" />}
+                    {isSelected && <Check size={16} className="text-primary shrink-0" />}
                   </button>
                 );
               })}
@@ -445,45 +490,45 @@ export function ClinicalOnboardingWizard() {
           </div>
         )}
 
-        {/* ── STEP 4: Tổng kết & Xác nhận pháp lý ── */}
+        {/* ── STEP 4: Tổng kết & Xác nhận ── */}
         {step === 4 && (
           <div className="space-y-6">
-            <div className="border-b border-slate-200 pb-3">
-              <h2 className="text-sm font-mono font-black text-slate-900 uppercase flex items-center gap-2">
-                <FileCheck size={16} />
-                PHÂN KHU 4: TỔNG HỢP HỒ SƠ & XÁC NHẬN Y KHOA
+            <div className="border-b border-outline-variant pb-3">
+              <h2 className="text-xl md:text-2xl text-primary font-semibold flex items-center gap-2">
+                <FileCheck size={20} className="text-primary" />
+                Xác nhận hồ sơ
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Kiểm tra lại toàn bộ thông tin lâm sàng trước khi kích hoạt không gian Tủ thuốc.
+              <p className="text-xs text-on-surface-variant mt-1">
+                Xem lại thông tin sức khỏe trước khi bắt đầu quản lý đơn thuốc.
               </p>
             </div>
 
             {/* Profile Summary Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="p-3 border border-slate-200 bg-slate-50">
-                <span className="text-[10px] font-mono text-slate-500 uppercase block">Sinh trắc học:</span>
-                <span className="text-xs font-mono font-bold text-slate-900 block mt-1">
+              <div className="p-3.5 border border-outline-variant bg-surface-container/30 rounded-lg">
+                <span className="text-[11px] text-on-surface-variant font-medium block">Thông tin cơ bản</span>
+                <span className="text-xs font-bold text-on-surface block mt-1">
                   {age} tuổi • {gender === 'male' ? 'Nam' : gender === 'female' ? 'Nữ' : 'Khác'}
                 </span>
                 {bmiInfo && (
-                  <span className="text-[11px] font-mono text-slate-600 block mt-0.5">
+                  <span className="text-[11px] text-on-surface-variant block mt-0.5">
                     BMI: {bmiInfo.bmi} ({bmiInfo.label})
                   </span>
                 )}
               </div>
 
-              <div className="p-3 border border-slate-200 bg-slate-50">
-                <span className="text-[10px] font-mono text-slate-500 uppercase block">Bệnh nền ({conditions.length}):</span>
-                <span className="text-xs font-mono font-bold text-slate-900 block mt-1">
+              <div className="p-3.5 border border-outline-variant bg-surface-container/30 rounded-lg">
+                <span className="text-[11px] text-on-surface-variant font-medium block">Bệnh nền ({conditions.length})</span>
+                <span className="text-xs font-bold text-on-surface block mt-1">
                   {conditions.length > 0
                     ? conditions.map((c) => KNOWN_CONDITIONS.find((k) => k.id === c)?.label || c).join(', ')
                     : 'Không có bệnh nền'}
                 </span>
               </div>
 
-              <div className="p-3 border border-slate-200 bg-slate-50">
-                <span className="text-[10px] font-mono text-slate-500 uppercase block">Dị ứng thuốc ({allergies.length}):</span>
-                <span className="text-xs font-mono font-bold text-slate-900 block mt-1">
+              <div className="p-3.5 border border-outline-variant bg-surface-container/30 rounded-lg">
+                <span className="text-[11px] text-on-surface-variant font-medium block">Dị ứng thuốc ({allergies.length})</span>
+                <span className="text-xs font-bold text-on-surface block mt-1">
                   {allergies.length > 0
                     ? allergies.map((a) => KNOWN_ALLERGIES.find((k) => k.id === a)?.label || a).join(', ')
                     : 'Không có dị ứng'}
@@ -492,29 +537,29 @@ export function ClinicalOnboardingWizard() {
             </div>
 
             {/* Legal Disclaimer Box */}
-            <div className="p-4 border border-slate-300 bg-slate-100 text-xs font-mono text-slate-700 space-y-2">
-              <div className="flex items-center gap-2 font-bold text-slate-900 uppercase">
-                <ShieldCheck size={15} />
-                <span>CAM KẾT BẢO MẬT & MIỄN TRỪ TRÁCH NHIỆM Y TẾ</span>
+            <div className="p-4 border border-outline-variant bg-surface-container/50 rounded-lg text-xs text-on-surface space-y-1.5">
+              <div className="flex items-center gap-2 font-semibold text-primary">
+                <ShieldCheck size={16} className="text-primary" />
+                <span>Tuyên bố miễn trừ trách nhiệm y tế</span>
               </div>
-              <p className="text-[11px] leading-relaxed">
-                Hệ thống Mediscan AI chỉ cung cấp cảnh báo tương tác tự động phục vụ mục đích tham khảo và phòng ngừa nguy cơ. 
-                Người bệnh tuyệt đối không tự ý thay đổi liều lượng hoặc ngừng thuốc mà không có sự chỉ định của bác sĩ điều trị.
+              <p className="text-[11px] text-on-surface-variant leading-relaxed">
+                Hệ thống MediScan hỗ trợ phát hiện cảnh báo nguy cơ tương tác thuốc tự động phục vụ mục đích tham khảo. 
+                Người bệnh không tự ý thay đổi liều hoặc ngừng thuốc mà không có ý kiến của bác sĩ điều trị.
               </p>
             </div>
           </div>
         )}
 
         {/* ── Wizard Navigation Buttons ── */}
-        <div className="flex items-center justify-between pt-4 border-t border-slate-200">
+        <div className="flex items-center justify-between pt-4 border-t border-outline-variant">
           {step > 1 ? (
             <button
               type="button"
               onClick={() => setStep((s) => (s - 1) as typeof step)}
-              className="h-10 px-4 border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-800 text-xs font-mono font-bold flex items-center gap-1.5 transition-colors"
+              className="h-12 px-6 border border-outline-variant bg-white hover:bg-surface-container text-on-surface-variant text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all"
             >
               <ArrowLeft size={14} />
-              <span>QUAY LẠI</span>
+              <span>Quay lại</span>
             </button>
           ) : (
             <div />
@@ -524,9 +569,9 @@ export function ClinicalOnboardingWizard() {
             <button
               type="button"
               onClick={handleNext}
-              className="h-10 px-6 bg-slate-900 hover:bg-slate-800 text-white text-xs font-mono font-bold flex items-center gap-2 transition-colors"
+              className="h-12 px-6 bg-primary hover:bg-primary/90 text-on-primary text-xs font-semibold rounded-lg flex items-center gap-2 transition-all shadow-sm"
             >
-              <span>TIẾP THEO</span>
+              <span>Tiếp theo</span>
               <ArrowRight size={14} />
             </button>
           ) : (
@@ -534,10 +579,10 @@ export function ClinicalOnboardingWizard() {
               type="button"
               disabled={isSubmitting}
               onClick={handleComplete}
-              className="h-10 px-6 bg-slate-900 hover:bg-slate-800 text-white text-xs font-mono font-bold flex items-center gap-2 transition-colors disabled:opacity-50"
+              className="h-12 px-6 bg-primary hover:bg-primary/90 text-on-primary text-xs font-semibold rounded-lg flex items-center gap-2 transition-all shadow-sm disabled:opacity-50"
             >
-              <CheckCircle2 size={15} />
-              <span>HOÀN TẤT & VÀO TỦ THUỐC</span>
+              <CheckCircle2 size={16} />
+              <span>Hoàn tất & Vào tủ thuốc</span>
             </button>
           )}
         </div>

@@ -19,10 +19,17 @@ class UserRegister(BaseModel):
 
 
 class UserLogin(BaseModel):
-    username_or_email: str = Field(..., description="Tên đăng nhập hoặc Email")
+    username: Optional[str] = Field(None, description="Tên đăng nhập hoặc Email")
+    username_or_email: Optional[str] = Field(None, alias="usernameOrEmail", description="Tên đăng nhập hoặc Email")
     password: str = Field(..., description="Mật khẩu")
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel, extra="ignore")
+
+    def get_identifier(self) -> str:
+        ident = (self.username or self.username_or_email or "").strip()
+        if not ident:
+            raise ValueError("Vui lòng nhập tên đăng nhập hoặc email.")
+        return ident
 
 
 class UserResponse(BaseModel):

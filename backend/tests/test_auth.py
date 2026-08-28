@@ -34,11 +34,11 @@ def test_auth_full_flow():
 
     access_token = data_reg["accessToken"]
 
-    # 2. Thử đăng ký lại email/username bị trùng -> 400 Bad Request
+    # 2. Thử đăng ký lại email/username bị trùng -> 409 Conflict hoặc 400 Bad Request
     resp_dup = client.post("/api/v1/auth/register", json=user_payload)
-    assert resp_dup.status_code == 400
+    assert resp_dup.status_code in (400, 409)
 
-    # 3. Đăng nhập đúng bằng Username -> 200 OK
+    # 3. Đăng nhập đúng bằng Username (dạng usernameOrEmail) -> 200 OK
     login_payload_user = {
         "usernameOrEmail": username,
         "password": "SecurePassword123!",
@@ -46,6 +46,22 @@ def test_auth_full_flow():
     resp_login1 = client.post("/api/v1/auth/login", json=login_payload_user)
     assert resp_login1.status_code == 200
     assert "accessToken" in resp_login1.json()
+
+    # 3.1. Đăng nhập đúng bằng Username (dạng JSON username) -> 200 OK
+    login_payload_direct_user = {
+        "username": username,
+        "password": "SecurePassword123!",
+    }
+    resp_login_direct = client.post("/api/v1/auth/login", json=login_payload_direct_user)
+    assert resp_login_direct.status_code == 200
+
+    # 3.2. Đăng nhập bằng Form Data (OAuth2 standard) -> 200 OK
+    resp_form = client.post(
+        "/api/v1/auth/login",
+        data={"username": username, "password": "SecurePassword123!"},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert resp_form.status_code == 200
 
     # 4. Đăng nhập đúng bằng Email -> 200 OK
     login_payload_email = {

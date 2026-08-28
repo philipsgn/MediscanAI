@@ -1,25 +1,37 @@
 'use client';
 
 /**
- * ClinicalHeader — Global Navigation Header chuẩn Lâm Sàng Minimalist (Stage 10+ Harmonization).
- * Height h-14, Border 1px slate-200, Nền trắng, typography tracking-tight.
- * Navigation Index: [01] HỒ SƠ Y TẾ | [02] TỦ THUỐC & QUẢN LÝ | [03] QUÉT & PHÂN TÍCH ĐƠN
+ * ClinicalHeader — Global Navigation Header (Material 3 Design System).
+ * Rebranding: MediScan.
+ * Tabs: Hồ sơ y tế | Tủ thuốc | Quét đơn.
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
-import { LogOut, User, Activity, Cpu, ShieldCheck } from 'lucide-react';
+import { LogOut, User, Activity, ChevronDown, Pill, Bell, Settings } from 'lucide-react';
 
 export function ClinicalHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthenticated, isHydrated, logout, hydrateFromStorage } = useAuthStore();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     hydrateFromStorage();
   }, [hydrateFromStorage]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Ẩn Header trên các trang Auth khách (/login, /register)
   if (pathname === '/login' || pathname === '/register') {
@@ -32,44 +44,27 @@ export function ClinicalHeader() {
   };
 
   const navItems = [
-    { label: '[01] HỒ SƠ Y TẾ', href: '/onboarding', match: '/onboarding' },
-    { label: '[02] TỦ THUỐC & QUẢN LÝ', href: '/cabinet', match: '/cabinet' },
-    { label: '[03] QUÉT & PHÂN TÍCH ĐƠN', href: '/scan', match: '/scan' },
+    { label: 'Hồ sơ y tế', href: '/onboarding', match: '/onboarding' },
+    { label: 'Tủ thuốc', href: '/cabinet', match: '/cabinet' },
+    { label: 'Quét đơn', href: '/scan', match: '/scan' },
   ];
 
   return (
-    <header className="sticky top-0 z-40 h-14 bg-white border-b border-slate-200 font-[var(--font-inter)] select-none">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-full flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-50 h-16 bg-surface border-b border-outline-variant/30 font-[var(--font-inter)] select-none shadow-sm">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 h-full flex items-center justify-between gap-4">
         
-        {/* ── Left: Identity & Clinical Engine Badge ── */}
-        <div className="flex items-center gap-3 shrink-0">
-          <Link href="/cabinet" className="flex items-center gap-2 group">
-            <div className="w-7 h-7 bg-slate-900 flex items-center justify-center text-white rounded-none border border-slate-900">
-              <Activity size={16} />
-            </div>
-            <span className="text-sm font-black tracking-tight text-slate-900">
-              MEDISCAN<span className="text-slate-500 font-semibold">.AI</span>
-            </span>
-          </Link>
-
-          <div className="hidden md:flex items-center gap-1.5 px-2 py-0.5 border border-slate-200 bg-slate-50 text-[10px] font-mono text-slate-600 font-bold uppercase tracking-wider">
-            <Cpu size={11} className="text-slate-500" />
-            <span>PURE-ONNX | CPU ENGINE</span>
-          </div>
-        </div>
-
-        {/* ── Center: Route Navigation Index ── */}
-        <nav className="hidden md:flex items-center gap-1">
+        {/* ── Left: Route Navigation Index ── */}
+        <nav className="flex items-center gap-6">
           {navItems.map((item) => {
             const isActive = pathname.startsWith(item.match);
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`px-3 py-1.5 text-xs font-mono font-bold tracking-tight transition-colors border ${
+                className={`py-1 text-xs font-semibold tracking-tight transition-all border-b-2 ${
                   isActive
-                    ? 'bg-slate-900 text-white border-slate-900'
-                    : 'bg-transparent text-slate-600 border-transparent hover:border-slate-200 hover:text-slate-900'
+                    ? 'border-primary text-primary font-bold pb-1'
+                    : 'border-transparent text-on-surface-variant hover:text-primary hover:border-outline-variant'
                 }`}
               >
                 {item.label}
@@ -78,36 +73,109 @@ export function ClinicalHeader() {
           })}
         </nav>
 
-        {/* ── Right: Session Context & Actions ── */}
-        <div className="flex items-center gap-3 shrink-0">
-          {isHydrated && isAuthenticated && user ? (
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:flex flex-col text-right">
-                <span className="text-xs font-bold text-slate-900 leading-none">
-                  {user.fullName || user.username}
-                </span>
-                <span className="text-[10px] font-mono text-slate-500 leading-none mt-1">
-                  UID: {user.id.slice(0, 10)}
-                </span>
-              </div>
+        {/* ── Center: Branding Centered ── */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 group">
+          <Link href="/cabinet" className="flex items-center gap-2 group">
+            <div className="w-8 h-8 bg-surface-container-low text-primary flex items-center justify-center rounded-lg border border-outline-variant/30 group-hover:bg-surface-container transition-colors">
+              <Activity size={18} />
+            </div>
+            <span className="text-xl font-bold tracking-tight text-primary">
+              MediScan
+            </span>
+          </Link>
+        </div>
 
+        {/* ── Right: Profile & Toolbar Actions ── */}
+        <div className="flex items-center gap-2 shrink-0 relative" ref={dropdownRef}>
+          {isHydrated && isAuthenticated && user ? (
+            <>
+              {/* Notification & Settings Icon Buttons */}
               <button
                 type="button"
-                onClick={handleLogout}
-                className="h-8 px-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-mono font-bold flex items-center gap-1.5 transition-colors"
-                title="Đăng xuất khỏi hệ thống"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-all"
+                title="Thông báo"
               >
-                <LogOut size={13} className="text-slate-500" />
-                <span className="hidden sm:inline">ĐĂNG XUẤT</span>
+                <Bell size={16} />
               </button>
-            </div>
+              <button
+                type="button"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-all"
+                title="Cài đặt"
+              >
+                <Settings size={16} />
+              </button>
+
+              {/* User Avatar Pill */}
+              <div className="relative ml-1">
+                <button
+                  type="button"
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="flex items-center gap-2 hover:bg-surface-container-low p-1 rounded-full transition-all border border-outline-variant/30"
+                >
+                  <div className="w-8 h-8 rounded-full bg-surface-container-high text-primary flex items-center justify-center text-xs font-bold uppercase shrink-0">
+                    {(user.fullName || user.username || 'U').charAt(0).toUpperCase()}
+                  </div>
+                  <span className="hidden sm:inline text-xs font-bold text-on-surface truncate max-w-[120px] pr-1">
+                    {user.fullName || user.username}
+                  </span>
+                  <ChevronDown size={14} className="text-on-surface-variant shrink-0 mr-1.5" />
+                </button>
+
+                {/* Dropdown Floating Menu */}
+                {isDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-56 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-layer-1 py-1 z-50">
+                    <div className="px-4 py-2.5">
+                      <p className="text-xs font-bold text-on-surface truncate">
+                        {user.fullName || user.username}
+                      </p>
+                      <p className="text-xs text-on-surface-variant truncate mt-0.5">
+                        {user.email || `ID: ${user.id.slice(0, 8)}`}
+                      </p>
+                    </div>
+                    <div className="border-b border-outline-variant/30" />
+                    
+                    <Link
+                      href="/onboarding"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-xs text-on-surface-variant hover:bg-surface-container transition-colors"
+                    >
+                      <User size={14} className="text-on-surface-variant" />
+                      <span>Hồ sơ sức khỏe</span>
+                    </Link>
+
+                    <Link
+                      href="/cabinet"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-xs text-on-surface-variant hover:bg-surface-container transition-colors"
+                    >
+                      <Pill size={14} className="text-on-surface-variant" />
+                      <span>Tủ thuốc của tôi</span>
+                    </Link>
+
+                    <div className="border-b border-outline-variant/30" />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsDropdownOpen(false);
+                        handleLogout();
+                      }}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 transition-colors text-left font-semibold"
+                    >
+                      <LogOut size={14} />
+                      <span>Đăng xuất</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
           ) : (
             <Link
               href="/login"
-              className="h-8 px-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-mono font-bold flex items-center gap-1.5"
+              className="h-8 px-3.5 bg-primary hover:bg-primary-container text-on-primary text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm transition-all"
             >
               <User size={13} />
-              <span>ĐĂNG NHẬP</span>
+              <span>Đăng nhập</span>
             </Link>
           )}
         </div>

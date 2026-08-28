@@ -129,7 +129,7 @@ class AuthService:
 
     async def authenticate_user(self, db: AsyncSession, data: UserLogin) -> UserResponse:
         """Xác thực người dùng qua Username hoặc Email + Password. Quăng ValueError nếu thất bại."""
-        identifier = data.username_or_email.strip().lower()
+        identifier = data.get_identifier().lower()
 
         stmt = select(User).where(
             or_(

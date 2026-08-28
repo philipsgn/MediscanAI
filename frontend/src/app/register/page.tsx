@@ -1,12 +1,11 @@
 'use client';
 
 /**
- * Register Page — Màn hình Đăng ký Minimalist Clinical Grade.
- * Form vuông vức (rounded-none), đơn sắc (#0F172A, #334155, #FFFFFF, #E2E8F0).
- * Sau khi đăng ký thành công ➔ Chuyển hướng về /login với thông báo sẵn sàng.
+ * Register Page — Màn hình Đăng ký (Sky Blue & Borderless Minimalism).
+ * Rebranding: MediScan.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthLayout } from '@/components/auth/AuthLayout';
 import { useAuthStore } from '@/store/authStore';
@@ -25,6 +24,10 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState('');
 
+  useEffect(() => {
+    clearError();
+  }, [clearError]);
+
   const calculateStrength = (pwd: string) => {
     let score = 0;
     if (pwd.length >= 8) score++;
@@ -42,7 +45,7 @@ export default function RegisterPage() {
     setFormError('');
 
     if (!username.trim()) {
-      setFormError('Vui lòng nhập Tên đăng nhập');
+      setFormError('Vui lòng nhập tên đăng nhập');
       return;
     }
     if (username.length < 3) {
@@ -50,11 +53,11 @@ export default function RegisterPage() {
       return;
     }
     if (!email.trim()) {
-      setFormError('Vui lòng nhập Địa chỉ Email');
+      setFormError('Vui lòng nhập địa chỉ email');
       return;
     }
     if (!password) {
-      setFormError('Vui lòng nhập Mật khẩu');
+      setFormError('Vui lòng nhập mật khẩu');
       return;
     }
     if (password.length < 8) {
@@ -74,9 +77,8 @@ export default function RegisterPage() {
         fullName: fullName.trim() || undefined,
       });
 
-      toast.success('Đăng ký tài khoản thành công! Vui lòng đăng nhập để bắt đầu.');
-      // Chuyển về /login sau khi đăng ký
-      router.replace('/login');
+      toast.success('Đăng ký tài khoản thành công! Vui lòng đăng nhập.');
+      router.replace('/login?registered=true');
     } catch {
       // Error handled in store
     }
@@ -84,45 +86,45 @@ export default function RegisterPage() {
 
   return (
     <AuthLayout
-      title="ĐĂNG KÝ TÀI KHOẢN MỚI"
-      subtitle="Khởi tạo định danh tài khoản y tế trên hệ sinh thái Mediscan AI"
+      title="Tạo tài khoản"
+      subtitle="Bắt đầu quản lý đơn thuốc và kiểm tra tương tác an toàn"
       mode="register"
     >
       <form onSubmit={handleSubmit} className="space-y-3.5">
         {/* Error Alert */}
         {(error || formError) && (
-          <div className="p-3 border border-rose-300 bg-rose-50 text-rose-800 text-xs font-mono flex items-start gap-2">
-            <AlertCircle size={15} className="text-rose-600 shrink-0 mt-0.5" />
+          <div className="p-3.5 border border-rose-200 bg-rose-50/80 rounded-xl text-rose-800 text-xs flex items-start gap-2.5">
+            <AlertCircle size={16} className="text-rose-600 shrink-0 mt-0.5" />
             <span>{formError || error}</span>
           </div>
         )}
 
         {/* Full Name */}
         <div>
-          <label className="block text-xs font-mono font-bold text-slate-700 uppercase mb-1">
-            Họ và tên (Tùy chọn)
+          <label className="block text-xs font-semibold text-slate-700 mb-1">
+            Họ và tên <span className="text-slate-400 font-normal">(Tùy chọn)</span>
           </label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-              <User size={14} />
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <User size={15} />
             </div>
             <input
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder="BS. Nguyễn Văn A"
-              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-900 placeholder-slate-400 outline-none focus:border-slate-900 focus:bg-white transition-colors"
+              placeholder="Nguyễn Văn A"
+              className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100 transition-all"
             />
           </div>
         </div>
 
         {/* Username */}
         <div>
-          <label className="block text-xs font-mono font-bold text-slate-700 uppercase mb-1">
-            Tên đăng nhập <span className="text-rose-600">*</span>
+          <label className="block text-xs font-semibold text-slate-700 mb-1">
+            Tên đăng nhập <span className="text-rose-500">*</span>
           </label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
               <span className="font-mono text-xs">@</span>
             </div>
             <input
@@ -132,20 +134,20 @@ export default function RegisterPage() {
                 setUsername(e.target.value);
                 setFormError('');
               }}
-              placeholder="bs_nguyenvana"
-              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-900 placeholder-slate-400 outline-none focus:border-slate-900 focus:bg-white transition-colors font-mono"
+              placeholder="nguyenvana"
+              className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100 transition-all"
             />
           </div>
         </div>
 
         {/* Email */}
         <div>
-          <label className="block text-xs font-mono font-bold text-slate-700 uppercase mb-1">
-            Địa chỉ Email <span className="text-rose-600">*</span>
+          <label className="block text-xs font-semibold text-slate-700 mb-1">
+            Địa chỉ Email <span className="text-rose-500">*</span>
           </label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-              <Mail size={14} />
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <Mail size={15} />
             </div>
             <input
               type="email"
@@ -154,20 +156,20 @@ export default function RegisterPage() {
                 setEmail(e.target.value);
                 setFormError('');
               }}
-              placeholder="nguyenvana@hospital.vn"
-              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-900 placeholder-slate-400 outline-none focus:border-slate-900 focus:bg-white transition-colors font-mono"
+              placeholder="nguyenvana@gmail.com"
+              className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100 transition-all"
             />
           </div>
         </div>
 
         {/* Password */}
         <div>
-          <label className="block text-xs font-mono font-bold text-slate-700 uppercase mb-1">
-            Mật khẩu bảo mật <span className="text-rose-600">*</span>
+          <label className="block text-xs font-semibold text-slate-700 mb-1">
+            Mật khẩu <span className="text-rose-500">*</span>
           </label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-              <Lock size={14} />
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <Lock size={15} />
             </div>
             <input
               type={showPassword ? 'text' : 'password'}
@@ -177,33 +179,33 @@ export default function RegisterPage() {
                 setFormError('');
               }}
               placeholder="Tối thiểu 8 ký tự"
-              className="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-900 placeholder-slate-400 outline-none focus:border-slate-900 focus:bg-white transition-colors font-mono"
+              className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100 transition-all"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-700"
+              className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-700"
             >
-              {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+              {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
             </button>
           </div>
 
-          {/* Minimalist Strength Meter */}
+          {/* Strength Meter */}
           {password && (
-            <div className="mt-1.5 flex items-center gap-1">
+            <div className="mt-1.5 flex items-center gap-1.5">
               {[1, 2, 3, 4].map((level) => (
                 <div
                   key={level}
-                  className={`h-1 flex-1 transition-colors ${
+                  className={`h-1.5 flex-1 rounded-full transition-all ${
                     strength >= level
                       ? strength <= 2
-                        ? 'bg-amber-600'
-                        : 'bg-emerald-600'
-                      : 'bg-slate-200'
+                        ? 'bg-amber-500'
+                        : 'bg-sky-500'
+                      : 'bg-slate-100'
                   }`}
                 />
               ))}
-              <span className="text-[10px] font-mono text-slate-500 ml-1">
+              <span className="text-[11px] text-slate-400 ml-1">
                 {strength <= 1 ? 'Yếu' : strength <= 3 ? 'Khá' : 'Mạnh'}
               </span>
             </div>
@@ -212,12 +214,12 @@ export default function RegisterPage() {
 
         {/* Confirm Password */}
         <div>
-          <label className="block text-xs font-mono font-bold text-slate-700 uppercase mb-1">
-            Xác nhận mật khẩu <span className="text-rose-600">*</span>
+          <label className="block text-xs font-semibold text-slate-700 mb-1">
+            Xác nhận mật khẩu <span className="text-rose-500">*</span>
           </label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-              <ShieldCheck size={14} />
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <ShieldCheck size={15} />
             </div>
             <input
               type={showPassword ? 'text' : 'password'}
@@ -227,7 +229,7 @@ export default function RegisterPage() {
                 setFormError('');
               }}
               placeholder="Nhập lại mật khẩu"
-              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-900 placeholder-slate-400 outline-none focus:border-slate-900 focus:bg-white transition-colors font-mono"
+              className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100 transition-all"
             />
           </div>
         </div>
@@ -236,17 +238,17 @@ export default function RegisterPage() {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full h-10 bg-slate-900 hover:bg-slate-800 text-white font-mono font-bold text-xs uppercase flex items-center justify-center gap-2 rounded-none transition-colors disabled:opacity-50 mt-2"
+          className="w-full h-10 bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs rounded-lg flex items-center justify-center gap-2 transition-all shadow-sm disabled:opacity-50 mt-3"
         >
           {isLoading ? (
             <>
-              <Loader2 size={14} className="animate-spin" />
-              <span>ĐANG TẠO TÀI KHOẢN...</span>
+              <Loader2 size={15} className="animate-spin" />
+              <span>Đang tạo tài khoản...</span>
             </>
           ) : (
             <>
-              <span>HOÀN TẤT ĐĂNG KÝ</span>
-              <ArrowRight size={14} />
+              <span>Hoàn tất đăng ký</span>
+              <ArrowRight size={15} />
             </>
           )}
         </button>

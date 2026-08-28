@@ -1,9 +1,9 @@
 'use client';
 
 /**
- * Clinical Dashboard & Medication Cabinet — Route /cabinet (Phase 3 Harmonization).
- * Không gian Quản lý Tủ thuốc, Lịch nhắc nhở 4 khung giờ & Lịch sử phiên quét.
- * Primary CTA: [+ QUÉT ĐƠN THUỐC MỚI] ➔ /scan.
+ * Clinical Dashboard & Medication Cabinet — Route /cabinet (Material 3 Clinical Design System).
+ * Rebranding: MediScan.
+ * Tabs: Tủ thuốc | Lịch uống | Lịch sử quét.
  */
 
 import React, { useState } from 'react';
@@ -14,7 +14,7 @@ import { ReminderSchedule } from '@/components/management/ReminderSchedule';
 import { HistoryTimeline } from '@/components/management/HistoryTimeline';
 import { InteractionAlertCards } from '@/components/report/InteractionAlertCards';
 import { IEvaluationResponse } from '@/types/medication';
-import { Plus, Pill, Clock, History, FileText, ArrowRight, ShieldCheck, Activity } from 'lucide-react';
+import { Plus, Pill, Clock, History, ArrowRight, Activity } from 'lucide-react';
 
 export default function CabinetDashboardPage() {
   const router = useRouter();
@@ -23,105 +23,121 @@ export default function CabinetDashboardPage() {
 
   const handleReportReady = (newReport: IEvaluationResponse) => {
     setReport(newReport);
-    // Cuộn xuống khu vực báo cáo nếu có
     window.scrollTo({ top: 400, behavior: 'smooth' });
   };
 
   return (
-    <div className="min-h-full bg-slate-50 font-[var(--font-inter)] text-slate-900 pb-16">
+    <div className="min-h-screen bg-background font-[var(--font-inter)] text-on-background flex flex-col justify-between">
       
-      {/* ── Dashboard Sub-Header ── */}
-      <div className="bg-white border-b border-slate-200 py-4">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-mono font-bold text-slate-500 uppercase">
-                MEDISCAN CLINICAL WORKSPACE
-              </span>
-              <span className="px-1.5 py-0.2 bg-slate-100 border border-slate-300 text-[10px] font-mono text-slate-700">
-                ACTIVE
-              </span>
+      <div className="flex-grow pb-16">
+        {/* ── Dashboard Sub-Header ── */}
+        <div className="bg-surface border-b border-outline-variant/30 py-5">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-secondary" />
+                <span className="text-xs font-bold text-secondary tracking-wider uppercase">
+                  KHÔNG GIAN QUẢN LÝ ĐIỀU TRỊ
+                </span>
+              </div>
+              <h1 className="text-2xl md:text-3xl font-semibold text-primary mt-1">
+                Tủ thuốc cá nhân & Lịch uống
+              </h1>
             </div>
-            <h1 className="text-lg font-black tracking-tight text-slate-900 uppercase">
-              Tủ Thuốc Cá Nhân & Quản Lý Điều Trị
-            </h1>
+
+            {/* Primary CTA: + Quét đơn mới -> */}
+            <Link
+              href="/scan"
+              className="bg-primary hover:bg-primary-container text-on-primary py-3 px-6 rounded-lg shadow-layer-1 flex items-center gap-2 group transition-all shrink-0 text-xs font-semibold"
+            >
+              <Plus size={16} />
+              <span>Quét đơn mới</span>
+              <ArrowRight size={14} className="text-on-primary/80 group-hover:translate-x-0.5 transition-transform" />
+            </Link>
+          </div>
+        </div>
+
+        {/* ── Main Workspace ── */}
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
+
+          {/* ── Tab Switcher (No numbers) ── */}
+          <div className="flex border-b border-outline-variant/40 gap-6 overflow-x-auto">
+            {[
+              { key: 'cabinet', label: 'Tủ thuốc đang dùng', icon: Pill },
+              { key: 'reminders', label: 'Lịch uống & Tuân thủ', icon: Clock },
+              { key: 'history', label: 'Lịch sử phiên quét', icon: History },
+            ].map((tab) => {
+              const TabIcon = tab.icon;
+              const isCurrent = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveTab(tab.key as typeof activeTab)}
+                  className={`py-3 font-bold text-xs flex items-center gap-2 border-b-2 transition-all whitespace-nowrap ${
+                    isCurrent
+                      ? 'border-primary text-primary pb-3'
+                      : 'border-transparent text-on-surface-variant pb-3 hover:text-primary'
+                  }`}
+                >
+                  <TabIcon size={15} />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
           </div>
 
-          {/* Primary CTA: [+ QUÉT ĐƠN THUỐC MỚI] */}
-          <Link
-            href="/scan"
-            className="h-10 px-4 bg-slate-900 hover:bg-slate-800 text-white font-mono font-bold text-xs flex items-center gap-2 transition-colors shrink-0 shadow-sm"
-          >
-            <Plus size={15} />
-            <span>[+ QUÉT ĐƠN THUỐC MỚI]</span>
-            <ArrowRight size={14} className="text-slate-400" />
-          </Link>
-        </div>
+          {/* ── Tab Content Views ── */}
+          {activeTab === 'cabinet' && (
+            <div className="space-y-6">
+              <ActiveCabinet onReportReady={handleReportReady} />
+
+              {/* Interaction Evaluation Report (if triggered) */}
+              {report && (
+                <div className="border border-outline-variant/30 bg-surface-container-lowest rounded-xl p-6 shadow-layer-1 space-y-4">
+                  <div className="border-b border-outline-variant/30 pb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm font-bold text-primary">
+                      <Activity size={18} className="text-primary" />
+                      <span>Kết quả đánh giá an toàn đơn thuốc</span>
+                    </div>
+                    <span className="text-xs text-on-surface-variant font-medium">
+                      Phát hiện: {report.alerts.length} cảnh báo
+                    </span>
+                  </div>
+
+                  <InteractionAlertCards report={report} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'reminders' && (
+            <ReminderSchedule />
+          )}
+
+          {activeTab === 'history' && (
+            <HistoryTimeline />
+          )}
+
+        </main>
       </div>
 
-      {/* ── Main Workspace ── */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
-
-        {/* ── Tab Switcher Index ── */}
-        <div className="flex border-b border-slate-200 gap-2 overflow-x-auto">
-          {[
-            { key: 'cabinet', label: '[01] TỦ THUỐC ĐANG DÙNG', icon: Pill },
-            { key: 'reminders', label: '[02] LỊCH UỐNG & TUÂN THỦ', icon: Clock },
-            { key: 'history', label: '[03] LỊCH SỬ PHIÊN QUÉT', icon: History },
-          ].map((tab) => {
-            const TabIcon = tab.icon;
-            const isCurrent = activeTab === tab.key;
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setActiveTab(tab.key as typeof activeTab)}
-                className={`py-2.5 px-4 font-mono font-bold text-xs flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${
-                  isCurrent
-                    ? 'border-slate-900 text-slate-900 bg-white'
-                    : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <TabIcon size={14} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* ── Tab Content Views ── */}
-        {activeTab === 'cabinet' && (
-          <div className="space-y-6">
-            <ActiveCabinet onReportReady={handleReportReady} />
-
-            {/* Interaction Evaluation Report (if triggered) */}
-            {report && (
-              <div className="border border-slate-300 bg-white p-6 space-y-4">
-                <div className="border-b border-slate-200 pb-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-900 uppercase">
-                    <Activity size={16} />
-                    <span>KẾT QUẢ ĐÁNH GIÁ TƯƠNG TÁC LÂM SÀNG (4 LỚP)</span>
-                  </div>
-                  <span className="text-[11px] font-mono text-slate-500">
-                    Phát hiện: {report.alerts.length} cảnh báo
-                  </span>
-                </div>
-
-                <InteractionAlertCards report={report} />
-              </div>
-            )}
+      {/* ── Footer ── */}
+      <footer className="bg-surface-container-low border-t border-outline-variant py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-on-surface-variant font-medium">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-primary">MediScan</span>
+            <span>&copy; {new Date().getFullYear()} MediScan. All rights reserved.</span>
           </div>
-        )}
-
-        {activeTab === 'reminders' && (
-          <ReminderSchedule />
-        )}
-
-        {activeTab === 'history' && (
-          <HistoryTimeline />
-        )}
-
-      </main>
+          <div className="flex gap-4">
+            <a href="#" className="hover:text-primary transition-colors">Quy định</a>
+            <span>|</span>
+            <a href="#" className="hover:text-primary transition-colors">Bảo mật</a>
+            <span>|</span>
+            <a href="#" className="hover:text-primary transition-colors">Trợ giúp</a>
+          </div>
+        </div>
+      </footer>
 
     </div>
   );
