@@ -67,6 +67,7 @@ RUN pip install --no-cache-dir /wheels/* \
 # Copy mã nguồn ứng dụng
 COPY --chown=appuser:appgroup backend/app ./app
 COPY --chown=appuser:appgroup backend/requirements.txt ./requirements.txt
+COPY --chown=appuser:appgroup ai ./ai
 
 USER appuser
 

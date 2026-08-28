@@ -1,8 +1,15 @@
 # Endpoint OCR + Clinical Assessment Pipeline (Pure Local, No External VLM)
+import os
+import sys
 import time
 from collections import Counter
 from pathlib import Path
 from typing import Optional
+
+# Ensure repository root is in sys.path for importing ai subsystem
+repo_root = str(Path(__file__).resolve().parents[4])
+if repo_root not in sys.path:
+    sys.path.insert(0, repo_root)
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
@@ -11,9 +18,11 @@ from app.core.config import OCR_PROCESSING_SLA_MS
 from app.schemas import (  # Canonical response models — single source of truth [P0/F3.1]
     ClinicalAlertSummary,
     ClinicalAssessmentResponse,
+    ExtractedDrugItem,
     FullScanResponse,
     MappedDrugItem,
     OCRItem,
+    ScanEvaluationResponse,
 )
 from app.services.clinical_service import ClinicalAssessmentRequest, clinical_service
 from app.services.drug_database import drug_database
@@ -258,3 +267,99 @@ async def ocr_scan(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi pipeline OCR+Clinical: {exc}",
         ) from exc
+
+
+@router.post("/process", response_model=ScanEvaluationResponse)
+async def process_scan_pipeline(
+    file: UploadFile = File(...),
+    source_stream: str = Form("prescription", description="'prescription' hoặc 'packaging'"),
+    user_age: Optional[int] = Form(None),
+    user_conditions: Optional[str] = Form(None),
+    user_allergies: Optional[str] = Form(None),
+) -> ScanEvaluationResponse:
+    """
+    End-to-End Direct Pipeline nối trực tiếp phân hệ /ai:
+    1. Tiền xử lý ảnh (Deskew, CLAHE, Denoise, Downscale)
+    2. ONNX OCR Inference
+    3. Fuzzy Medical Normalization & Brand-to-Generic Mapping
+    4. Clinical NER (Extraction of Strength, Dosage, Time slots)
+    5. 4-Layer Clinical Rule Engine Evaluation
+    """
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tệp tải lên phải là hình ảnh hợp lệ (JPEG, PNG, WEBP).",
+        )
+
+    suffix = Path(file.filename or "").suffix.lower()
+    if suffix not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Định dạng '{suffix}' không được hỗ trợ. Chấp nhận: {sorted(ALLOWED_EXTENSIONS)}",
+        )
+
+    try:
+        image_bytes = await file.read()
+        if not image_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File ảnh rỗng, không có dữ liệu để xử lý.",
+            )
+
+        from ai.pipelines.onnx_ocr_engine import default_onnx_ocr_engine
+        from ai.clinical_evaluator.rule_engine import default_clinical_rule_engine
+
+        ai_out = await run_in_threadpool(
+            default_onnx_ocr_engine.process_document,
+            image_bytes,
+            source_stream,
+        )
+
+        extracted_raw_drugs = ai_out.get("extracted_drugs", [])
+
+        extracted_drugs = [
+            ExtractedDrugItem(
+                id=d.get("id") or f"ext_{idx}",
+                drug_name=d.get("drug_name") or "",
+                active_ingredient=d.get("active_ingredient"),
+                strength=d.get("strength"),
+                dosage_form=d.get("dosage_form"),
+                dosage_instruction=d.get("dosage_instruction"),
+                time_slots=d.get("time_slots", []),
+                slot_times=d.get("slot_times", {}),
+                duration_days=d.get("duration_days"),
+                start_date=d.get("start_date"),
+                is_time_extracted=d.get("is_time_extracted", False),
+                source_stream=source_stream,
+            )
+            for idx, d in enumerate(extracted_raw_drugs)
+        ]
+
+        user_prof = {}
+        if user_age or user_conditions or user_allergies:
+            user_prof = {
+                "age": user_age or 30,
+                "conditions": [c.strip() for c in user_conditions.split(",")] if user_conditions else [],
+                "allergies": [a.strip() for a in user_allergies.split(",")] if user_allergies else [],
+            }
+
+        eval_report = await run_in_threadpool(
+            default_clinical_rule_engine.evaluate,
+            [d.model_dump() for d in extracted_drugs],
+            user_prof,
+        )
+
+        return ScanEvaluationResponse(
+            engine="PP-OCRv6-Pure-ONNX",
+            source_stream=source_stream,
+            extracted_drugs=extracted_drugs,
+            clinical_report=eval_report,
+            metrics=ai_out.get("metrics", {}),
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi AI Pipeline Scan: {exc}",
+        ) from exc

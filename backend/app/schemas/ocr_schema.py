@@ -1,6 +1,6 @@
 # Pydantic models cho kết quả OCR (ONNX PP-OCRv6) - Internal use
 import logging
-from typing import Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 from pydantic.alias_generators import to_camel
@@ -95,6 +95,17 @@ class ExtractedDrugItem(BaseModel):
     start_date: Optional[str] = Field(None, description="Ngày bắt đầu (YYYY-MM-DD)")
     is_time_extracted: bool = Field(False, description="True nếu OCR trích xuất được giờ, False nếu cần nhập tay")
     source_stream: str = Field("prescription", description="Nguồn trích xuất: 'prescription' hoặc 'packaging'")
+
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+
+class ScanEvaluationResponse(BaseModel):
+    """Integrated Scan + 4-Layer Clinical Evaluation Response Model."""
+    engine: str = "PP-OCRv6-Pure-ONNX"
+    source_stream: str = "prescription"
+    extracted_drugs: List[ExtractedDrugItem] = []
+    clinical_report: Dict[str, Any] = {}
+    metrics: Dict[str, Any] = {}
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 

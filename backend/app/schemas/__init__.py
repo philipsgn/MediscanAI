@@ -14,6 +14,7 @@ from app.schemas.ocr_schema import (  # noqa: E402
     DrugConditionAlert,
     DrugInteractionAlert,
     ExtractedDrugItem,
+    ScanEvaluationResponse,
     FullScanResponse,
     MappedDrugItem,
     MedicineScanResult,
