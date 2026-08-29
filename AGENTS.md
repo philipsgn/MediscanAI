@@ -47,7 +47,7 @@ Mỗi AI Agent khi thực thi nhiệm vụ trong Repository này phải tự xá
 
 ### 📌 B. Quy tắc Nghiệp vụ Y tế & UX (Medical & UX Rules)
 1. **Dual Input Stream (Tách Biệt Luồng Đầu Vào):**
-   - **Toa thuốc (Prescription):** Đọc toàn trang qua VLM để trích xuất tự động (Tên thuốc, Hàm lượng, Hướng dẫn liều dùng).
+   - **Toa thuốc (Prescription):** Đọc toàn trang qua Local On-Premise OCR Model (PP-OCRv6 / VietOCR) để trích xuất tự động (Tên thuốc, Hàm lượng, Hướng dẫn liều dùng).
    - **Vỏ hộp / Lọ thuốc (Packaging):** Sử dụng Smart Crop để quét nhãn (Tên thuốc, Hàm lượng). **BẮT BUỘC** phải hiển thị giao diện Form cho người dùng chủ động chọn hoặc nhập Liều dùng (Dosage Instruction). Không tự ý suy đoán liều dùng từ thông tin thô trên vỏ hộp.
 2. **Human-in-the-Loop (HITL):** 
    - Không tự động chuyển tiếp kết quả AI OCR/VLM đến thẳng bước phân tích tương tác. Luôn thiết kế giao diện trung gian cho phép người dùng kiểm tra lại thông tin, sửa tay các trường nhận diện sai và nhấn nút *"Xác nhận"* (Verify) trước khi gọi API `/evaluate`.

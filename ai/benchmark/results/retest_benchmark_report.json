@@ -1,0 +1,416 @@
+{
+  "run_at": "2026-08-29T15:44:49.134377+00:00",
+  "environment": {
+    "cpu_info": "11th Gen Intel(R) Core(TM) i3-1115G4 @ 3.00GHz",
+    "python_version": "3.12.10",
+    "os": "Windows 11",
+    "benchmark_rounds": 5,
+    "cpu_during_benchmark": {
+      "avg_cpu_pct": 81.7,
+      "max_cpu_pct": 100.0,
+      "min_cpu_pct": 42.6,
+      "samples": 361
+    },
+    "model_configs_tested": {
+      "ppocr": [
+        "PP-OCRv6_tiny",
+        "PP-OCRv5_mobile"
+      ],
+      "vietocr_variants": [
+        "VietOCR_FP32",
+        "VietOCR_PyTorch_INT8"
+      ]
+    }
+  },
+  "pipeline1_results": [
+    {
+      "config": "PP-OCRv6_tiny",
+      "pipeline": "P1_PPOCR_FullRec",
+      "image": "hop-thuoc.jpg",
+      "latency": {
+        "mean_ms": 505.64,
+        "min_ms": 409.31,
+        "max_ms": 580.44,
+        "std_ms": 85.63
+      },
+      "avg_confidence": 0.9435,
+      "sla_pass": true,
+      "num_lines": 7,
+      "text_preview": "Derma | LajLápgP | Jamjoom Pharma | ACRETINO.05%"
+    },
+    {
+      "config": "PP-OCRv6_tiny",
+      "pipeline": "P1_PPOCR_FullRec",
+      "image": "lo-thuoc.png",
+      "latency": {
+        "mean_ms": 85.7,
+        "min_ms": 69.0,
+        "max_ms": 99.91,
+        "std_ms": 13.55
+      },
+      "avg_confidence": 0.688,
+      "sla_pass": true,
+      "num_lines": 10,
+      "text_preview": "341 | w | TOWARDS DIABETES 0 | AND PRE-DIABETES"
+    },
+    {
+      "config": "PP-OCRv6_tiny",
+      "pipeline": "P1_PPOCR_FullRec",
+      "image": "toa-thuoc.jpg",
+      "latency": {
+        "mean_ms": 714.55,
+        "min_ms": 627.13,
+        "max_ms": 769.44,
+        "std_ms": 63.51
+      },
+      "avg_confidence": 0.9172,
+      "sla_pass": true,
+      "num_lines": 32,
+      "text_preview": "TOATHUOC | PRESCRIPTION | Ho và tên (Full name): | Tuòi (Age):",
+      "cer": 0.3561,
+      "field_accuracy": {
+        "total": 6,
+        "matched_count": 5,
+        "matched": [
+          "Augmentin 625mg",
+          "Medrol 16mg",
+          "Ibuprofen 400mg",
+          "Paracetamol 500mg",
+          "Omeprazol 20mg"
+        ],
+        "missed": [
+          "Alphachymotrysin 4,2mg"
+        ],
+        "accuracy": 0.8333333333333334
+      }
+    },
+    {
+      "config": "PP-OCRv6_tiny",
+      "pipeline": "P1_PPOCR_FullRec",
+      "image": "vi-thuoc.jpg",
+      "latency": {
+        "mean_ms": 139.05,
+        "min_ms": 126.18,
+        "max_ms": 168.09,
+        "std_ms": 16.88
+      },
+      "avg_confidence": 0.8412,
+      "sla_pass": true,
+      "num_lines": 10,
+      "text_preview": "G | COMPLEMENTO ALIMENTICID | 00O | BIOIBERICA"
+    },
+    {
+      "config": "PP-OCRv5_mobile",
+      "pipeline": "P1_PPOCR_FullRec",
+      "image": "hop-thuoc.jpg",
+      "latency": {
+        "mean_ms": 1418.09,
+        "min_ms": 1283.55,
+        "max_ms": 1553.92,
+        "std_ms": 127.49
+      },
+      "avg_confidence": 0.9017,
+      "sla_pass": true,
+      "num_lines": 7,
+      "text_preview": "Derma | bjlpg | Jamjoom Pharma | ACRETIN0.05%"
+    },
+    {
+      "config": "PP-OCRv5_mobile",
+      "pipeline": "P1_PPOCR_FullRec",
+      "image": "lo-thuoc.png",
+      "latency": {
+        "mean_ms": 367.92,
+        "min_ms": 341.57,
+        "max_ms": 388.41,
+        "std_ms": 19.76
+      },
+      "avg_confidence": 0.7094,
+      "sla_pass": true,
+      "num_lines": 8,
+      "text_preview": "TOWARDS DIABETESU | AND PRE-DIABETES | 1810 | ラハイオ"
+    },
+    {
+      "config": "PP-OCRv5_mobile",
+      "pipeline": "P1_PPOCR_FullRec",
+      "image": "toa-thuoc.jpg",
+      "latency": {
+        "mean_ms": 6271.95,
+        "min_ms": 5816.39,
+        "max_ms": 6802.67,
+        "std_ms": 409.01
+      },
+      "avg_confidence": 0.8013,
+      "sla_pass": true,
+      "num_lines": 39,
+      "text_preview": "TOA THUOC | PRESCRIPTION | Ho và tèn (Full name): | Tuòi (1ge):",
+      "cer": 0.3796,
+      "field_accuracy": {
+        "total": 6,
+        "matched_count": 3,
+        "matched": [
+          "Augmentin 625mg",
+          "Paracetamol 500mg",
+          "Omeprazol 20mg"
+        ],
+        "missed": [
+          "Medrol 16mg",
+          "Ibuprofen 400mg",
+          "Alphachymotrysin 4,2mg"
+        ],
+        "accuracy": 0.5
+      }
+    },
+    {
+      "config": "PP-OCRv5_mobile",
+      "pipeline": "P1_PPOCR_FullRec",
+      "image": "vi-thuoc.jpg",
+      "latency": {
+        "mean_ms": 704.02,
+        "min_ms": 579.55,
+        "max_ms": 996.42,
+        "std_ms": 167.99
+      },
+      "avg_confidence": 0.8208,
+      "sla_pass": true,
+      "num_lines": 6,
+      "text_preview": "BIOIBERICA | tendoactive | cisarandoa, | es yigameroo"
+    }
+  ],
+  "pipeline2_results": [
+    {
+      "config": "PP-OCRv6_tiny+VietOCR_FP32",
+      "pipeline": "P2_PPOCR_Det+VietOCR_Rec",
+      "vietocr_variant": "VietOCR_FP32",
+      "image": "hop-thuoc.jpg",
+      "latency_total": {
+        "mean_ms": 1392.5,
+        "min_ms": 982.06,
+        "max_ms": 2024.83,
+        "std_ms": 392.99
+      },
+      "latency_recognition": {
+        "mean_ms": 950.27,
+        "min_ms": 606.48,
+        "max_ms": 1282.6,
+        "std_ms": 251.99
+      },
+      "avg_confidence": 0.821,
+      "sla_pass": true,
+      "num_lines": 7,
+      "text_preview": "Derma | Lujli pgiang | Jamjoom Pharma | ACRETINO.057"
+    },
+    {
+      "config": "PP-OCRv6_tiny+VietOCR_FP32",
+      "pipeline": "P2_PPOCR_Det+VietOCR_Rec",
+      "vietocr_variant": "VietOCR_FP32",
+      "image": "lo-thuoc.png",
+      "latency_total": {
+        "mean_ms": 994.76,
+        "min_ms": 811.95,
+        "max_ms": 1156.93,
+        "std_ms": 167.21
+      },
+      "latency_recognition": {
+        "mean_ms": 908.77,
+        "min_ms": 731.78,
+        "max_ms": 1087.15,
+        "std_ms": 156.32
+      },
+      "avg_confidence": 0.4781,
+      "sla_pass": true,
+      "num_lines": 10,
+      "text_preview": "E | 1 | TOWARDS DIABETESING | AND PRE-DIABETES"
+    },
+    {
+      "config": "PP-OCRv6_tiny+VietOCR_FP32",
+      "pipeline": "P2_PPOCR_Det+VietOCR_Rec",
+      "vietocr_variant": "VietOCR_FP32",
+      "image": "toa-thuoc.jpg",
+      "latency_total": {
+        "mean_ms": 7911.18,
+        "min_ms": 7077.06,
+        "max_ms": 8573.59,
+        "std_ms": 566.88
+      },
+      "latency_recognition": {
+        "mean_ms": 7256.74,
+        "min_ms": 6419.24,
+        "max_ms": 8012.94,
+        "std_ms": 579.86
+      },
+      "avg_confidence": 0.7631,
+      "sla_pass": true,
+      "num_lines": 32,
+      "text_preview": "TOA THUỐC | PRESCRIPTION | Họ và tên (Full name): | Tuổi (Age):",
+      "cer": 0.7286,
+      "field_accuracy": {
+        "total": 6,
+        "matched_count": 5,
+        "matched": [
+          "Augmentin 625mg",
+          "Medrol 16mg",
+          "Ibuprofen 400mg",
+          "Paracetamol 500mg",
+          "Omeprazol 20mg"
+        ],
+        "missed": [
+          "Alphachymotrysin 4,2mg"
+        ],
+        "accuracy": 0.8333333333333334
+      }
+    },
+    {
+      "config": "PP-OCRv6_tiny+VietOCR_FP32",
+      "pipeline": "P2_PPOCR_Det+VietOCR_Rec",
+      "vietocr_variant": "VietOCR_FP32",
+      "image": "vi-thuoc.jpg",
+      "latency_total": {
+        "mean_ms": 931.2,
+        "min_ms": 839.64,
+        "max_ms": 1259.83,
+        "std_ms": 183.92
+      },
+      "latency_recognition": {
+        "mean_ms": 795.55,
+        "min_ms": 693.72,
+        "max_ms": 1131.31,
+        "std_ms": 188.51
+      },
+      "avg_confidence": 0.5499,
+      "sla_pass": true,
+      "num_lines": 10,
+      "text_preview": "G | COMPLEMENTO ALINEUMICIO | 000 | cholemmer"
+    },
+    {
+      "config": "PP-OCRv6_tiny+VietOCR_PyTorch_INT8",
+      "pipeline": "P2_PPOCR_Det+VietOCR_Rec",
+      "vietocr_variant": "VietOCR_PyTorch_INT8",
+      "image": "hop-thuoc.jpg",
+      "latency_total": {
+        "mean_ms": 1167.57,
+        "min_ms": 1044.08,
+        "max_ms": 1310.75,
+        "std_ms": 111.13
+      },
+      "latency_recognition": {
+        "mean_ms": 784.66,
+        "min_ms": 683.63,
+        "max_ms": 939.56,
+        "std_ms": 113.65
+      },
+      "avg_confidence": 0.8194,
+      "sla_pass": true,
+      "num_lines": 7,
+      "text_preview": "Derma | Lujli pgiang | Jamjoom Pharma | ACRETINO.057"
+    },
+    {
+      "config": "PP-OCRv6_tiny+VietOCR_PyTorch_INT8",
+      "pipeline": "P2_PPOCR_Det+VietOCR_Rec",
+      "vietocr_variant": "VietOCR_PyTorch_INT8",
+      "image": "lo-thuoc.png",
+      "latency_total": {
+        "mean_ms": 930.33,
+        "min_ms": 778.07,
+        "max_ms": 1138.72,
+        "std_ms": 139.08
+      },
+      "latency_recognition": {
+        "mean_ms": 847.47,
+        "min_ms": 706.86,
+        "max_ms": 997.28,
+        "std_ms": 112.63
+      },
+      "avg_confidence": 0.4796,
+      "sla_pass": true,
+      "num_lines": 10,
+      "text_preview": "E | 1 | TOWARDS DIABETESING | AND PRE-DIABETES"
+    },
+    {
+      "config": "PP-OCRv6_tiny+VietOCR_PyTorch_INT8",
+      "pipeline": "P2_PPOCR_Det+VietOCR_Rec",
+      "vietocr_variant": "VietOCR_PyTorch_INT8",
+      "image": "toa-thuoc.jpg",
+      "latency_total": {
+        "mean_ms": 9257.66,
+        "min_ms": 7786.01,
+        "max_ms": 11419.46,
+        "std_ms": 1651.07
+      },
+      "latency_recognition": {
+        "mean_ms": 8613.12,
+        "min_ms": 7180.74,
+        "max_ms": 10743.02,
+        "std_ms": 1631.59
+      },
+      "avg_confidence": 0.7639,
+      "sla_pass": true,
+      "num_lines": 32,
+      "text_preview": "TOA THUỐC | PRESCRIPTION | Họ và tên (Full name): | Tuổi (Age):",
+      "cer": 0.819,
+      "field_accuracy": {
+        "total": 6,
+        "matched_count": 5,
+        "matched": [
+          "Augmentin 625mg",
+          "Medrol 16mg",
+          "Ibuprofen 400mg",
+          "Paracetamol 500mg",
+          "Omeprazol 20mg"
+        ],
+        "missed": [
+          "Alphachymotrysin 4,2mg"
+        ],
+        "accuracy": 0.8333333333333334
+      }
+    },
+    {
+      "config": "PP-OCRv6_tiny+VietOCR_PyTorch_INT8",
+      "pipeline": "P2_PPOCR_Det+VietOCR_Rec",
+      "vietocr_variant": "VietOCR_PyTorch_INT8",
+      "image": "vi-thuoc.jpg",
+      "latency_total": {
+        "mean_ms": 1024.73,
+        "min_ms": 849.19,
+        "max_ms": 1369.44,
+        "std_ms": 203.84
+      },
+      "latency_recognition": {
+        "mean_ms": 890.75,
+        "min_ms": 722.21,
+        "max_ms": 1225.21,
+        "std_ms": 196.66
+      },
+      "avg_confidence": 0.5514,
+      "sla_pass": true,
+      "num_lines": 10,
+      "text_preview": "G | COMPLEMENTO ALINEUMICIO | 000 | cholemmer"
+    }
+  ],
+  "quantization_comparison": {
+    "VietOCR_FP32": {
+      "total_latency_ms": 7911.18,
+      "rec_latency_ms": 7256.74
+    },
+    "VietOCR_PyTorch_INT8": {
+      "total_latency_ms": 9257.66,
+      "rec_latency_ms": 8613.12,
+      "latency_reduction_pct": -18.7
+    }
+  },
+  "consistency_test": {
+    "run1_ms": 589.55,
+    "run2_ms": 601.18,
+    "deviation_pct": 1.93,
+    "pass": true
+  },
+  "sla_check": {
+    "target_ms": 15000,
+    "all_p1_pass": true,
+    "all_p2_pass": true
+  },
+  "previous_baseline_summary": {
+    "model": "PP-OCRv6_medium",
+    "toa_thuoc_p1_ms": 26482.3,
+    "toa_thuoc_p2_ms": 20302.99
+  }
+}

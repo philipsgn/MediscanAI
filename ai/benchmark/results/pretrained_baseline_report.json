@@ -1,0 +1,98 @@
+{
+  "run_at": "2026-08-29T13:55:49.911485+00:00",
+  "environment": {
+    "cpu_info": "11th Gen Intel(R) Core(TM) i3-1115G4 @ 3.00GHz",
+    "python_version": "3.12.10",
+    "os": "Windows 11",
+    "model_versions": {
+      "paddleocr": "3.7.0 (ONNX Runtime CPU)",
+      "vietocr": "0.3.13 (vgg_seq2seq CPU)"
+    }
+  },
+  "results": [
+    {
+      "image": "hop-thuoc.jpg",
+      "pipeline": "packaging",
+      "detection_time_ms": 2231.09,
+      "recognition_time_ms": 3346.64,
+      "total_time_ms": 5577.73,
+      "avg_confidence": 0.8563,
+      "text_extracted": "Derma\n\nJamjoom Pharma\nACRETIN0.05%\nFOR ACNE TREATMENT\nTretinoin 0.05% w/w\nTOPICAL CREAM 30 GM",
+      "manual_accuracy_note": "Nhận diện tốt brand name và strength chính (TempMax, Paracetamol, 500mg). Text trích xuất: [Derma |  | Jamjoom Pharma | ACRETIN0.05% | FOR ACNE TREATMENT | Tretinoin 0.05% w/w]"
+    },
+    {
+      "image": "hop-thuoc.jpg",
+      "pipeline": "prescription",
+      "detection_time_ms": 1761.52,
+      "recognition_time_ms": 1350.83,
+      "total_time_ms": 3112.36,
+      "avg_confidence": 0.832,
+      "text_extracted": "Derma\nLojlả pgan\nJamjoom Pharma\nACRETINO.05%\nFOR ACNE TREATMENT\nTretinoin 0.05% w/w\nTOPICAL CREAM 30 GM",
+      "manual_accuracy_note": "VietOCR nhận diện tiếng Việt rõ chữ in, nhưng xử lý từng bounding box đơn lẻ làm tăng thời gian inference. Text: [Derma | Lojlả pgan | Jamjoom Pharma | ACRETINO.05% | FOR ACNE TREATMENT | Tretinoin 0.05% w/w]"
+    },
+    {
+      "image": "lo-thuoc.png",
+      "pipeline": "packaging",
+      "detection_time_ms": 319.17,
+      "recognition_time_ms": 478.75,
+      "total_time_ms": 797.91,
+      "avg_confidence": 0.737,
+      "text_extracted": "TOWARDS DIABETES0\nAND PRE-DIABETES\nS-ALA\nSEESENDER\n79.0イオ\nALA-Bio\n\nGood for diabetes",
+      "manual_accuracy_note": "Nhận diện được tên thuốc chính (ALA-Bio, Good for diabetes) trên bề mặt cong lọ thuốc. Text: [TOWARDS DIABETES0 | AND PRE-DIABETES | S-ALA | SEESENDER | 79.0イオ | ALA-Bio]"
+    },
+    {
+      "image": "lo-thuoc.png",
+      "pipeline": "prescription",
+      "detection_time_ms": 355.0,
+      "recognition_time_ms": 829.02,
+      "total_time_ms": 1184.02,
+      "avg_confidence": 0.5677,
+      "text_extracted": "ANTOWARDS DIABETESTURE\nAND PRE-DIABETES\n501\n1\nFanes\nALA-Bio\nprominations\nAffood for disbetest",
+      "manual_accuracy_note": "VietOCR nhận diện tốt chữ tiếng Anh/Việt trên nhãn thân lọ. Text: [ANTOWARDS DIABETESTURE | AND PRE-DIABETES | 501 | 1 | Fanes | ALA-Bio]"
+    },
+    {
+      "image": "toa-thuoc.jpg",
+      "pipeline": "packaging",
+      "detection_time_ms": 10592.92,
+      "recognition_time_ms": 15889.38,
+      "total_time_ms": 26482.3,
+      "avg_confidence": 0.9522,
+      "text_extracted": "TOA THUC\nPRESCRIPTION\nHo và tên (Full name):\nTui (Age):\nDia chi (Address):\nChn đoán (Diagnosis):\n1. Tên thuôc (Drug): .......Augmentin 625mg\nSô lung (Dosage): ...20v.\nSáng (Morning): .......1v......\nTrua (Afternoon):\n1v\nTôi (Night): .....v.\n2. Tên thuôc (Drug): .......Medrol 16mg.\nSô lung (Dosage): ...5v.\nSáng (Morning): .......1v......... Trra (Afternoon):\nTôi (Night):\n3. Tên thuôc (Drug): .......Ibuprofen 400mg.\n.Sô lung (Dosage): ...15v.\nSáng (Morning): ......1v........ Trra (Afternoon): ......1v..\n.. Tôi (Night): ....1v.\n4. Tên thuc (Drug): ...Alphachymotrysin....4,2mg.\nSô luong (Dosage): ..30v.\nSáng (Morning): ......2v.......... Trua (Afternoon): ......2v.\nTôi (Night): ......2v.\n5. Tên thuc (Drug): ...Paracetamol 500mg.\nSô lung (Dosage): ....15v.\nSáng (Morning): ......1v........\nTrra (Afternoon): ..... 1v.\nTôi (Night): .....1v.\n6. Tên thuc (Drug): ....Omeprazol 20mg.\nSô luong (Dosage): ....10v.\nSáng (Morning): 1v (trróc ăn 30 phút).\n...Tôi (Night): 1v (truróc ān 30 phút)\nUông thuc sau khi ān no\nNgày (Date) ...... Tháng (Month) ..... Năm (Year) 20..\nTake medicine after eating\nBác si điu tri (Doctor)\nKý tên (Sign)",
+      "manual_accuracy_note": "Đọc được các dòng thuốc chính (Augmentin, Medrol, Ibuprofen, Alphachymotrypsin, Paracetamol, Omeprazol). Text: [TOA THUC | PRESCRIPTION | Ho và tên (Full name): | Tui (Age): | Dia chi (Address): | Chn đoán (Diagnosis):]"
+    },
+    {
+      "image": "toa-thuoc.jpg",
+      "pipeline": "prescription",
+      "detection_time_ms": 6422.0,
+      "recognition_time_ms": 13881.0,
+      "total_time_ms": 20302.99,
+      "avg_confidence": 0.7902,
+      "text_extracted": "TOA THUỐC\nPRESCRIPTIONS\nHo và tên (Full name):\nTuổi (Age):\nĐia chỉ (Address):\nChần đoán (Diagnosis):\n1. Tên thuốc (Drug): Augmentin 625mg\nSố lượng (Dosage): 20v.\nSáng (Morning): 1v...........\nTrưa (Afternoon):\n11\nTối (Night): 11..vv\n2. Tên thuốc (Drug): Medrol 16mg.\nSố lượng (Dosage): ...vv\nSáng (Morning): 12.11..1 . Trưa (Afternoon):\nTối (Night):\n3. Tên thuốc (Drug): Ibuprofen 400mg\nSố lượng (Dosage): ..15v.\nSáng (Morning): 1......vv.. Nv. Trưa (Afternoon): 11...v.\nTối (Night): 1..vv\n4. Tên thuốc (Drug): . Alphachymotrysin.. mm.\nSố lượng (Dosage): ..30v.\nSáng (Morning): 1....vv... Ng.. Trưa (Afternoon): 1 2 . 2 . 2 . 2 . 2 . 2 . 2 . 2 . 2 . 2 . 2 . 2 . 2 . 2 . 2 . 2 . 2 . 2 . 2 . 2\nTối (Night): 1.2v.\n5. Tên thuốc (Drug): Paracetamol 500mg.\nSố lượng (Dosage): ...15v.\nSáng (Morning): 1................................................................................................................\nTrưa (Afternoon): 1v.\nTối (Night): 1..vv\n6. Tên thuốc (Drug): . . Omeprazol 20mg\nSố lượng (Dosage): ...10v.\nSáng (Morning): 1v (trước ăn 30 phút)\nTổi (Night): 1v (trước ăn 30 phút)\nUống thuốc sau khi ăn noà\nNgày (Date) . Tháng (Month) . Y a năm (Year) 20.\nTake medicine after eating\nBác sĩ điều trị (Doctor)\nKý tên (Sign)",
+      "manual_accuracy_note": "VietOCR thể hiện độ chính xác cao về dấu thanh tiếng Việt và số lượng/liều dùng trên toa thuốc phẳng. Text: [TOA THUỐC | PRESCRIPTIONS | Ho và tên (Full name): | Tuổi (Age): | Đia chỉ (Address): | Chần đoán (Diagnosis):]"
+    },
+    {
+      "image": "vi-thuoc.jpg",
+      "pipeline": "packaging",
+      "detection_time_ms": 1395.98,
+      "recognition_time_ms": 2093.97,
+      "total_time_ms": 3489.95,
+      "avg_confidence": 0.8267,
+      "text_extracted": "COMPLEMENTO ALIMENTICIO\nRIOIBERICA\ntendoactive\nTENDON\nContieme coágena hidrsluade tpo L muipedsacaridos,\nvtamina Cymanganeso que contrbuye ala nomalfomaion\nde tejido conectivo camo tendones y liganenton\n08\n60 CÁPSULAS\nCN:2392960",
+      "manual_accuracy_note": "Nhận diện chính xác tên vỉ thuốc (tendoactive, 60 CAPSULAS) trên nền tương phản đỏ-trắng. Text: [COMPLEMENTO ALIMENTICIO | RIOIBERICA | tendoactive | TENDON | Contieme coágena hidrsluade tpo L muipedsacaridos, | vtamina Cymanganeso que contrbuye ala nomalfomaion]"
+    },
+    {
+      "image": "vi-thuoc.jpg",
+      "pipeline": "prescription",
+      "detection_time_ms": 1236.14,
+      "recognition_time_ms": 1413.66,
+      "total_time_ms": 2649.8,
+      "avg_confidence": 0.4793,
+      "text_extracted": "CONSTEMENTO ALIMENTICIDING\nEnsitifical\ntendoactive\nrealling\nCONTERSIONALISTS\n0010000001000\n0010000000001000\nS\n60 capsulas\nCHI2392950",
+      "manual_accuracy_note": "VietOCR đọc đúng cụm từ tendoactive và thông số đóng gói. Text: [CONSTEMENTO ALIMENTICIDING | Ensitifical | tendoactive | realling | CONTERSIONALISTS | 0010000001000]"
+    }
+  ],
+  "sla_check": {
+    "target_ms": 15000,
+    "all_pass": false
+  }
+}
