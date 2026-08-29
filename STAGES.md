@@ -111,6 +111,8 @@ Tài liệu này là **Single Source of Truth** cho tiến độ phát triển d
     - Tạo `backend/app/services/clinical_service.py` với cấu trúc JSON Prompt nghiêm ngặt, có cơ chế Fallback sang OpenAI API nếu thiếu Local LLM.
     - Kết hợp kết quả OCR + Normalization + Clinical Assessment trả về trong response duy nhất tại `POST /api/v1/ocr/scan`.
 
+> 📌 **Backlog có điều kiện:** Pipeline train YOLO 3-class (brand_name/active_ingredient/strength detection) đã được build thử nghiệm và archive tại nhánh `experimental/yolo-packaging-detection` (ngày 29/08/2026). Quyết định Architect: **KHÔNG kích hoạt** trừ khi đo được tỷ lệ `is_verified=False` sau Local DB + OpenFDA tier-4 (F3.4) vượt ngưỡng đáng kể trong vận hành thật. Lý do tạm dừng: kiến trúc layout-based không phù hợp với bố cục vỏ hộp đa dạng theo hãng; hệ thống hiện tại dùng OCR + Fuzzy Match content-based đã đủ dùng.
+
 ---
 
 ### 🔹 STAGE 4: INTERACTIVE WEB UI & SMART CROP COMPONENT
