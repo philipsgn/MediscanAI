@@ -51,7 +51,6 @@ class NormalizationService:
         if not info or not str(info.get("source", "")).startswith("openfda"):
             return item  # giữ nhánh unmatched (confidence ≤ 0.4, unverified)
 
-        # Áp dụng thông tin OpenFDA một cách bảo thủ (chỉ ghi trường có thật)
         fda_brand = info.get("brand_name")
         if fda_brand:
             item.brand_name = str(fda_brand)
@@ -105,17 +104,34 @@ class NormalizationService:
             # Lấy hoạt chất đầu tiên làm hint
             ingredient_hint = raw_drug.active_ingredient.split("/")[0].strip()
 
-        # Tìm trong local DB (exact -> fuzzy)
+        # 1. Tìm chính xác theo tên thương mại (Exact Brand Match)
         matched = drug_database.find_by_brand_exact(brand_raw)
         match_method = "exact"
         match_score = 100
 
+        # 2. Kiểm tra nếu brand_raw là tên hoạt chất gốc (Generic/Active Ingredient Matching)
+        if not matched:
+            name_only = re.sub(r"\d+(?:[\.,]\d+)?\s*(?:mg|g|ml|mcg|iu|%|\/)", "", brand_raw, flags=re.IGNORECASE).strip()
+            ings = list(drug_database.ingredient_to_drugs.keys())
+            best_ing = process.extractOne(name_only.lower(), ings, scorer=fuzz.token_sort_ratio)
+            if best_ing and best_ing[1] >= 80:
+                drugs_for_ing = drug_database.find_by_ingredient(best_ing[0])
+                if drugs_for_ing:
+                    # Ưu tiên chọn thuốc đơn chất nếu có
+                    chosen_drug = drugs_for_ing[0]
+                    for cand in drugs_for_ing:
+                        if cand.get("active_ingredient", "").lower() == best_ing[0].lower():
+                            chosen_drug = cand
+                            break
+                    matched = chosen_drug
+                    match_method = "ingredient"
+                    match_score = int(best_ing[1])
+
+        # 3. Tìm gần đúng theo tên thương mại (Fuzzy Brand Match)
         if not matched:
             matched = drug_database.find_by_brand_fuzzy(brand_raw, threshold=65)
             match_method = "fuzzy"
-            # Extract score từ fuzzy match
             if matched:
-                # Re-compute score for logging
                 best = process.extractOne(
                     brand_raw.lower(),
                     list(drug_database.brand_to_drug.keys()),
@@ -128,10 +144,9 @@ class NormalizationService:
             # Cập nhật thông tin từ DB chuẩn
             return self._apply_db_info(raw_drug, matched, match_score, match_method)
         elif ingredient_hint:
-            # Fallback: tìm theo hoạt chất
+            # Fallback: tìm theo hoạt chất gợi ý
             by_ing = drug_database.find_by_ingredient(ingredient_hint)
             if by_ing:
-                # Lấy thuốc đầu tiên có ingredient match
                 return self._apply_db_info(raw_drug, by_ing[0], 50, "ingredient_fallback")
 
         # Không match được - giữ nguyên, đánh dấu unverified
@@ -144,28 +159,31 @@ class NormalizationService:
         # Gán drug_id từ DB
         raw_drug.drug_id = db_drug.get("id")
 
-        # [P2/F3.4 + P3/F3.6] Gắn match_method chính thức lên item — vừa làm
-        # marker chặn tầng 4 OpenFDA, vừa fix contract field luôn null.
+        # [P2/F3.4 + P3/F3.6] Gắn match_method chính thức lên item
         raw_drug.match_method = match_method
         
-        # Chuẩn hóa tên thương mại
-        raw_drug.brand_name = db_drug.get("brand_name", raw_drug.brand_name)
+        # [Safety Rule] Chuẩn hóa tên thương mại:
+        # - Nếu match theo brand (exact/fuzzy): chuẩn hóa theo DB
+        # - Nếu match theo ingredient: BẮT BUỘC GIỮ NGUYÊN brand_name gốc từ OCR/bác sĩ kê đơn (không ghi đè biệt dược khác)
+        if match_method in ("exact", "fuzzy"):
+            raw_drug.brand_name = db_drug.get("brand_name", raw_drug.brand_name)
         
         # Chuẩn hóa hoạt chất gốc
         raw_drug.active_ingredient = db_drug.get("active_ingredient", raw_drug.active_ingredient)
         
-        # Chuẩn hóa hàm lượng - dùng DB nếu OCR không có hoặc match score cao
+        # Chuẩn hóa hàm lượng
         db_strength = db_drug.get("strength")
-        # [F3.7] Cảnh báo khi hàm lượng user/OCR nhập khác hẳn với DB chuẩn
-        # (non-blocking hint cho Human-in-the-Loop; KHÔNG đổi logic gán strength).
-        if raw_drug.strength and db_strength and _normalize_str(
-            raw_drug.strength
-        ) != _normalize_str(db_strength):
-            raw_drug.strength_mismatch_warning = (
-                f"Hàm lượng '{raw_drug.strength}' khác với hàm lượng chuẩn "
-                f"cơ sở dữ liệu '{db_strength}' — vui lòng xác nhận lại với bác sĩ/dược sĹ."
-            )
-        if db_strength and (not raw_drug.strength or match_score > 85):
+        if match_method in ("exact", "fuzzy"):
+            if raw_drug.strength and db_strength and _normalize_str(
+                raw_drug.strength
+            ) != _normalize_str(db_strength):
+                raw_drug.strength_mismatch_warning = (
+                    f"Hàm lượng '{raw_drug.strength}' khác với hàm lượng chuẩn "
+                    f"cơ sở dữ liệu '{db_strength}' — vui lòng xác nhận lại với bác sĩ/dược sĩ."
+                )
+            if db_strength and (not raw_drug.strength or match_score > 85):
+                raw_drug.strength = db_strength
+        elif not raw_drug.strength and db_strength:
             raw_drug.strength = db_strength
         
         # Thêm thông tin mở rộng từ DB
@@ -173,9 +191,9 @@ class NormalizationService:
         raw_drug.max_daily_dosage = db_drug.get("max_daily_dosage")
         raw_drug.warnings = db_drug.get("warnings_contraindications", [])
         
-        # Tính lại confidence: trung bình giữa OCR confidence và fuzzy match score
-        fuzzy_conf = match_score / 100.0
-        raw_drug.confidence_score = round((raw_drug.confidence_score + fuzzy_conf) / 2, 4)
+        # Tính lại confidence: trung bình giữa OCR confidence và match score
+        match_conf = match_score / 100.0
+        raw_drug.confidence_score = round((raw_drug.confidence_score + match_conf) / 2, 4)
         
         # Xác định verified
         if match_method == "exact" and raw_drug.confidence_score > 0.8:

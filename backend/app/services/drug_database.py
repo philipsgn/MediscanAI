@@ -143,9 +143,14 @@ class DrugDatabase:
         HTTP 200 keyless trong remediation P2). API key (nếu cấu hình) vẫn
         được đính kèm để hưởng rate-limit cao hơn."""
         try:
+            import re
+            clean_name = re.sub(r"[^a-zA-Z0-9\s]", " ", brand_name).strip()
+            if not clean_name:
+                return None
+
             async with httpx.AsyncClient(timeout=10.0) as client:
                 params = {
-                    "search": f"openfda.brand_name:{brand_name}",
+                    "search": f'openfda.brand_name:"{clean_name}"',
                     "limit": 5,
                 }
                 if settings.OPENFDA_API_KEY:

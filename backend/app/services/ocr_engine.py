@@ -4,9 +4,14 @@
 # Dual Pipeline: Stream A (Prescription/Receipt) & Stream B (Packaging Label)
 from __future__ import annotations
 
+import asyncio
+import os
 import time
 from pathlib import Path
 from typing import Any, Optional
+
+# Tắt connectivity check tới Baidu hosters để chạy offline mượt mà
+os.environ["PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK"] = "True"
 
 try:
     import numpy as np
@@ -37,28 +42,44 @@ from app.schemas.ocr_schema import MedicineScanResult, OCRItem
 
 
 class OcrEngine:
-    """Wrapper production cho PP-OCRv6 ONNX Runtime trên CPU với lazy singleton."""
+    """Wrapper production cho PP-OCRv6 ONNX Runtime trên CPU với lazy singleton và Concurrency Control."""
 
-    def __init__(self, lang: str = OCR_LANG, max_dim: int = OCR_MAX_DIM) -> None:
+    def __init__(
+        self,
+        lang: str = OCR_LANG,
+        max_dim: int = OCR_MAX_DIM,
+        max_concurrent: int = 2,
+    ) -> None:
         self.lang = lang
         self.max_dim = max_dim
+        self.max_concurrent = max_concurrent
+        self._semaphore: Optional[asyncio.Semaphore] = None
         self._paddle_ocr: Optional[Any] = None
         self._paddle_ocr_packaging: Optional[Any] = None
 
     @property
+    def semaphore(self) -> asyncio.Semaphore:
+        """Concurrency control semaphore (giới hạn số luồng suy luận OCR đồng thời để bảo vệ CPU)."""
+        if self._semaphore is None:
+            self._semaphore = asyncio.Semaphore(self.max_concurrent)
+        return self._semaphore
+
+    @property
     def paddle_ocr(self) -> Any:
-        """Khởi tạo PaddleOCR cho Stream A (Prescription/Receipt) - tối ưu cho hóa đơn in nhiệt."""
+        """Khởi tạo PaddleOCR cho Stream A (Prescription/Receipt) - PP-OCRv6_tiny ONNX CPU."""
         if self._paddle_ocr is None:
             from paddleocr import PaddleOCR  # type: ignore[import-not-found]
 
             self._paddle_ocr = PaddleOCR(
-                use_textline_orientation=True,
+                text_detection_model_name="PP-OCRv6_tiny_det",
+                text_recognition_model_name="PP-OCRv6_tiny_rec",
+                use_textline_orientation=False,
                 device="cpu",
                 lang=self.lang,
                 engine=OCR_ENGINE,
                 use_doc_orientation_classify=False,  # Tắt cho receipt thẳng đứng
                 use_doc_unwarping=False,  # Tắt unwarping cho receipt
-                # Tối ưu cho thermal receipt: text detection nhạy hơn
+                # Tối ưu cho thermal receipt / prescription
                 text_det_thresh=0.3,
                 text_det_box_thresh=0.5,
                 text_det_unclip_ratio=1.6,
@@ -67,17 +88,19 @@ class OcrEngine:
 
     @property
     def paddle_ocr_packaging(self) -> Any:
-        """Khởi tạo PaddleOCR cho Stream B (Packaging Label) - tối ưu cho bao bì đa hướng."""
+        """Khởi tạo PaddleOCR cho Stream B (Packaging Label) - PP-OCRv6_tiny ONNX CPU."""
         if self._paddle_ocr_packaging is None:
             from paddleocr import PaddleOCR  # type: ignore[import-not-found]
 
             self._paddle_ocr_packaging = PaddleOCR(
-                use_textline_orientation=True,
+                text_detection_model_name="PP-OCRv6_tiny_det",
+                text_recognition_model_name="PP-OCRv6_tiny_rec",
+                use_textline_orientation=False,
                 device="cpu",
                 lang=self.lang,
                 engine=OCR_ENGINE,
-                use_doc_orientation_classify=OCR_DOC_ORIENTATION,  # Có thể bật cho packaging
-                use_doc_unwarping=OCR_DOC_UNWARPING,  # Có thể bật cho packaging
+                use_doc_orientation_classify=OCR_DOC_ORIENTATION,  # Có thể bật cho packaging nếu cấu hình env
+                use_doc_unwarping=OCR_DOC_UNWARPING,  # Có thể bật cho packaging nếu cấu hình env
                 # Tối ưu cho bao bì: detect text theo nhiều hướng
                 text_det_thresh=0.4,
                 text_det_box_thresh=0.6,
@@ -118,55 +141,8 @@ class OcrEngine:
         rgb = rgb.resize((new_w, new_h), Image.LANCZOS)
         return np.array(rgb)[:, :, ::-1]  # type: ignore[no-any-return]
 
-    def _enhance_receipt(self, image: "np.ndarray") -> "np.ndarray":
-        """Tiền xử lý chuyên biệt cho hóa đơn in nhiệt (thermal receipt).
-        - Tăng contrast, làm sắc nét text mờ
-        - Khử nhiễu, điều chỉnh độ sáng"""
-        if cv2 is None or Image is None or ImageEnhance is None or ImageFilter is None:
-            return image
-        
-        # Chuyển sang PIL để enhance
-        pil_img = Image.fromarray(image[:, :, ::-1])  # BGR -> RGB
-        
-        # Tăng contrast mạnh cho receipt mờ
-        enhancer = ImageEnhance.Contrast(pil_img)
-        pil_img = enhancer.enhance(1.8)
-        
-        # Tăng sharpness cho text dot-matrix
-        enhancer = ImageEnhance.Sharpness(pil_img)
-        pil_img = enhancer.enhance(2.0)
-        
-        # Điều chỉnh độ sáng nếu quá tối
-        enhancer = ImageEnhance.Brightness(pil_img)
-        pil_img = enhancer.enhance(1.2)
-        
-        # Lọc giảm nhiễu nhẹ
-        pil_img = pil_img.filter(ImageFilter.MedianFilter(size=3))
-        
-        # Trở về numpy BGR
-        return np.array(pil_img)[:, :, ::-1]
-
-    def _enhance_packaging(self, image: "np.ndarray") -> "np.ndarray":
-        """Tiền xử lý chuyên biệt cho vỏ hộp/lọ thuốc (packaging).
-        - Xử lý phản quang, font 3D, in nổi
-        - Cân bằng histogram để đều màu"""
-        if cv2 is None:
-            return image
-        
-        # Chuyển sang LAB để cân bằng kênh L (lightness) mà không làm lệch màu
-        lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
-        l, a, b = cv2.split(lab)
-        
-        # CLAHE (Contrast Limited Adaptive Histogram Equalization) trên kênh L
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-        l = clahe.apply(l)
-        
-        # Gộp lại
-        lab = cv2.merge((l, a, b))
-        return cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
-
     def _load_array(self, data: bytes, source_type: str = "prescription") -> "np.ndarray":
-        """Giải mã bytes ảnh (jpg/png/webp) thành numpy.ndarray BGR (downscale + enhance xong)."""
+        """Giải mã bytes ảnh (jpg/png/webp) thành numpy.ndarray BGR (downscale chuẩn hóa)."""
         if np is None:
             raise RuntimeError("Thiếu thư viện 'numpy'.")
 
@@ -179,15 +155,8 @@ class OcrEngine:
             with Image.open(__import__("io").BytesIO(data)) as img:
                 image = np.array(img.convert("RGB"))[:, :, ::-1]  # RGB -> BGR
         
-        # Downscale trước
+        # Downscale nếu ảnh vượt quá max_dim
         image = self.downscale(image)
-        
-        # Enhance theo source_type
-        if source_type == "prescription":
-            image = self._enhance_receipt(image)
-        elif source_type == "packaging":
-            image = self._enhance_packaging(image)
-        
         return image
 
     def _extract_items(self, result: Any) -> list[OCRItem]:
@@ -255,7 +224,7 @@ class OcrEngine:
 
         items = self._extract_items(result)
         return MedicineScanResult(
-            engine="PP-OCRv6-ONNX",
+            engine="PP-OCRv6_tiny-ONNX",
             source_type="prescription",
             items=items,
             latency_ms=latency_ms,
@@ -277,7 +246,7 @@ class OcrEngine:
 
         items = self._extract_items(result)
         return MedicineScanResult(
-            engine="PP-OCRv6-ONNX",
+            engine="PP-OCRv6_tiny-ONNX",
             source_type="packaging",
             items=items,
             latency_ms=latency_ms,
@@ -285,6 +254,20 @@ class OcrEngine:
             image_width=width,
             image_height=height,
         )
+
+    async def extract_prescription_receipt_async(self, image_bytes: bytes) -> MedicineScanResult:
+        """Async wrapper được bảo vệ bởi concurrency semaphore."""
+        from fastapi.concurrency import run_in_threadpool
+
+        async with self.semaphore:
+            return await run_in_threadpool(self.extract_prescription_receipt, image_bytes)
+
+    async def extract_packaging_label_async(self, image_bytes: bytes) -> MedicineScanResult:
+        """Async wrapper được bảo vệ bởi concurrency semaphore."""
+        from fastapi.concurrency import run_in_threadpool
+
+        async with self.semaphore:
+            return await run_in_threadpool(self.extract_packaging_label, image_bytes)
 
     # Backward compatibility
     def scan(self, image_bytes: bytes, source_type: str = "prescription") -> MedicineScanResult:

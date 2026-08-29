@@ -1,5 +1,6 @@
 # Endpoint OCR + Clinical Assessment Pipeline (Pure Local, No External VLM)
 import os
+import re
 import sys
 import time
 from collections import Counter
@@ -52,34 +53,144 @@ def _convert_ocr_items(raw_items: list) -> list[OCRItem]:
     ]
 
 
+PRESCRIPTION_DRUG_PATTERNS = [
+    re.compile(r"^\s*\d+[\.\)]\s*(?:T[êe]n\s+thu[oôó]c|Thu[oôó]c)?\s*(?:\([^\)]*\))?\s*[:\.]*\s*(.+)", re.IGNORECASE),
+    re.compile(r"(?:T[êe]n\s+thu[oôó]c|Thu[oôó]c)\s*(?:\([^\)]*\))?\s*[:\.]+\s*(.+)", re.IGNORECASE),
+]
+
+PRESCRIPTION_IGNORE_PATTERNS = [
+    re.compile(r"^(?:TOA\s*THU[OÔÓ]C|PRESCRIPTION)", re.IGNORECASE),
+    re.compile(r"^(?:H[oọ]\s*v[aà]\s*t[eê]n|Full\s*name)", re.IGNORECASE),
+    re.compile(r"^(?:Tu[oôò]i|Age)", re.IGNORECASE),
+    re.compile(r"^(?:[ĐD][iị]a\s*ch[iỉ]|Address)", re.IGNORECASE),
+    re.compile(r"^(?:Ch[aẩâ]n\s*[đd]o[aá]n|Diagnosis)", re.IGNORECASE),
+    re.compile(r"^(?:Ng[aà]y|Date|Th[aá]ng|Month|N[aăâ]m|Year)", re.IGNORECASE),
+    re.compile(r"^(?:B[aá]c\s*s[iĩ]|Doctor|K[yý]\s*t[eê]n|Sign)", re.IGNORECASE),
+    re.compile(r"^(?:Take\s*medicine|U[oôố]ng\s*thu[oôó]c\s*sau)", re.IGNORECASE),
+]
+
+DOSAGE_INSTRUCTION_PATTERNS = [
+    re.compile(r"(?:S[oó]\s*l[uưr][oợơ]ng|Dosage)", re.IGNORECASE),
+    re.compile(r"(?:S[aá]ng|Morning|Tr[uưưa]+|Afternoon|T[oôó]i|Night)", re.IGNORECASE),
+    re.compile(r"(?:tr[uưr][oóớ]c\s*[aāă]n|sau\s*[aāă]n)", re.IGNORECASE),
+]
+
+PACKAGING_IGNORE_PATTERNS = [
+    re.compile(r"^(?:FOR\s+ACNE|TREATMENT|TOPICAL\s+CREAM|COMPLEMENTO|ALIMENTICID)", re.IGNORECASE),
+    re.compile(r"^(?:Good\s+for|TOWARDS|PRE-DIABETES|DIABETES)", re.IGNORECASE),
+    re.compile(r"^(?:Jamjoom\s+Pharma|BIOIBERICA|BIotBERICA|Pharma|Laboratories)", re.IGNORECASE),
+    re.compile(r"^(?:60\s*CAP|30\s*GM|\(30|CN:\d+|000|\d{2,4}$)", re.IGNORECASE),
+    re.compile(r"[\u4e00-\u9fff]", re.UNICODE),
+]
+
+STRENGTH_REGEX = re.compile(r"(\d+(?:[\.,]\d+)?\s*(?:mg|g|ml|mcg|iu|%|\/))", re.IGNORECASE)
+
+
 def _ocr_items_to_drug_items(raw_items: list, source_type: str) -> list:
-    """Convert raw OCR text lines to DrugItem objects for normalization."""
+    """Convert raw OCR text lines to DrugItem objects for normalization.
+    - Pipeline 1 (packaging): Trích xuất tên sạch, lọc slogan/bao bì, dosage_instruction = None.
+    - Pipeline 2 (prescription): Bóc tách tên thuốc, hàm lượng và ghép liều dùng liên tiếp."""
     from app.schemas import DrugItem
 
-    drug_items = []
-    for item in raw_items:
-        text = item.text.strip()
-        if not text or len(text) < 2:
-            continue
-        # Heuristic: if text looks like a drug name (contains letters, not just numbers)
-        if any(c.isalpha() for c in text):
-            # Pipeline gating (ARCHITECTURE.md §3 / AGENTS.md B.1):
-            #  - Pipeline 1 (packaging / vỏ hộp): dosage_instruction PHẢI là None —
-            #    liều dùng do User nhập tay ở Smart Form; OCR không tự động gán.
-            #  - Pipeline 2 (prescription / toa thuốc): OCRItem chưa mang dosage
-            #    (bổ sung ở Stage 3 Normalization nếu text toa chứa hướng dẫn liệu).
-            if source_type == "packaging":
-                dosage_instruction = None
-            else:
-                dosage_instruction = getattr(item, "dosage_instruction", None)
+    if source_type == "packaging":
+        drug_items = []
+        for item in raw_items:
+            text = str(getattr(item, "text", "")).strip()
+            if not text or len(text) < 2:
+                continue
+            if not any(c.isalpha() for c in text):
+                continue
+            if any(p.search(text) for p in PACKAGING_IGNORE_PATTERNS):
+                continue
+
+            cleaned = re.sub(r"[\.\…\s]+$", "", text)
+            cleaned = re.sub(r"^[\.\…\s]+", "", cleaned)
+            cleaned = re.sub(r"\.{2,}", " ", cleaned)
+
+            st_match = STRENGTH_REGEX.search(cleaned)
+            strength = st_match.group(1).strip() if st_match else ""
+
             drug_items.append(
                 DrugItem(
-                    brand_name=text,
-                    strength="",  # sẽ được fill bởi normalization
-                    confidence_score=item.confidence,
-                    dosage_instruction=dosage_instruction,
+                    brand_name=cleaned,
+                    strength=strength,
+                    confidence_score=getattr(item, "confidence", 0.9),
+                    dosage_instruction=None,  # Pipeline 1: Bắt buộc do User nhập tay ở Smart Form
                 )
             )
+        return drug_items
+
+    # Pipeline 2: Toa thuốc (Prescription)
+    # Kiểm tra xem có bất kỳ dòng nào khớp mẫu có cấu trúc "1. Tên thuốc / Thuốc:" không
+    has_structured_pattern = any(
+        any(p.search(str(getattr(it, "text", ""))) for p in PRESCRIPTION_DRUG_PATTERNS)
+        for it in raw_items
+    )
+
+    if not has_structured_pattern:
+        # Fallback snippet / hóa đơn tự do: mỗi dòng chữ là 1 DrugItem
+        drug_items = []
+        for item in raw_items:
+            text = str(getattr(item, "text", "")).strip()
+            if not text or len(text) < 2:
+                continue
+            if any(c.isalpha() for c in text):
+                cleaned = re.sub(r"[\.\…\s]+$", "", text)
+                st_match = STRENGTH_REGEX.search(cleaned)
+                strength = st_match.group(1).strip() if st_match else ""
+                drug_items.append(
+                    DrugItem(
+                        brand_name=cleaned,
+                        strength=strength,
+                        confidence_score=getattr(item, "confidence", 0.9),
+                        dosage_instruction=getattr(item, "dosage_instruction", None),
+                    )
+                )
+        return drug_items
+
+    # Bóc tách có cấu trúc cho đơn thuốc chính quy
+    drug_items = []
+    current_drug = None
+
+    for item in raw_items:
+        text = str(getattr(item, "text", "")).strip()
+        if not text or len(text) < 2:
+            continue
+        if not any(c.isalpha() for c in text):
+            continue
+        if any(p.search(text) for p in PRESCRIPTION_IGNORE_PATTERNS):
+            continue
+
+        drug_match = None
+        for p in PRESCRIPTION_DRUG_PATTERNS:
+            m = p.search(text)
+            if m:
+                drug_match = m.group(1).strip()
+                break
+
+        if drug_match:
+            cleaned = re.sub(r"[\.\…\s]+$", "", drug_match)
+            cleaned = re.split(r"(?:S[oó]\s*l[uưr][oợơ]ng|Dosage)", cleaned, flags=re.IGNORECASE)[0].strip()
+            cleaned = re.sub(r"[\.\…\s]+$", "", cleaned)
+            cleaned = re.sub(r"^[\.\…\s]+", "", cleaned)
+            cleaned = re.sub(r"\.{2,}", " ", cleaned)
+
+            st_match = STRENGTH_REGEX.search(cleaned)
+            strength = st_match.group(1).strip() if st_match else ""
+
+            current_drug = DrugItem(
+                brand_name=cleaned,
+                strength=strength,
+                confidence_score=getattr(item, "confidence", 0.9),
+                dosage_instruction=None,
+            )
+            drug_items.append(current_drug)
+        elif current_drug is not None and any(p.search(text) for p in DOSAGE_INSTRUCTION_PATTERNS):
+            if current_drug.dosage_instruction:
+                current_drug.dosage_instruction += " | " + text
+            else:
+                current_drug.dosage_instruction = text
+
     return drug_items
 
 
