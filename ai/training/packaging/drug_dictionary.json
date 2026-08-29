@@ -1,0 +1,799 @@
+{
+  "version": "1.0.0",
+  "source": "ai\\data\\drug_dictionary.json",
+  "drugs": [
+    {
+      "id": "drug_000001",
+      "brand_name": "Panadol Extra",
+      "active_ingredient": [
+        "Paracetamol",
+        "Caffeine"
+      ],
+      "strength": [
+        "500mg",
+        "65mg"
+      ],
+      "dosage_form": "Viên nén",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "P4nadol",
+        "Panado",
+        "Panadol",
+        "Panadol Do",
+        "Panadol Extra 500mg/65mg",
+        "Panadol Extra Do"
+      ]
+    },
+    {
+      "id": "drug_000002",
+      "brand_name": "Panadol 500mg",
+      "active_ingredient": [
+        "Paracetamol"
+      ],
+      "strength": [
+        "500mg"
+      ],
+      "dosage_form": "Viên nén",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "P4nadol 500",
+        "Panadol 500mg 500mg",
+        "Panadol Xanh",
+        "Panadol thuong"
+      ]
+    },
+    {
+      "id": "drug_000003",
+      "brand_name": "Efferalgan 500mg",
+      "active_ingredient": [
+        "Paracetamol"
+      ],
+      "strength": [
+        "500mg"
+      ],
+      "dosage_form": "Viên sủi",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Efferalgan",
+        "Efferalgan 500mg 500mg",
+        "Efferalgan codeine",
+        "Efferalgan sui"
+      ]
+    },
+    {
+      "id": "drug_000004",
+      "brand_name": "Hapacol 650",
+      "active_ingredient": [
+        "Paracetamol"
+      ],
+      "strength": [
+        "650mg"
+      ],
+      "dosage_form": "Viên nén",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Hapacol",
+        "Hapacol 650 650mg",
+        "Hapacol 650mg",
+        "Hapacol Extra"
+      ]
+    },
+    {
+      "id": "drug_000005",
+      "brand_name": "Augmentin 1g",
+      "active_ingredient": [
+        "Amoxicillin",
+        "Clavulanic Acid"
+      ],
+      "strength": [
+        "1000mg"
+      ],
+      "dosage_form": "Viên nén bao phim",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Agumentin",
+        "Augmentin",
+        "Augmentin 1000mg",
+        "Augmentin 1g 1000mg",
+        "Augmentine",
+        "Augmentln 19"
+      ]
+    },
+    {
+      "id": "drug_000006",
+      "brand_name": "Augmentin 625mg",
+      "active_ingredient": [
+        "Amoxicillin",
+        "Clavulanic Acid"
+      ],
+      "strength": [
+        "625mg"
+      ],
+      "dosage_form": "Viên nén bao phim",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Augmentin 625",
+        "Augmentin 625mg 625mg",
+        "Augmentine 625"
+      ]
+    },
+    {
+      "id": "drug_000007",
+      "brand_name": "Amoxicillin 500mg",
+      "active_ingredient": [
+        "Amoxicillin"
+      ],
+      "strength": [
+        "500mg"
+      ],
+      "dosage_form": "Viên nang",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Amox 500",
+        "Amoxicilin",
+        "Amoxicillin",
+        "Amoxicillin 500mg 500mg",
+        "Amoxil",
+        "Amoxlcillln"
+      ]
+    },
+    {
+      "id": "drug_000008",
+      "brand_name": "NexIUm 40mg",
+      "active_ingredient": [
+        "Esomeprazole"
+      ],
+      "strength": [
+        "40mg"
+      ],
+      "dosage_form": "Viên nén kháng dịch dạ dày",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Esomeprazole 40mg",
+        "NexIUm",
+        "NexIUm 40",
+        "NexIUm 40mg 40mg",
+        "NexIUm Mups 40mg",
+        "Nexlum"
+      ]
+    },
+    {
+      "id": "drug_000009",
+      "brand_name": "NexIUm 20mg",
+      "active_ingredient": [
+        "Esomeprazole"
+      ],
+      "strength": [
+        "20mg"
+      ],
+      "dosage_form": "Viên nén kháng dịch dạ dày",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Esomeprazole 20mg",
+        "NexIUm 20",
+        "NexIUm 20mg 20mg",
+        "NexIUm Mups 20mg"
+      ]
+    },
+    {
+      "id": "drug_000010",
+      "brand_name": "glucophage 500mg",
+      "active_ingredient": [
+        "Metformin"
+      ],
+      "strength": [
+        "500mg"
+      ],
+      "dosage_form": "Viên nén",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Metformin 500mg",
+        "gluc0phage",
+        "glucophage",
+        "glucophage 500mg 500mg",
+        "glucophage XR 500mg"
+      ]
+    },
+    {
+      "id": "drug_000011",
+      "brand_name": "glucophage 850mg",
+      "active_ingredient": [
+        "Metformin"
+      ],
+      "strength": [
+        "850mg"
+      ],
+      "dosage_form": "Viên nén",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Metformin 850mg",
+        "glucophage 850",
+        "glucophage 850mg 850mg",
+        "glucophage XR 850mg"
+      ]
+    },
+    {
+      "id": "drug_000012",
+      "brand_name": "Amlodipine 5mg",
+      "active_ingredient": [
+        "Amlodipine"
+      ],
+      "strength": [
+        "5mg"
+      ],
+      "dosage_form": "Viên nén",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Amlodip1ne",
+        "Amlodipin",
+        "Amlodipin 5mg",
+        "Amlodipine",
+        "Amlodipine 5mg 5mg",
+        "Amlor 5mg"
+      ]
+    },
+    {
+      "id": "drug_000013",
+      "brand_name": "Amlodipine 10mg",
+      "active_ingredient": [
+        "Amlodipine"
+      ],
+      "strength": [
+        "10mg"
+      ],
+      "dosage_form": "Viên nén",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Amlodipin 10mg",
+        "Amlodipine 10",
+        "Amlodipine 10mg 10mg",
+        "Amlor 10mg"
+      ]
+    },
+    {
+      "id": "drug_000014",
+      "brand_name": "Ibuprofen 400mg",
+      "active_ingredient": [
+        "Ibuprofen"
+      ],
+      "strength": [
+        "400mg"
+      ],
+      "dosage_form": "Viên nén",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Alaxan",
+        "Ibu 400",
+        "Ibupr0fen",
+        "Ibuprofen",
+        "Ibuprofen 400mg 400mg",
+        "gofen 400"
+      ]
+    },
+    {
+      "id": "drug_000015",
+      "brand_name": "Aspirin 81mg",
+      "active_ingredient": [
+        "Aspirin"
+      ],
+      "strength": [
+        "81mg"
+      ],
+      "dosage_form": "Viên bao tan trong ruột",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Asp1rin",
+        "Aspilet 80mg",
+        "Aspirin 81",
+        "Aspirin 81mg 81mg",
+        "Aspirin pH8",
+        "Cardiprin 100"
+      ]
+    },
+    {
+      "id": "drug_000016",
+      "brand_name": "Ciprofloxacin 500mg",
+      "active_ingredient": [
+        "Ciprofloxacin"
+      ],
+      "strength": [
+        "500mg"
+      ],
+      "dosage_form": "Viên nén bao phim",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Cipro 500mg",
+        "Ciprobay 500",
+        "Ciprofloxacin",
+        "Ciprofloxacin 500mg 500mg"
+      ]
+    },
+    {
+      "id": "drug_000017",
+      "brand_name": "Azithromycin 500mg",
+      "active_ingredient": [
+        "Azithromycin"
+      ],
+      "strength": [
+        "500mg"
+      ],
+      "dosage_form": "Viên nén",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Azithro 500",
+        "Azithromycin",
+        "Azithromycin 500mg 500mg",
+        "Zithromax 500mg",
+        "Zmax"
+      ]
+    },
+    {
+      "id": "drug_000018",
+      "brand_name": "Klacid 500mg",
+      "active_ingredient": [
+        "Clarithromycin"
+      ],
+      "strength": [
+        "500mg"
+      ],
+      "dosage_form": "Viên nén",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Clarithromycin 500mg",
+        "Klacid",
+        "Klacid 500mg 500mg",
+        "Klacid Forte 500mg"
+      ]
+    },
+    {
+      "id": "drug_000019",
+      "brand_name": "Losartan 50mg",
+      "active_ingredient": [
+        "Losartan"
+      ],
+      "strength": [
+        "50mg"
+      ],
+      "dosage_form": "Viên nén bao phim",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Cozaar 50mg",
+        "Losartan",
+        "Losartan 50mg 50mg",
+        "Losartan PotassIUm 50mg"
+      ]
+    },
+    {
+      "id": "drug_000020",
+      "brand_name": "Telmisartan 40mg",
+      "active_ingredient": [
+        "Telmisartan"
+      ],
+      "strength": [
+        "40mg"
+      ],
+      "dosage_form": "Viên nén",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Micardis 40mg",
+        "Pritor 40mg",
+        "Telmisartan",
+        "Telmisartan 40mg 40mg"
+      ]
+    },
+    {
+      "id": "drug_000021",
+      "brand_name": "Atorvastatin 20mg",
+      "active_ingredient": [
+        "Atorvastatin"
+      ],
+      "strength": [
+        "20mg"
+      ],
+      "dosage_form": "Viên nén bao phim",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Atorva 20",
+        "Atorvastatin",
+        "Atorvastatin 20mg 20mg",
+        "Lipitor 20",
+        "Lipitor 20mg"
+      ]
+    },
+    {
+      "id": "drug_000022",
+      "brand_name": "Rosuvastatin 10mg",
+      "active_ingredient": [
+        "Rosuvastatin"
+      ],
+      "strength": [
+        "10mg"
+      ],
+      "dosage_form": "Viên nén bao phim",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Crestor 10",
+        "Crestor 10mg",
+        "Rosuvas 10mg",
+        "Rosuvastatin",
+        "Rosuvastatin 10mg 10mg"
+      ]
+    },
+    {
+      "id": "drug_000023",
+      "brand_name": "Plavix 75mg",
+      "active_ingredient": [
+        "Clopidogrel"
+      ],
+      "strength": [
+        "75mg"
+      ],
+      "dosage_form": "Viên nén bao phim",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Clopidogrel",
+        "Clopidogrel 75mg",
+        "Plavix",
+        "Plavix 75mg 75mg",
+        "Pravix 75mg"
+      ]
+    },
+    {
+      "id": "drug_000024",
+      "brand_name": "Concor 5mg",
+      "active_ingredient": [
+        "Bisoprolol"
+      ],
+      "strength": [
+        "5mg"
+      ],
+      "dosage_form": "Viên nén bao phim",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Bisoprolol 5mg",
+        "Bisoprolol Fumarate 5mg",
+        "Concor",
+        "Concor 5mg 5mg"
+      ]
+    },
+    {
+      "id": "drug_000025",
+      "brand_name": "Coversyl 5mg",
+      "active_ingredient": [
+        "Perindopril"
+      ],
+      "strength": [
+        "5mg"
+      ],
+      "dosage_form": "Viên nén bao phim",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Coversyl",
+        "Coversyl 5mg 5mg",
+        "Perindopril 5mg",
+        "Perindopril Arginine 5mg"
+      ]
+    },
+    {
+      "id": "drug_000026",
+      "brand_name": "Forxiga 10mg",
+      "active_ingredient": [
+        "Dapagliflozin"
+      ],
+      "strength": [
+        "10mg"
+      ],
+      "dosage_form": "Viên nén bao phim",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Dapagliflozin 10mg",
+        "Farxiga 10mg",
+        "Forxiga",
+        "Forxiga 10mg 10mg"
+      ]
+    },
+    {
+      "id": "drug_000027",
+      "brand_name": "Jardiance 10mg",
+      "active_ingredient": [
+        "Empagliflozin"
+      ],
+      "strength": [
+        "10mg"
+      ],
+      "dosage_form": "Viên nén bao phim",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Empagliflozin 10mg",
+        "Jardiance",
+        "Jardiance 10",
+        "Jardiance 10mg 10mg"
+      ]
+    },
+    {
+      "id": "drug_000028",
+      "brand_name": "Diamicron MR 60mg",
+      "active_ingredient": [
+        "gliclazide"
+      ],
+      "strength": [
+        "60mg"
+      ],
+      "dosage_form": "Viên nén phóng thích biến đổi",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Diamicron",
+        "Diamicron 60mg",
+        "Diamicron MR 60mg 60mg",
+        "gliclazide 60mg",
+        "gliclazide MR 60mg"
+      ]
+    },
+    {
+      "id": "drug_000029",
+      "brand_name": "Cetirizine 10mg",
+      "active_ingredient": [
+        "Cetirizine"
+      ],
+      "strength": [
+        "10mg"
+      ],
+      "dosage_form": "Viên nén bao phim",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Cetirizin 10mg",
+        "Cetirizine",
+        "Cetirizine 10mg 10mg",
+        "Zyrtec 10mg"
+      ]
+    },
+    {
+      "id": "drug_000030",
+      "brand_name": "Fexofenadine 180mg",
+      "active_ingredient": [
+        "Fexofenadine"
+      ],
+      "strength": [
+        "180mg"
+      ],
+      "dosage_form": "Viên nén bao phim",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Fexofenadin 180mg",
+        "Fexofenadine 180mg 180mg",
+        "Telfast 180",
+        "Telfast 180mg"
+      ]
+    },
+    {
+      "id": "drug_000031",
+      "brand_name": "Medrol 16mg",
+      "active_ingredient": [
+        "Methylprednisolone"
+      ],
+      "strength": [
+        "16mg"
+      ],
+      "dosage_form": "Viên nén",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Medrol 16",
+        "Medrol 16mg 16mg",
+        "Methylprednisolon 16mg",
+        "Methylprednisolone 16mg"
+      ]
+    },
+    {
+      "id": "drug_000032",
+      "brand_name": "Prednisolone 5mg",
+      "active_ingredient": [
+        "Prednisolone"
+      ],
+      "strength": [
+        "5mg"
+      ],
+      "dosage_form": "Viên nén",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Pred 5mg",
+        "Prednisolon 5mg",
+        "Prednisolone",
+        "Prednisolone 5mg 5mg"
+      ]
+    },
+    {
+      "id": "drug_000033",
+      "brand_name": "Meloxicam 7.5mg",
+      "active_ingredient": [
+        "Meloxicam"
+      ],
+      "strength": [
+        "7.5mg"
+      ],
+      "dosage_form": "Viên nén",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Meloxicam",
+        "Meloxicam 7.5mg 7.5mg",
+        "Mobic 7.5",
+        "Mobic 7.5mg"
+      ]
+    },
+    {
+      "id": "drug_000034",
+      "brand_name": "Diclofenac 50mg",
+      "active_ingredient": [
+        "Diclofenac"
+      ],
+      "strength": [
+        "50mg"
+      ],
+      "dosage_form": "Viên bao tan trong ruột",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Diclofenac",
+        "Diclofenac 50mg 50mg",
+        "Voltaren 50",
+        "Voltaren 50mg"
+      ]
+    },
+    {
+      "id": "drug_000035",
+      "brand_name": "Allopurinol 300mg",
+      "active_ingredient": [
+        "Allopurinol"
+      ],
+      "strength": [
+        "300mg"
+      ],
+      "dosage_form": "Viên nén",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Allopurinol",
+        "Allopurinol 300",
+        "Allopurinol 300mg 300mg",
+        "Zyloric 300mg"
+      ]
+    },
+    {
+      "id": "drug_000036",
+      "brand_name": "Phosphalugel",
+      "active_ingredient": [
+        "AluminIUm Phosphate"
+      ],
+      "strength": [
+        "20g",
+        "gói"
+      ],
+      "dosage_form": "Hỗn dịch uống",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Phosphalugel 20g/gói",
+        "Phosphalugel goi",
+        "Thuoc da day chu P",
+        "gel nhom photphat"
+      ]
+    },
+    {
+      "id": "drug_000037",
+      "brand_name": "Decolgen Forte",
+      "active_ingredient": [
+        "Paracetamol",
+        "Phenylephrine",
+        "Chlorpheniramine"
+      ],
+      "strength": [
+        "500mg",
+        "10mg",
+        "2mg"
+      ],
+      "dosage_form": "Viên nén",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Decolgen",
+        "Decolgen Forte 500mg/10mg/2mg",
+        "Decolgen cam",
+        "Decolgen do"
+      ]
+    },
+    {
+      "id": "drug_000038",
+      "brand_name": "Tiffy Dey",
+      "active_ingredient": [
+        "Paracetamol",
+        "Chlorpheniramine",
+        "Phenylephrine"
+      ],
+      "strength": [
+        "500mg",
+        "2mg",
+        "10mg"
+      ],
+      "dosage_form": "Viên nén",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Tiffy",
+        "Tiffy Dey 500mg/2mg/10mg",
+        "Tiffy vi 4 vien",
+        "Tiffy xanh"
+      ]
+    },
+    {
+      "id": "drug_000039",
+      "brand_name": "Berberin 100mg",
+      "active_ingredient": [
+        "Berberine"
+      ],
+      "strength": [
+        "100mg"
+      ],
+      "dosage_form": "Viên nén",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Berberin",
+        "Berberin 100mg 100mg",
+        "Berberin moc hoa",
+        "Berberine"
+      ]
+    },
+    {
+      "id": "drug_000040",
+      "brand_name": "Smecta",
+      "active_ingredient": [
+        "Diosmectite"
+      ],
+      "strength": [
+        "3g",
+        "gói"
+      ],
+      "dosage_form": "Bột pha hỗn dịch",
+      "package_description": "Medicine packaging",
+      "registration_number": null,
+      "aliases": [
+        "Diosmectite 3g",
+        "Smecta 3g",
+        "Smecta 3g/gói",
+        "Thuoc tieu chay Smecta"
+      ]
+    }
+  ]
+}

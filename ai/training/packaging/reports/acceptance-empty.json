@@ -1,0 +1,26 @@
+{
+  "merge": {
+    "duplicates": 0,
+    "real_images": 0,
+    "real_ratio": 0.0,
+    "synthetic_images": 0,
+    "synthetic_ratio": 0.0,
+    "total_images": 0
+  },
+  "split": {
+    "train": 0,
+    "val": 0
+  },
+  "validation": {
+    "bad_labels": 0,
+    "images": 0,
+    "invalid": 0,
+    "missing_labels": 0,
+    "splits": {
+      "test": 0,
+      "train": 0,
+      "val": 0
+    },
+    "valid": 0
+  }
+}

@@ -1,0 +1,4 @@
+# Generated images and labels are local training artifacts, not source data.
+**/*.jpg
+**/*.txt
+!**/.gitkeep

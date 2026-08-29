@@ -1,0 +1,8 @@
+path: ./datasets/final
+nc: 3
+train: images/train
+val: images/val
+names:
+  0: brand_name
+  1: active_ingredient
+  2: strength

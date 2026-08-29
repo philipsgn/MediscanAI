@@ -1,0 +1,8 @@
+# Paths are relative to the repository root unless absolute.
+raw_metadata: ai/training/packaging/datasets/metadata/real.jsonl
+annotations: ai/training/packaging/datasets/annotated_real/annotations.jsonl
+dictionary: ai/training/packaging/normalized/packaging_drug_dictionary.json
+dataset_root: ai/training/packaging/datasets/final
+split_ratios: {train: 0.8, val: 0.1, test: 0.1}
+merge_ratios: {synthetic: 0.7, real: 0.3}
+classes: [brand_name, active_ingredient, strength]

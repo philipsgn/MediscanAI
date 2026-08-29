@@ -1,0 +1,9 @@
+{
+  "real_images": 0,
+  "synthetic_images": 0,
+  "total_images": 0,
+  "duplicates": 0,
+  "real_ratio": 0.0,
+  "synthetic_ratio": 0.0,
+  "manifest": []
+}

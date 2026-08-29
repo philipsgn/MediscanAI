@@ -1,0 +1,8 @@
+# Isolated dependencies for the packaging detector training/export pipeline.
+numpy>=1.26.0
+Pillow>=10.0.0
+opencv-python-headless>=4.9.0
+albumentations>=1.4.0
+ultralytics>=8.3.0
+onnxruntime>=1.19.0
+PyYAML>=6.0
