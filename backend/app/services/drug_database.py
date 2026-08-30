@@ -22,6 +22,8 @@ class DrugDatabase:
         self.local_db: list[dict[str, Any]] = []
         self.brand_to_drug: dict[str, dict[str, Any]] = {}
         self.ingredient_to_drugs: dict[str, list[dict[str, Any]]] = {}
+        self._openfda_brand_cache: dict[str, Optional[dict[str, Any]]] = {}
+        self._openfda_ingredient_cache: dict[str, list[dict[str, Any]]] = {}
         self._load_local_db()
 
     def _load_local_db(self) -> None:
@@ -145,10 +147,14 @@ class DrugDatabase:
         try:
             import re
             clean_name = re.sub(r"[^a-zA-Z0-9\s]", " ", brand_name).strip()
-            if not clean_name:
+            if not clean_name or len(clean_name) < 2:
                 return None
 
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            cache_key = clean_name.lower()
+            if cache_key in self._openfda_brand_cache:
+                return self._openfda_brand_cache[cache_key]
+
+            async with httpx.AsyncClient(timeout=6.0) as client:
                 params = {
                     "search": f'openfda.brand_name:"{clean_name}"',
                     "limit": 5,
@@ -162,26 +168,35 @@ class DrugDatabase:
 
                 results = data.get("results", [])
                 if results:
-                    return self._normalize_openfda_result(results[0])
+                    res = self._normalize_openfda_result(results[0])
+                    self._openfda_brand_cache[cache_key] = res
+                    return res
+            self._openfda_brand_cache[cache_key] = None
         except (httpx.RequestError, httpx.HTTPStatusError, json.JSONDecodeError) as e:
-            # [P3/F3.5] RequestError bao Timeout/Connect; HTTPStatusError từ
-            # raise_for_status; JSONDecodeError cho payload lỗi. Graceful: None.
             logger.warning(
                 "OpenFDA lookup failed for %s (%s): %s",
                 brand_name,
                 type(e).__name__,
                 e,
             )
+            # Cache miss/failure to prevent repeated slow timeouts
+            clean_k = re.sub(r"[^a-zA-Z0-9\s]", " ", brand_name).strip().lower()
+            self._openfda_brand_cache[clean_k] = None
         return None
 
     async def fetch_openfda_by_ingredient(self, ingredient: str) -> list[dict[str, Any]]:
-        """Tra cứu OpenFDA theo hoạt chất.
-
-        [P2/F3.4] Đã xóa gate API key — xác minh keyless HTTP 200 (P2)."""
+        """Tra cứu OpenFDA theo hoạt chất."""
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            clean_ing = ingredient.strip().lower()
+            if not clean_ing or len(clean_ing) < 2:
+                return []
+
+            if clean_ing in self._openfda_ingredient_cache:
+                return self._openfda_ingredient_cache[clean_ing]
+
+            async with httpx.AsyncClient(timeout=6.0) as client:
                 params = {
-                    "search": f"openfda.substance_name:{ingredient}",
+                    "search": f"openfda.substance_name:{ingredient.strip()}",
                     "limit": 10,
                 }
                 if settings.OPENFDA_API_KEY:
@@ -192,9 +207,12 @@ class DrugDatabase:
                 data = resp.json()
 
                 results = data.get("results", [])
-                return [self._normalize_openfda_result(r) for r in results]
+                parsed = [self._normalize_openfda_result(r) for r in results]
+                self._openfda_ingredient_cache[clean_ing] = parsed
+                return parsed
         except Exception as e:  # noqa: BLE001
             logger.warning(f"OpenFDA ingredient lookup failed for {ingredient}: {e}")
+            self._openfda_ingredient_cache[ingredient.strip().lower()] = []
         return []
 
     def _normalize_openfda_result(self, raw: dict[str, Any]) -> dict[str, Any]:

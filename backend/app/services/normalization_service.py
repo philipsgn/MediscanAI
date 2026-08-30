@@ -89,8 +89,12 @@ class NormalizationService:
         return item
 
     async def normalize_ocr_items_full(self, ocr_items: list[DrugItem]) -> list[DrugItem]:
-        """[P2/F3.4] Wrapper async 4 tầng — endpoint /ocr/scan gọi hàm này."""
-        return [await self.normalize_drug_item_full(item) for item in ocr_items]
+        """[P2/F3.4] Wrapper async 4 tầng chạy song song (asyncio.gather) toàn bộ items."""
+        if not ocr_items:
+            return []
+        import asyncio
+        results = await asyncio.gather(*(self.normalize_drug_item_full(item) for item in ocr_items))
+        return list(results)
 
     def normalize_drug_item(self, raw_drug: DrugItem) -> DrugItem:
         """
