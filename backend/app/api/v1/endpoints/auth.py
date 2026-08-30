@@ -9,6 +9,8 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
+from app.core.limiter import limiter
 from app.db.session import get_db
 from app.schemas.user_schema import (
     TokenResponse,
@@ -67,7 +69,9 @@ async def get_current_user(
     status_code=status.HTTP_201_CREATED,
     summary="Đăng ký tài khoản mới",
 )
+@limiter.limit(settings.AUTH_RATE_LIMIT)
 async def register(
+    request: Request,
     payload: UserRegister,
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
@@ -97,6 +101,7 @@ async def register(
     status_code=status.HTTP_200_OK,
     summary="Đăng nhập tài khoản",
 )
+@limiter.limit(settings.AUTH_RATE_LIMIT)
 async def login(
     request: Request,
     db: AsyncSession = Depends(get_db),

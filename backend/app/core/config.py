@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 giờ
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7          # 7 ngày
 
+    # Rate Limiting (chống Brute-force Login / Register)
+    # Mặc định: 5 requests / phút theo IP cho các endpoint nhạy cảm
+    AUTH_RATE_LIMIT: str = "5/minute"
+
+
     @field_validator("JWT_SECRET")
     @classmethod
     def validate_jwt_secret(cls, v: str) -> str:

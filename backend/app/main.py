@@ -8,6 +8,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 
+from slowapi.errors import RateLimitExceeded
 from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.endpoints.drugs import router as drugs_router
 from app.api.v1.endpoints.history import router as history_router
@@ -15,6 +16,7 @@ from app.api.v1.endpoints.ocr import router as ocr_router
 from app.api.v1.endpoints.profile import router as profile_router
 from app.api.v1.endpoints.reminders import router as reminders_router
 from app.core.config import settings
+from app.core.limiter import custom_rate_limit_exceeded_handler, limiter
 from app.schemas import (
     DrugEvaluationRequest,
     EvaluationResponse,
@@ -45,8 +47,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Gắn Rate Limiter (slowapi) cho toàn bộ ứng dụng
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, custom_rate_limit_exceeded_handler)
+
 # Cấu hình CORS mở rộng hỗ trợ Web Desktop & Mobile
 app.add_middleware(
+
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
