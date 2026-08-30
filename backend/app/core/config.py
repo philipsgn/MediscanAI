@@ -5,8 +5,10 @@
 # Mọi tham số OCR đều là field của Settings -> có thể override qua .env
 # (xem backend/.env.example) mà không cần sửa code.
 # (Trước đây Settings nằm ở app/config.py — đã hợp nhất, file cũ đã xoá.)
+import os
 from typing import List
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,7 +27,7 @@ class Settings(BaseSettings):
     LOCAL_LLM_BASE_URL: str = "http://localhost:11434"
     LOCAL_LLM_MODEL: str = "qwen2.5:0.5b"
 
-    # OpenFDA Drug API
+    # OpenFDA Drug Database API
     OPENFDA_API_KEY: str = ""
     OPENFDA_BASE_URL: str = "https://api.fda.gov/drug"
 
@@ -33,11 +35,32 @@ class Settings(BaseSettings):
     # client có thể override qua query param (giới hạn cứng 1..50 ở router).
     DRUG_SEARCH_DEFAULT_LIMIT: int = 10
 
-    # JWT Authentication (Stage 8)
-    JWT_SECRET: str = "mediscan-jwt-secret-key-production-change-me-2026"
+    # JWT Authentication (Stage 8) — BẮT BUỘC có JWT_SECRET trong môi trường, cấm hardcode fallback
+    JWT_SECRET: str = ""
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 giờ
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7          # 7 ngày
+
+    @field_validator("JWT_SECRET")
+    @classmethod
+    def validate_jwt_secret(cls, v: str) -> str:
+        secret = (v or "").strip()
+        insecure_fallbacks = {
+            "",
+            "mediscan-jwt-secret-key-production-change-me-2026",
+            "secret",
+            "change-me",
+        }
+        if secret in insecure_fallbacks:
+            # Cho phép test runner chạy với ephemeral test secret
+            if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("MEDISCAN_TEST_MODE") == "true":
+                return "mediscan-ephemeral-test-secret-key-for-pytest-only-2026"
+            raise ValueError(
+                "CRITICAL SECURITY ERROR: JWT_SECRET environment variable is missing or using an insecure fallback. "
+                "You MUST set a cryptographically secure JWT_SECRET in your environment or .env file "
+                "(e.g. run: python -c 'import secrets; print(secrets.token_urlsafe(64))')."
+            )
+        return secret
 
     # Database Connection (PostgreSQL 16 Async via asyncpg / SQLite Async fallback)
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/mediscan_db"
@@ -67,7 +90,7 @@ class Settings(BaseSettings):
     OCR_PROCESSING_SLA_MS: int = 15_000
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=("backend/.env", ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
