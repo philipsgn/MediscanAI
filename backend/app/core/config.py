@@ -6,7 +6,7 @@
 # (xem backend/.env.example) mà không cần sửa code.
 # (Trước đây Settings nằm ở app/config.py — đã hợp nhất, file cũ đã xoá.)
 import os
-from typing import List
+from typing import List, Optional
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -93,6 +93,8 @@ class Settings(BaseSettings):
     OCR_DOC_UNWARPING: bool = False
     # SLA noi bo (ms)
     OCR_PROCESSING_SLA_MS: int = 15_000
+    # Duong dan thu muc cache weight model OCR (neu can override vi tri ~/.paddlex/)
+    OCR_MODEL_DIR: Optional[str] = None
 
     model_config = SettingsConfigDict(
         env_file=("backend/.env", ".env"),
@@ -113,6 +115,7 @@ OCR_TEXT_REC_THRESHOLD: float = settings.OCR_TEXT_REC_THRESHOLD
 OCR_DOC_ORIENTATION: bool = settings.OCR_DOC_ORIENTATION
 OCR_DOC_UNWARPING: bool = settings.OCR_DOC_UNWARPING
 OCR_PROCESSING_SLA_MS: int = settings.OCR_PROCESSING_SLA_MS
+OCR_MODEL_DIR: Optional[str] = settings.OCR_MODEL_DIR
 
 __all__ = [
     "Settings",
@@ -124,4 +127,6 @@ __all__ = [
     "OCR_DOC_ORIENTATION",
     "OCR_DOC_UNWARPING",
     "OCR_PROCESSING_SLA_MS",
+    "OCR_MODEL_DIR",
 ]
+

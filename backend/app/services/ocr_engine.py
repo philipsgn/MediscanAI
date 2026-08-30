@@ -37,6 +37,7 @@ from app.core.config import (
     OCR_MAX_DIM,
     OCR_ENGINE,
     OCR_PROCESSING_SLA_MS,
+    OCR_MODEL_DIR,
 )
 from app.schemas.ocr_schema import MedicineScanResult, OCRItem
 
@@ -56,6 +57,11 @@ class OcrEngine:
         self._semaphore: Optional[asyncio.Semaphore] = None
         self._paddle_ocr: Optional[Any] = None
         self._paddle_ocr_packaging: Optional[Any] = None
+
+        if OCR_MODEL_DIR:
+            os.environ["PADDLE_PDX_DIR"] = OCR_MODEL_DIR
+            os.environ["PADDLE_HOME"] = OCR_MODEL_DIR
+
 
     @property
     def semaphore(self) -> asyncio.Semaphore:
