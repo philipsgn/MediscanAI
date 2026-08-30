@@ -87,7 +87,8 @@ async def test_normalization_tier4_populates_drug_item(patch_openfda_http):
     normalized = await NormalizationService().normalize_drug_item_full(raw)
     assert normalized.match_method == "openfda"
     assert normalized.active_ingredient == "ACETAMINOPHEN"
-    assert normalized.brand_name == "TESTAMOL"
+    # [Fix #5] Brand name gốc phải được bảo tồn tuyệt đối (không bị ghi đè thành TESTAMOL)
+    assert normalized.brand_name == "Totally Unknown Brand XZ"
     assert normalized.strength == "500 mg/1"
     assert normalized.drug_id == "openfda:abc-123"
     assert normalized.warnings == ["Keep out of reach of children"]

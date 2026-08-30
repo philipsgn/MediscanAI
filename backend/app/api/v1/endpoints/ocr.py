@@ -130,17 +130,9 @@ def _ocr_items_to_drug_items(raw_items: list, source_type: str) -> list:
             cleaned = re.sub(r"^[\.\…\s]+", "", cleaned)
             cleaned = re.sub(r"\.{2,}", " ", cleaned)
 
-            # Tách nồng độ và làm sạch brand_name
-            # VD: "ACRETINO.05%" -> strength="0.05%", clean_brand="ACRETIN"
+            # Tách nồng độ
             st_match = STRENGTH_REGEX.search(cleaned)
-            strength = ""
-            if st_match:
-                strength = st_match.group(1).strip()
-                cleaned_brand = STRENGTH_REGEX.sub("", cleaned).strip()
-                cleaned_brand = re.sub(r"[^\w\s\-\.]", "", cleaned_brand).strip()
-                cleaned_brand = re.sub(r"[Oo]$", "", cleaned_brand).strip()
-                if cleaned_brand and len(cleaned_brand) >= 2:
-                    cleaned = cleaned_brand
+            strength = st_match.group(1).strip() if st_match else ""
 
             drug_items.append(
                 DrugItem(

@@ -254,6 +254,13 @@ class DrugDatabase:
         if openfda_brand:
             return openfda_brand
 
+        # 3b. OpenFDA by brand treated as active ingredient/substance
+        openfda_substance = await self.fetch_openfda_by_ingredient(brand_name)
+        if openfda_substance:
+            res_sub = openfda_substance[0]
+            res_sub["source"] = "openfda_ingredient"
+            return res_sub
+
         # 4. OpenFDA by ingredient hint
         if ingredient_hint:
             openfda_ing = await self.fetch_openfda_by_ingredient(ingredient_hint)
