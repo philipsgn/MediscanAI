@@ -64,6 +64,27 @@ async def get_current_user(
     return user
 
 
+async def get_optional_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: AsyncSession = Depends(get_db),
+) -> Optional[UserResponse]:
+    """Dependency trích xuất user nếu có token hợp lệ, trả về None nếu không gửi token."""
+    if not credentials or not credentials.credentials:
+        return None
+
+    token = credentials.credentials
+    payload = auth_service.decode_token(token)
+    if not payload or payload.get("type") != "access":
+        return None
+
+    user_id = payload.get("sub")
+    if not user_id:
+        return None
+
+    return await auth_service.get_user_by_id(db, user_id)
+
+
+
 @router.post(
     "/register",
     response_model=TokenResponse,

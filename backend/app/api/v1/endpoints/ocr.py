@@ -12,10 +12,13 @@ repo_root = str(Path(__file__).resolve().parents[4])
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.endpoints.auth import get_optional_current_user
 from app.core.config import OCR_PROCESSING_SLA_MS
+from app.db.session import get_db
 from app.schemas import (  # Canonical response models — single source of truth [P0/F3.1]
     ClinicalAlertSummary,
     ClinicalAssessmentResponse,
@@ -24,11 +27,15 @@ from app.schemas import (  # Canonical response models — single source of trut
     MappedDrugItem,
     OCRItem,
     ScanEvaluationResponse,
+    UserProfile,
 )
+from app.schemas.user_schema import UserResponse
 from app.services.clinical_service import ClinicalAssessmentRequest, clinical_service
 from app.services.drug_database import drug_database
 from app.services.normalization_service import NormalizationService
 from app.services.ocr_engine import ocr_engine
+from app.services.profile_service import profile_service
+
 
 router = APIRouter(prefix="/ocr", tags=["OCR + Clinical Assessment Pipeline"])
 
@@ -250,16 +257,15 @@ async def ocr_scan(
     file: UploadFile = File(...),
     source_type: str = Form("prescription", description="'prescription' (Toa thuốc/Receipt) hoặc 'packaging' (Vỏ hộp/Lọ)"),
     run_clinical: bool = Form(True, description="Chạy Clinical Assessment LLM (mặc định: true)"),
-    user_age: Optional[int] = Form(None, description="Tuổi bệnh nhân (cho clinical assessment)"),
-    user_conditions: Optional[str] = Form(None, description="Bệnh nền, phân cách bằng dấu phẩy"),
-    user_allergies: Optional[str] = Form(None, description="Dị ứng hoạt chất, phân cách bằng dấu phẩy"),
+    current_user: Optional[UserResponse] = Depends(get_optional_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> FullScanResponse:
     """
     Full Pipeline: OCR → Normalization → Clinical Assessment (LLM)
 
     1. OCR: Dual Pipeline (Prescription vs Packaging) - PP-OCRv6 ONNX CPU
     2. Normalization: rapidfuzz map OCR text -> Drug Database (Local + OpenFDA)
-    3. Clinical Assessment: LLM (Local Qwen2.5/Phi-3 hoặc OpenAI) phân tích:
+    3. Clinical Assessment: Phân tích tương tác dựa trên Hồ sơ y tế (UserProfile) đọc từ Database:
        - Drug-Drug Interactions
        - Drug-Condition Interactions  
        - Overdose/Duplication
@@ -320,24 +326,34 @@ async def ocr_scan(
         mapped_drugs = _map_drug_items(normalized_drugs)
 
         # ═══════════════════════════════════════════════════════════════
-        # STEP 3: Clinical Assessment (LLM)
+        # STEP 3: Clinical Assessment (LLM) — Đọc UserProfile từ Database
         # ═══════════════════════════════════════════════════════════════
         clinical_assessment = None
         clinical_summary = None
         clinical_latency_ms = 0
 
         if run_clinical and normalized_drugs:
-            clinical_started = time.perf_counter()
-            # Build UserProfile from form data
-            user_profile = None
-            if any([user_age, user_conditions, user_allergies]):
-                from app.schemas import UserProfile
-                user_profile = UserProfile(
-                    age=user_age or 0,
-                    conditions=[c.strip() for c in user_conditions.split(",")] if user_conditions else [],
-                    allergies=[a.strip() for a in user_allergies.split(",")] if user_allergies else [],
+            if not current_user:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Yêu cầu đăng nhập để thực hiện đánh giá tương tác lâm sàng (run_clinical=True).",
+                    headers={"WWW-Authenticate": "Bearer"},
                 )
 
+            db_profile = await profile_service.get_profile(db, current_user.id)
+            if not db_profile or not current_user.is_profile_completed:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Tài khoản chưa hoàn tất hồ sơ y tế cá nhân (Onboarding). Vui lòng hoàn thành hồ sơ tại /onboarding trước khi đánh giá lâm sàng.",
+                )
+
+            user_profile = UserProfile(
+                age=db_profile.age,
+                conditions=db_profile.conditions or [],
+                allergies=db_profile.allergies or [],
+            )
+
+            clinical_started = time.perf_counter()
             assessment_request = ClinicalAssessmentRequest(
                 drugs=normalized_drugs,
                 user_profile=user_profile,
@@ -356,7 +372,7 @@ async def ocr_scan(
             source_type=ocr_result.source_type,
             raw_ocr_items=raw_ocr_items,
             ocr_latency_ms=ocr_latency_ms,
-                        sla_exceeded=ocr_latency_ms > OCR_PROCESSING_SLA_MS,  # OCR SLA (from app.core.config)
+            sla_exceeded=ocr_latency_ms > OCR_PROCESSING_SLA_MS,  # OCR SLA (from app.core.config)
             image_width=ocr_result.image_width,
             image_height=ocr_result.image_height,
             mapped_drugs=mapped_drugs,
@@ -384,9 +400,6 @@ async def ocr_scan(
 async def process_scan_pipeline(
     file: UploadFile = File(...),
     source_stream: str = Form("prescription", description="'prescription' hoặc 'packaging'"),
-    user_age: Optional[int] = Form(None),
-    user_conditions: Optional[str] = Form(None),
-    user_allergies: Optional[str] = Form(None),
 ) -> ScanEvaluationResponse:
     """
     End-to-End Direct Pipeline nối trực tiếp phân hệ /ai:
@@ -445,14 +458,7 @@ async def process_scan_pipeline(
             )
             for idx, d in enumerate(extracted_raw_drugs)
         ]
-
         user_prof = {}
-        if user_age or user_conditions or user_allergies:
-            user_prof = {
-                "age": user_age or 30,
-                "conditions": [c.strip() for c in user_conditions.split(",")] if user_conditions else [],
-                "allergies": [a.strip() for a in user_allergies.split(",")] if user_allergies else [],
-            }
 
         eval_report = await run_in_threadpool(
             default_clinical_rule_engine.evaluate,
