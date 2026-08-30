@@ -84,13 +84,18 @@ DOSAGE_INSTRUCTION_PATTERNS = [
 
 PACKAGING_IGNORE_PATTERNS = [
     re.compile(r"^(?:FOR\s+ACNE|TREATMENT|TOPICAL\s+CREAM|COMPLEMENTO|ALIMENTICID)", re.IGNORECASE),
-    re.compile(r"^(?:Good\s+for|TOWARDS|PRE-DIABETES|DIABETES)", re.IGNORECASE),
-    re.compile(r"^(?:Jamjoom\s+Pharma|BIOIBERICA|BIotBERICA|Pharma|Laboratories)", re.IGNORECASE),
+    re.compile(r"^(?:Good\s+for|TOWARDS|PRE-DIABETES|DIABETES|AND\s+PRE-DIABETES)", re.IGNORECASE),
+    re.compile(r"^(?:Jamjoom\s+Pharma|BIOIBERICA|BIotBERICA|Pharma|Laboratories|Laboratory)", re.IGNORECASE),
+    re.compile(r"^(?:Derma|Serum|Lotion|Shampoo|Cream|Gel)$", re.IGNORECASE),
     re.compile(r"^(?:60\s*CAP|30\s*GM|\(30|CN:\d+|000|\d{2,4}$)", re.IGNORECASE),
+    re.compile(r"^(?:00O|aLEA|deteido|nes\s+ylgaentom|whiaotzatn\s+spoL|cisarandos,)$", re.IGNORECASE),
     re.compile(r"[\u4e00-\u9fff]", re.UNICODE),
 ]
 
-STRENGTH_REGEX = re.compile(r"(\d+(?:[\.,]\d+)?\s*(?:mg|g|ml|mcg|iu|%|\/))", re.IGNORECASE)
+STRENGTH_REGEX = re.compile(
+    r"(\d+(?:[\.,]\d+)?\s*(?:mg|g|ml|mcg|iu|%|\/)(?:\s*(?:w\/w|w\/v))?)",
+    re.IGNORECASE,
+)
 
 
 def _ocr_items_to_drug_items(raw_items: list, source_type: str) -> list:
@@ -100,10 +105,21 @@ def _ocr_items_to_drug_items(raw_items: list, source_type: str) -> list:
     from app.schemas import DrugItem
 
     if source_type == "packaging":
+        # Sắp xếp các box theo diện tích giảm dần để ưu tiên nhãn/tên thương mại lớn nhất
+        def _get_box_area(item: Any) -> float:
+            box = getattr(item, "box", None) or []
+            if len(box) == 4:
+                return float(max(0.0, box[2] - box[0]) * max(0.0, box[3] - box[1]))
+            return 0.0
+
+        sorted_items = sorted(raw_items, key=_get_box_area, reverse=True)
         drug_items = []
-        for item in raw_items:
+        for item in sorted_items:
             text = str(getattr(item, "text", "")).strip()
-            if not text or len(text) < 2:
+            conf = getattr(item, "confidence", 0.9)
+            if not text or len(text) < 3:
+                continue
+            if conf < 0.65:
                 continue
             if not any(c.isalpha() for c in text):
                 continue
@@ -114,17 +130,29 @@ def _ocr_items_to_drug_items(raw_items: list, source_type: str) -> list:
             cleaned = re.sub(r"^[\.\…\s]+", "", cleaned)
             cleaned = re.sub(r"\.{2,}", " ", cleaned)
 
+            # Tách nồng độ và làm sạch brand_name
+            # VD: "ACRETINO.05%" -> strength="0.05%", clean_brand="ACRETIN"
             st_match = STRENGTH_REGEX.search(cleaned)
-            strength = st_match.group(1).strip() if st_match else ""
+            strength = ""
+            if st_match:
+                strength = st_match.group(1).strip()
+                cleaned_brand = STRENGTH_REGEX.sub("", cleaned).strip()
+                cleaned_brand = re.sub(r"[^\w\s\-\.]", "", cleaned_brand).strip()
+                cleaned_brand = re.sub(r"[Oo]$", "", cleaned_brand).strip()
+                if cleaned_brand and len(cleaned_brand) >= 2:
+                    cleaned = cleaned_brand
 
             drug_items.append(
                 DrugItem(
                     brand_name=cleaned,
                     strength=strength,
-                    confidence_score=getattr(item, "confidence", 0.9),
+                    confidence_score=conf,
                     dosage_instruction=None,  # Pipeline 1: Bắt buộc do User nhập tay ở Smart Form
                 )
             )
+            # Cap tối đa 3 candidates sáng giá nhất trên bao bì
+            if len(drug_items) >= 3:
+                break
         return drug_items
 
     # Pipeline 2: Toa thuốc (Prescription)
