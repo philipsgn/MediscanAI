@@ -56,3 +56,10 @@ class TokenPayload(BaseModel):
     sub: str = Field(..., description="Subject - User ID")
     exp: int = Field(..., description="Thời gian hết hạn (Unix timestamp)")
     type: str = Field("access", description="Loại token ('access' | 'refresh')")
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str = Field(..., description="JWT Refresh Token để xin cấp Access Token mới")
+
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel, extra="ignore")
+

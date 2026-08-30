@@ -21,6 +21,7 @@ export const API_ENDPOINTS = {
   /** Auth endpoints (Stage 8) */
   authRegister: '/auth/register',
   authLogin: '/auth/login',
+  authRefresh: '/auth/refresh',
   authMe: '/auth/me',
   /** Profile endpoints (Stage 9) */
   profileMe: '/profile/me',
@@ -51,6 +52,98 @@ apiClient.interceptors.request.use((config) => {
   }
   return config;
 });
+
+/** Interceptor tự động làm mới Access Token (Auto-Refresh) khi nhận HTTP 401 */
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (value?: unknown) => void;
+  reject: (reason?: unknown) => void;
+}> = [];
+
+const processQueue = (error: unknown, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    if (!originalRequest || typeof window === 'undefined') {
+      return Promise.reject(error);
+    }
+
+    const isAuthEndpoint =
+      originalRequest.url?.includes('/auth/login') ||
+      originalRequest.url?.includes('/auth/register') ||
+      originalRequest.url?.includes('/auth/refresh');
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return apiClient(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      const refreshToken = localStorage.getItem('mediscan_refresh_token');
+      if (!refreshToken) {
+        isRefreshing = false;
+        return Promise.reject(error);
+      }
+
+      try {
+        const refreshResponse = await axios.post<{
+          accessToken: string;
+          refreshToken: string;
+        }>(`${API_BASE_URL}${API_ENDPOINTS.authRefresh}`, {
+          refreshToken,
+          refresh_token: refreshToken,
+        });
+
+        const newAccessToken = refreshResponse.data.accessToken;
+        localStorage.setItem('mediscan_access_token', newAccessToken);
+        const expires = new Date(Date.now() + 7 * 86400000).toUTCString();
+        document.cookie = `mediscan_auth_token=${encodeURIComponent(newAccessToken)}; expires=${expires}; path=/; SameSite=Lax`;
+
+        processQueue(null, newAccessToken);
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        return apiClient(originalRequest);
+      } catch (refreshErr) {
+        processQueue(refreshErr, null);
+        localStorage.removeItem('mediscan_access_token');
+        localStorage.removeItem('mediscan_refresh_token');
+        localStorage.removeItem('mediscan_auth_user');
+        document.cookie = 'mediscan_auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+        if (
+          window.location.pathname !== '/login' &&
+          window.location.pathname !== '/register'
+        ) {
+          window.location.href = '/login';
+        }
+        return Promise.reject(refreshErr);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 
 /** Dựng URL đầy đủ từ bảng endpoint (dùng trong service layer / script kiểm chứng). */
 export function buildEndpoint(path: ApiEndpointPath): string {

@@ -13,6 +13,7 @@ from app.core.config import settings
 from app.core.limiter import limiter
 from app.db.session import get_db
 from app.schemas.user_schema import (
+    RefreshTokenRequest,
     TokenResponse,
     UserLogin,
     UserRegister,
@@ -143,6 +144,53 @@ async def login(
         ) from err
 
 
+@router.post(
+    "/refresh",
+    response_model=TokenResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Cấp mới Access Token từ Refresh Token",
+)
+async def refresh_access_token(
+    payload: RefreshTokenRequest,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """
+    Xác thực Refresh Token (7 ngày) và cấp mới Access Token (24 giờ).
+    Lưu ý: Chưa áp dụng Token Rotation (vô hiệu hoá token cũ qua denylist/DB)
+    nhằm giữ tương thích tối đa và sẽ bổ sung ở giai đoạn nâng cao.
+    """
+    token = payload.refresh_token.strip()
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Thiếu Refresh Token.",
+        )
+
+    decoded = auth_service.decode_token(token)
+    if not decoded or decoded.get("type") != "refresh":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh Token không hợp lệ hoặc đã hết hạn.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user_id = decoded.get("sub")
+    user = await auth_service.get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tài khoản người dùng không còn tồn tại.",
+        )
+
+    new_access_token = auth_service.create_access_token(user.id)
+    return TokenResponse(
+        access_token=new_access_token,
+        refresh_token=token,
+        token_type="bearer",
+        user=user,
+    )
+
+
 @router.get(
     "/me",
     response_model=UserResponse,
@@ -152,3 +200,4 @@ async def login(
 async def get_me(current_user: UserResponse = Depends(get_current_user)) -> UserResponse:
     """Trả về thông tin chi tiết người dùng (bao gồm cờ is_profile_completed)."""
     return current_user
+

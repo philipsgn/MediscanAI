@@ -8,6 +8,7 @@ import { IUser, ILoginRequest, IRegisterRequest, ITokenResponse } from '@/types/
 import { authService } from '@/services/authService';
 
 const TOKEN_KEY = 'mediscan_access_token';
+const REFRESH_TOKEN_KEY = 'mediscan_refresh_token';
 const USER_KEY = 'mediscan_auth_user';
 const COOKIE_KEY = 'mediscan_auth_token';
 
@@ -62,10 +63,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const res = await authService.login(credentials);
-      const { accessToken, user } = res;
+      const { accessToken, refreshToken, user } = res;
 
       if (typeof window !== 'undefined') {
         localStorage.setItem(TOKEN_KEY, accessToken);
+        if (refreshToken) {
+          localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+        }
         localStorage.setItem(USER_KEY, JSON.stringify(user));
         setAuthCookie(accessToken);
       }
@@ -93,10 +97,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const res = await authService.register(data);
-      const { accessToken, user } = res;
+      const { accessToken, refreshToken, user } = res;
 
       if (typeof window !== 'undefined') {
         localStorage.setItem(TOKEN_KEY, accessToken);
+        if (refreshToken) {
+          localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+        }
         localStorage.setItem(USER_KEY, JSON.stringify(user));
         setAuthCookie(accessToken);
       }
@@ -123,6 +130,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
       removeAuthCookie();
     }
