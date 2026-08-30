@@ -51,9 +51,8 @@ class NormalizationService:
         if not info or not str(info.get("source", "")).startswith("openfda"):
             return item  # giữ nhánh unmatched (confidence ≤ 0.4, unverified)
 
-        fda_brand = info.get("brand_name")
-        if fda_brand:
-            item.brand_name = str(fda_brand)
+        # [Fix An Toàn] KHÔNG ghi đè brand_name gốc bằng brand_name của OpenFDA
+        # Giữ nguyên brand_name đúng như OCR/User cung cấp (AGENTS.md)
         fda_ingredient = info.get("active_ingredient")
         if fda_ingredient:
             if isinstance(fda_ingredient, list):
