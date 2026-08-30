@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.endpoints.auth import get_optional_current_user
+from app.api.v1.endpoints.auth import get_current_user
 from app.core.config import OCR_PROCESSING_SLA_MS
 from app.db.session import get_db
 from app.schemas import (  # Canonical response models — single source of truth [P0/F3.1]
@@ -257,7 +257,7 @@ async def ocr_scan(
     file: UploadFile = File(...),
     source_type: str = Form("prescription", description="'prescription' (Toa thuốc/Receipt) hoặc 'packaging' (Vỏ hộp/Lọ)"),
     run_clinical: bool = Form(True, description="Chạy Clinical Assessment LLM (mặc định: true)"),
-    current_user: Optional[UserResponse] = Depends(get_optional_current_user),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> FullScanResponse:
     """
@@ -333,13 +333,6 @@ async def ocr_scan(
         clinical_latency_ms = 0
 
         if run_clinical and normalized_drugs:
-            if not current_user:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Yêu cầu đăng nhập để thực hiện đánh giá tương tác lâm sàng (run_clinical=True).",
-                    headers={"WWW-Authenticate": "Bearer"},
-                )
-
             db_profile = await profile_service.get_profile(db, current_user.id)
             if not db_profile or not current_user.is_profile_completed:
                 raise HTTPException(

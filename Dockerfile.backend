@@ -64,8 +64,10 @@ COPY --from=builder /build/wheels /wheels
 RUN pip install --no-cache-dir /wheels/* \
     && rm -rf /wheels
 
-# Copy mã nguồn ứng dụng
+# Copy mã nguồn ứng dụng & cấu hình migration
 COPY --chown=appuser:appgroup backend/app ./app
+COPY --chown=appuser:appgroup backend/alembic ./alembic
+COPY --chown=appuser:appgroup backend/alembic.ini ./alembic.ini
 COPY --chown=appuser:appgroup backend/requirements.txt ./requirements.txt
 COPY --chown=appuser:appgroup ai ./ai
 
