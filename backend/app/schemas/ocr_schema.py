@@ -98,14 +98,31 @@ class ExtractedDrugItem(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
+class OCRPipelineMetrics(BaseModel):
+    """Typed latency metrics trả về từ ONNX OCR Pipeline.
+
+    [P2/F3-harden] Thay thế `Dict[str, Any]` trong ScanEvaluationResponse —
+    shape xác định từ ai/pipelines/onnx_ocr_engine.py:187."""
+    preprocessor_ms: int = Field(0, ge=0, description="Thời gian tiền xử lý ảnh (ms)")
+    ocr_inference_ms: int = Field(0, ge=0, description="Thời gian inference OCR model (ms)")
+    total_latency_ms: int = Field(0, ge=0, description="Tổng thời gian pipeline (ms)")
+
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
 
 class ScanEvaluationResponse(BaseModel):
     """Integrated Scan + 4-Layer Clinical Evaluation Response Model."""
     engine: str = "PP-OCRv6-Pure-ONNX"
     source_stream: str = "prescription"
     extracted_drugs: List[ExtractedDrugItem] = []
-    clinical_report: Dict[str, Any] = {}
-    metrics: Dict[str, Any] = {}
+    # [P2/F3-harden] clinical_report giữ Dict[str, Any] vì
+    # ai.clinical_evaluator.rule_engine trả về cấu trúc chưa có schema
+    # chính thức — annotated và tách biệt khỏi public API “/scan”.
+    clinical_report: Dict[str, Any] = Field(default={}, description="Báo cáo 4-Layer Clinical Rule Engine (nội bộ)")
+    metrics: OCRPipelineMetrics = Field(
+        default_factory=OCRPipelineMetrics,
+        description="Latency metrics chi tiết của pipeline ONNX",
+    )
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
@@ -207,7 +224,11 @@ class ClinicalAlertSummary(BaseModel):
 
 
 class FullScanResponse(BaseModel):
-    """Full Pipeline Response: Raw OCR + Mapped Drugs + Clinical Assessment."""
+    """Full Pipeline Response: Raw OCR + Mapped Drugs + Clinical Assessment.
+
+    [P2/F3-harden] `request_id` thêm vào để Frontend có thể gửi lại khi
+    cần hỗ trợ — tương quan với server log (request_id ghi vào mọi log lỗi)."""
+    request_id: str = Field("", description="UUID để trace pipeline scan trong server log")
     engine: str
     source_type: str
     raw_ocr_items: List[OCRItem]

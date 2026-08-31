@@ -93,6 +93,8 @@ class Settings(BaseSettings):
     OCR_DOC_UNWARPING: bool = False
     # SLA noi bo (ms)
     OCR_PROCESSING_SLA_MS: int = 15_000
+    # Gioi han kich thuoc file upload (MB) — vu't qua ngu'ong nay tra 400 ngay truoc khi doc bytes
+    OCR_MAX_FILE_SIZE_MB: int = 10
     # Duong dan thu muc cache weight model OCR (neu can override vi tri ~/.paddlex/)
     OCR_MODEL_DIR: Optional[str] = None
 
@@ -115,6 +117,7 @@ OCR_TEXT_REC_THRESHOLD: float = settings.OCR_TEXT_REC_THRESHOLD
 OCR_DOC_ORIENTATION: bool = settings.OCR_DOC_ORIENTATION
 OCR_DOC_UNWARPING: bool = settings.OCR_DOC_UNWARPING
 OCR_PROCESSING_SLA_MS: int = settings.OCR_PROCESSING_SLA_MS
+OCR_MAX_FILE_SIZE_MB: int = settings.OCR_MAX_FILE_SIZE_MB
 OCR_MODEL_DIR: Optional[str] = settings.OCR_MODEL_DIR
 
 __all__ = [
@@ -127,6 +130,7 @@ __all__ = [
     "OCR_DOC_ORIENTATION",
     "OCR_DOC_UNWARPING",
     "OCR_PROCESSING_SLA_MS",
+    "OCR_MAX_FILE_SIZE_MB",
     "OCR_MODEL_DIR",
 ]
 

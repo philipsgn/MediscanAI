@@ -1,4 +1,5 @@
 # Endpoint OCR + Clinical Assessment Pipeline (Pure Local, No External VLM)
+import logging
 import os
 import re
 import sys
@@ -18,7 +19,7 @@ from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.auth import get_current_user
-from app.core.config import OCR_PROCESSING_SLA_MS
+from app.core.config import OCR_MAX_FILE_SIZE_MB, OCR_PROCESSING_SLA_MS
 from app.db.session import get_db
 from app.schemas import (  # Canonical response models — single source of truth [P0/F3.1]
     ClinicalAlertSummary,
@@ -36,6 +37,11 @@ from app.services.drug_database import drug_database
 from app.services.normalization_service import NormalizationService
 from app.services.ocr_engine import ocr_engine
 from app.services.profile_service import profile_service
+
+logger = logging.getLogger(__name__)
+
+# Threshold convert từ MB thành bytes một lần duy nhất khi module load
+_MAX_FILE_SIZE_BYTES: int = OCR_MAX_FILE_SIZE_MB * 1024 * 1024
 
 
 router = APIRouter(prefix="/ocr", tags=["OCR + Clinical Assessment Pipeline"])
@@ -294,24 +300,47 @@ async def ocr_scan(
 
     Trả về: Raw OCR + Mapped Drugs + Clinical Alerts (JSON Structured)
     """
-    # Validate input
+    # Validate input — thứ tự: content_type → extension → source_type → size → bytes
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tệp tải lên phải là định dạng hình ảnh (JPEG, PNG, WEBP).",
+            detail={
+                "error_code": "INVALID_MIME_TYPE",
+                "message": "Tệp tải lên phải là định dạng hình ảnh (JPEG, PNG, WEBP).",
+                "retryable": False,
+            },
         )
 
     suffix = Path(file.filename or "").suffix.lower()
     if suffix not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Định dạng '{suffix or 'trống'}' không được hỗ trợ. Chấp nhận: {sorted(ALLOWED_EXTENSIONS)}",
+            detail={
+                "error_code": "INVALID_EXTENSION",
+                "message": f"Định dạng '{suffix or 'trống'}' không được hỗ trợ. Chấp nhận: {sorted(ALLOWED_EXTENSIONS)}",
+                "retryable": False,
+            },
         )
 
     if source_type not in {"prescription", "packaging"}:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="source_type chỉ nhận 'prescription' hoặc 'packaging'.",
+            detail={
+                "error_code": "INVALID_SOURCE_TYPE",
+                "message": "source_type chỉ nhận 'prescription' hoặc 'packaging'.",
+                "retryable": False,
+            },
+        )
+
+    # Kiểm tra size trước khi đọc toàn bộ vào memory
+    if file.size is not None and file.size > _MAX_FILE_SIZE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail={
+                "error_code": "FILE_TOO_LARGE",
+                "message": f"File vượt giới hạn {OCR_MAX_FILE_SIZE_MB}MB. Vui lòng nén hoặc cắt xén ảnh trước khi tải lên.",
+                "retryable": False,
+            },
         )
 
     try:
@@ -319,8 +348,43 @@ async def ocr_scan(
         if not image_bytes:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="File ảnh rỗng, không có dữ liệu để xử lý.",
+                detail={
+                    "error_code": "EMPTY_FILE",
+                    "message": "File ảnh rỗng, không có dữ liệu để xử lý.",
+                    "retryable": False,
+                },
             )
+
+        # Kiểm tra kích thước sau khi đọc (fallback khi file.size=None — streaming upload)
+        if len(image_bytes) > _MAX_FILE_SIZE_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail={
+                    "error_code": "FILE_TOO_LARGE",
+                    "message": f"File vượt giới hạn {OCR_MAX_FILE_SIZE_MB}MB.",
+                    "retryable": False,
+                },
+            )
+
+        # Decode validation — phát hiện file corrupt TRƯỚC khi chuyển vào OCR engine.
+        # Dùng img.load() thay vì img.verify() vì:
+        #   - verify() quá strict (invalidates image object, false positive với minimal PNG)
+        #   - load() decode pixel data thực sự → phát hiện truncated/corrupt chính xác hơn
+        try:
+            import io as _io
+            from PIL import Image as PILImage
+            _img = PILImage.open(_io.BytesIO(image_bytes))
+            _img.load()
+            _img.close()
+        except Exception as img_err:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "error_code": "CORRUPT_IMAGE",
+                    "message": "File ảnh bị hỏng hoặc không thể giải mã. Vui lòng kiểm tra và tải lại.",
+                    "retryable": False,
+                },
+            ) from img_err
 
         # ═══════════════════════════════════════════════════════════════
         # STEP 1: OCR (Dual Pipeline)
@@ -379,9 +443,16 @@ async def ocr_scan(
         # ═══════════════════════════════════════════════════════════════
         # RESPONSE
         # ═══════════════════════════════════════════════════════════════
+        request_id = str(uuid.uuid4())
         total_latency_ms = ocr_latency_ms + normalization_latency_ms + clinical_latency_ms
+        logger.info(
+            "[OCR_SCAN_OK] request_id=%s source=%s drugs=%d clinical=%s total_ms=%d",
+            request_id, source_type, len(mapped_drugs),
+            clinical_assessment is not None, total_latency_ms,
+        )
 
         return FullScanResponse(
+            request_id=request_id,
             engine=ocr_result.engine,
             source_type=ocr_result.source_type,
             raw_ocr_items=raw_ocr_items,
@@ -399,27 +470,27 @@ async def ocr_scan(
 
     except HTTPException:
         raise
-    # [P3/F3.5] Lỗi kết nối ngoài (OpenFDA/Ollama/OpenAI) đã được bắt CỤ THỂ bên
-    # trong các services với graceful degradation; catch biên cuối này chỉ là
-    # phòng thủ cho lỗi bất ngờ — luôn chuyển thành HTTPException 500 với error
-    # contract chuẩn, không bao giờ để raise trần hoặc lộ stack trace ra Frontend.
+    # Phòng thủ biên cuối: phân loại lỗi trước khi trả về FE.
+    # - Programming errors (NameError, AttributeError, TypeError...) → retryable=False
+    # - External service timeouts → retryable=True
     except Exception as exc:  # noqa: BLE001
         request_id = str(uuid.uuid4())
-        import logging
-        logging.getLogger(__name__).exception(
-            "[OCR_PIPELINE_ERROR] request_id=%s stage=ocr_scan error=%s",
-            request_id,
-            exc,
+        # Phân loại: lỗi lập trình KHÔNG retry được; lỗi external service CÓ thể retry
+        is_programming_error = isinstance(exc, (NameError, AttributeError, TypeError, ValueError, ImportError))
+        retryable = not is_programming_error
+        logger.exception(
+            "[OCR_PIPELINE_ERROR] request_id=%s stage=ocr_scan retryable=%s error_type=%s",
+            request_id, retryable, type(exc).__name__,
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
                 "error_code": "INTERNAL_SERVER_ERROR",
-                "message": "Đã xảy ra lỗi trong quá trình xử lý ảnh. Vui lòng thử lại.",
+                "message": "Đã xảy ra lỗi trong quá trình xử lý ảnh. Vui lòng thử lại." if retryable else "Lỗi hệ thống nội bộ. Vui lòng liên hệ hỗ trợ.",
                 "service": "ocr_clinical_pipeline",
                 "stage": "ocr_scan",
                 "request_id": request_id,
-                "retryable": True,
+                "retryable": retryable,
             },
         ) from exc
 
@@ -494,17 +565,37 @@ async def process_scan_pipeline(
             user_prof,
         )
 
+        from app.schemas.ocr_schema import OCRPipelineMetrics
+        raw_metrics = ai_out.get("metrics", {})
         return ScanEvaluationResponse(
             engine="PP-OCRv6-Pure-ONNX",
             source_stream=source_stream,
             extracted_drugs=extracted_drugs,
             clinical_report=eval_report,
-            metrics=ai_out.get("metrics", {}),
+            metrics=OCRPipelineMetrics(
+                preprocessor_ms=raw_metrics.get("preprocessor_ms", 0),
+                ocr_inference_ms=raw_metrics.get("ocr_inference_ms", 0),
+                total_latency_ms=raw_metrics.get("total_latency_ms", 0),
+            ),
         )
     except HTTPException:
         raise
     except Exception as exc:
+        request_id = str(uuid.uuid4())
+        is_programming_error = isinstance(exc, (NameError, AttributeError, TypeError, ValueError, ImportError))
+        retryable = not is_programming_error
+        logger.exception(
+            "[PROCESS_PIPELINE_ERROR] request_id=%s retryable=%s error_type=%s",
+            request_id, retryable, type(exc).__name__,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Lỗi AI Pipeline Scan: {exc}",
-        ) from exc
+            detail={
+                "error_code": "INTERNAL_SERVER_ERROR",
+                "message": "Đã xảy ra lỗi trong quá trình xử lý ảnh. Vui lòng thử lại." if retryable else "Lỗi hệ thống nội bộ. Vui lòng liên hệ hỗ trợ.",
+                "service": "onnx_ocr_pipeline",
+                "stage": "process_scan",
+                "request_id": request_id,
+                "retryable": retryable,
+            },
+        ) from exc
