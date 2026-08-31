@@ -11,16 +11,19 @@ from app.schemas.ocr_schema import (  # noqa: E402
     clamp_severity,
     ClinicalAlertSummary,
     ClinicalAssessmentResponse,
+    DosageCheckResult,
     DrugConditionAlert,
     DrugInteractionAlert,
+    EvaluationResponse,
     ExtractedDrugItem,
-    OCRPipelineMetrics,
-    ScanEvaluationResponse,
     FullScanResponse,
+    InteractionAlert,
     MappedDrugItem,
     MedicineScanResult,
     OCRItem,
+    OCRPipelineMetrics,
     OverdoseAlert,
+    ScanEvaluationResponse,
 )
 
 class UserProfile(BaseModel):
@@ -83,54 +86,6 @@ class DrugSearchResult(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
-class InteractionAlert(BaseModel):
-    """Alert hợp nhất cho báo cáo đánh giá — severity là NGUỒN QUYẾT ĐỊNH cuối cùng
-    thuộc rule-engine Stage 5; LLM chỉ enrich văn bản [F3.3]. Giá trị lạ từ LLM
-    được fail-safe clamp về HIGH, không bao giờ hạ xuống LOW [F3.2]."""
-
-    severity: Literal["HIGH", "MEDIUM", "LOW"]
-    title: str = Field(..., description="Tiêu đề cảnh báo ngắn gọn")
-    description: str = Field(..., description="Chi tiết tương tác/xung đột thuốc")
-    recommendation: str = Field(..., description="Lời khuyên y tế hướng xử lý")
-
-    @field_validator("severity", mode="before")
-    @classmethod
-    def _severity_fail_safe(cls, v: object) -> str:
-        return clamp_severity(v)
-
-    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
-
-class EvaluationResponse(BaseModel):
-    """Response chính — 4 Layer (Overdose, Drug-Drug, Drug-Condition, Dosage).
-
-    [Task 5.5] Đã mở rộng so với ban đầu: bổ sung `dosage_checks`
-    (Layer 4 — kết quả đối chiếu liều) và `final_summary`
-    (tóm tắt tổng hợp toàn bộ cảnh báo — yêu cầu AGENTS §3.B.4/DoD #5).
-    """
-    total_drugs_analyzed: int
-    alerts: List[InteractionAlert]
-    schedule_suggestions: List[str] = Field(default=[], description="Gợi ý phân chia lịch uống thuốc an toàn")
-    # [Task 5.5] Layer 4 + Final Summary
-    dosage_checks: List["DosageCheckResult"] = Field(default=[], description="Kết quả Layer 4 - đối chiếu liều dùng")
-    final_summary: str = Field("", description="Tóm tắt tổng quan tình trạng và lời khuyên cuối cùng cho User")
-
-    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
-
-
-class DosageCheckResult(BaseModel):
-    """Kết quả Layer 4: Đối chiếu liều thực tế (kê toa hoặc tự nhập) với liều
-    khuyến cáo chuẩn theo population (tuổi/bệnh nền). Schema khớp 100%
-    ARCHITECTURE.md §5.1 + IDosageCheckResult phía frontend (§3.A.2)."""
-    drug_name: str = Field(..., description="Tên thuốc được kiểm tra")
-    prescribed_or_input_dosage: str = Field(..., description="Liều kê toa/người dùng nhập (chuỗi gốc)")
-    recommended_dosage: str = Field(..., description="Liều khuyến cáo tham khảo (theo population)")
-    is_appropriate: Optional[bool] = Field(
-        default=None,
-        description="True=phù hợp, False=chênh lệch, None=không đủ dữ liệu/trẻ em ngoài phạm vi",
-    )
-    note: str = Field(default="", description="Ghi chú theo mẫu an toàn — tuyệt đối tuân thủ đứng dẫn ngôn từ (§5)")
-
-    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
 class DrugEvaluationRequest(BaseModel):
     user_profile: Optional[UserProfile] = Field(None, description="Hồ sơ bệnh nhân (tuổi, bệnh nền, dị ứng)")

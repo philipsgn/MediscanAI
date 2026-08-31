@@ -102,7 +102,9 @@ async def test_ocr_scan_clinical_rejects_incomplete_onboarding():
             res = await client.post("/api/v1/ocr/scan", files=files, data=data, headers=headers)
 
         assert res.status_code == 422
-        assert "chưa hoàn tất hồ sơ y tế" in res.json().get("detail", "")
+        detail = res.json().get("detail", {})
+        msg = detail.get("message", "") if isinstance(detail, dict) else str(detail)
+        assert "chưa hoàn tất hồ sơ y tế" in msg
 
 
 @pytest.mark.asyncio

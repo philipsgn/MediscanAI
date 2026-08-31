@@ -98,6 +98,50 @@ class ExtractedDrugItem(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
+class InteractionAlert(BaseModel):
+    """Alert hợp nhất cho báo cáo đánh giá — severity là NGUỒN QUYẾT ĐỊNH cuối cùng
+    thuộc rule-engine Stage 5; LLM chỉ enrich văn bản [F3.3]. Giá trị lạ từ LLM
+    được fail-safe clamp về HIGH, không bao giờ hạ xuống LOW [F3.2]."""
+
+    severity: Literal["HIGH", "MEDIUM", "LOW"]
+    title: str = Field(..., description="Tiêu đề cảnh báo ngắn gọn")
+    description: str = Field(..., description="Chi tiết tương tác/xung đột thuốc")
+    recommendation: str = Field(..., description="Lời khuyên y tế hướng xử lý")
+
+    @field_validator("severity", mode="before")
+    @classmethod
+    def _severity_fail_safe(cls, v: object) -> str:
+        return clamp_severity(v)
+
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+
+class DosageCheckResult(BaseModel):
+    """Kết quả Layer 4: Đối chiếu liều thực tế (kê toa hoặc tự nhập) với liều
+    khuyến cáo chuẩn theo population (tuổi/bệnh nền)."""
+    drug_name: str = Field(..., description="Tên thuốc được kiểm tra")
+    prescribed_or_input_dosage: str = Field(..., description="Liều kê toa/người dùng nhập (chuỗi gốc)")
+    recommended_dosage: str = Field(..., description="Liều khuyến cáo tham khảo (theo population)")
+    is_appropriate: Optional[bool] = Field(
+        default=None,
+        description="True=phù hợp, False=chênh lệch, None=không đủ dữ liệu/trẻ em ngoài phạm vi",
+    )
+    note: str = Field(default="", description="Ghi chú theo mẫu an toàn")
+
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+
+class EvaluationResponse(BaseModel):
+    """Response chính — 4 Layer (Overdose, Drug-Drug, Drug-Condition, Dosage)."""
+    total_drugs_analyzed: int = 0
+    alerts: List[InteractionAlert] = []
+    schedule_suggestions: List[str] = Field(default=[], description="Gợi ý phân chia lịch uống thuốc an toàn")
+    dosage_checks: List[DosageCheckResult] = Field(default=[], description="Kết quả Layer 4 - đối chiếu liều dùng")
+    final_summary: str = Field("", description="Tóm tắt tổng quan tình trạng và lời khuyên cuối cùng cho User")
+
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+
 class OCRPipelineMetrics(BaseModel):
     """Typed latency metrics trả về từ ONNX OCR Pipeline.
 
@@ -115,14 +159,15 @@ class ScanEvaluationResponse(BaseModel):
     engine: str = "PP-OCRv6-Pure-ONNX"
     source_stream: str = "prescription"
     extracted_drugs: List[ExtractedDrugItem] = []
-    # [P2/F3-harden] clinical_report giữ Dict[str, Any] vì
-    # ai.clinical_evaluator.rule_engine trả về cấu trúc chưa có schema
-    # chính thức — annotated và tách biệt khỏi public API “/scan”.
-    clinical_report: Dict[str, Any] = Field(default={}, description="Báo cáo 4-Layer Clinical Rule Engine (nội bộ)")
+    clinical_report: Optional[EvaluationResponse] = Field(
+        default=None,
+        description="Báo cáo 4-Layer Clinical Rule Engine",
+    )
     metrics: OCRPipelineMetrics = Field(
         default_factory=OCRPipelineMetrics,
         description="Latency metrics chi tiết của pipeline ONNX",
     )
+    request_id: str = Field("", description="UUID để trace pipeline scan trong server log")
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 

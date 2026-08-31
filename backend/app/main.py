@@ -53,13 +53,24 @@ app.add_exception_handler(RateLimitExceeded, custom_rate_limit_exceeded_handler)
 
 # Cấu hình CORS mở rộng hỗ trợ Web Desktop & Mobile
 app.add_middleware(
-
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def request_tracing_middleware(request, call_next):
+    """Request tracing middleware: guarantees every request carries a single consistent request_id."""
+    import uuid
+    request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    request.state.request_id = request_id
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    return response
+
 
 # Route Authentication System (Stage 8)
 app.include_router(auth_router, prefix=settings.API_V1_STR)
@@ -77,14 +88,71 @@ app.include_router(ocr_router, prefix=settings.API_V1_STR)
 # Route Drug Lookup (autocomplete) [S4-Closeout/F4.3]
 app.include_router(drugs_router, prefix=settings.API_V1_STR)
 
+
 @app.get("/", tags=["Health Check"])
 async def root() -> dict[str, str]:
     return {
         "status": "online",
         "app": settings.PROJECT_NAME,
         "version": settings.VERSION,
-        "docs_url": "/docs"
+        "docs_url": "/docs",
     }
+
+
+@app.get("/health/live", tags=["Health Check"])
+async def liveness() -> dict[str, str]:
+    """Liveness probe: verifies server process is responsive."""
+    return {"status": "ok", "probe": "liveness", "version": settings.VERSION}
+
+
+@app.get("/health/ready", tags=["Health Check"])
+async def readiness() -> dict[str, Any]:
+    """Readiness probe: verifies database connectivity and core config state."""
+    from sqlalchemy import text
+    from app.db.session import AsyncSessionLocal
+
+    db_status = "ok"
+    try:
+        async with AsyncSessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[HEALTH_READY] Database check failed: %s", exc)
+        db_status = f"error: {type(exc).__name__}"
+
+    is_ready = db_status == "ok"
+    return {
+        "status": "ready" if is_ready else "degraded",
+        "probe": "readiness",
+        "database": db_status,
+        "version": settings.VERSION,
+    }
+
+
+@app.post("/health/warmup", tags=["Health Check"])
+async def warmup() -> dict[str, Any]:
+    """Dedicated Model Warmup: preloads OCR models without blocking health probes."""
+    import time
+    from app.services.ocr_engine import ocr_engine
+
+    started = time.perf_counter()
+    try:
+        _ = ocr_engine.paddle_ocr
+        _ = ocr_engine.paddle_ocr_packaging
+        elapsed_ms = int(round((time.perf_counter() - started) * 1000))
+        return {
+            "status": "ok",
+            "warmup": "completed",
+            "elapsed_ms": elapsed_ms,
+        }
+    except Exception as exc:  # noqa: BLE001
+        elapsed_ms = int(round((time.perf_counter() - started) * 1000))
+        logger.error("[WARMUP_FAILED] %s", exc)
+        return {
+            "status": "failed",
+            "warmup": "error",
+            "error": str(exc),
+            "elapsed_ms": elapsed_ms,
+        }
 
 # ══════════════════════════════════════════════════════════════════════════════
 # [Audit-S3 / P1 / F3.3] RANH GIỚI STAGE 5 — THAY ĐỔI ĐƯỢC ARCHITECT PHÊ DUYỆT
