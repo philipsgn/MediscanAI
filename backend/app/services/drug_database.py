@@ -184,11 +184,36 @@ class DrugDatabase:
             self._openfda_brand_cache[clean_k] = None
         return None
 
+    @staticmethod
+    def is_valid_openfda_substance_query(token: Optional[str]) -> bool:
+        """Kiểm tra điều kiện an toàn trước khi gửi query substance lên OpenFDA:
+        1. Độ dài >= 5 ký tự chữ cái (a-z, A-Z) có nghĩa.
+        2. KHÔNG chứa dấu gạch nối '-' mà một trong các phần tách ra có độ dài <= 3 ký tự
+           (chặn 'S-ALA', 'T-P', 'AB-CD', 'Vitamin-C', 'X-ray' để tránh match nhầm hóa chất/oncology).
+        """
+        if not token or not isinstance(token, str):
+            return False
+
+        # Lấy danh sách các ký tự chữ cái thuần túy
+        alpha_chars = [c for c in token if c.isalpha()]
+        if len(alpha_chars) < 5:
+            return False
+
+        # Kiểm tra các phần phân tách bởi dấu gạch nối '-'
+        if "-" in token:
+            parts = [p.strip() for p in token.split("-") if p.strip()]
+            for p in parts:
+                p_alpha = [c for c in p if c.isalpha()]
+                if len(p_alpha) <= 3:
+                    return False
+
+        return True
+
     async def fetch_openfda_by_ingredient(self, ingredient: str) -> list[dict[str, Any]]:
-        """Tra cứu OpenFDA theo hoạt chất."""
+        """Tra cứu OpenFDA theo hoạt chất (có OpenFDA query gating)."""
         try:
             clean_ing = ingredient.strip().lower()
-            if not clean_ing or len(clean_ing) < 2:
+            if not self.is_valid_openfda_substance_query(clean_ing):
                 return []
 
             if clean_ing in self._openfda_ingredient_cache:
@@ -254,15 +279,16 @@ class DrugDatabase:
         if openfda_brand:
             return openfda_brand
 
-        # 3b. OpenFDA by brand treated as active ingredient/substance
-        openfda_substance = await self.fetch_openfda_by_ingredient(brand_name)
-        if openfda_substance:
-            res_sub = openfda_substance[0]
-            res_sub["source"] = "openfda_ingredient"
-            return res_sub
+        # 3b. OpenFDA by brand treated as active ingredient/substance (chỉ khi thỏa gating)
+        if self.is_valid_openfda_substance_query(brand_name):
+            openfda_substance = await self.fetch_openfda_by_ingredient(brand_name)
+            if openfda_substance:
+                res_sub = openfda_substance[0]
+                res_sub["source"] = "openfda_ingredient"
+                return res_sub
 
-        # 4. OpenFDA by ingredient hint
-        if ingredient_hint:
+        # 4. OpenFDA by ingredient hint (chỉ khi thỏa gating)
+        if ingredient_hint and self.is_valid_openfda_substance_query(ingredient_hint):
             openfda_ing = await self.fetch_openfda_by_ingredient(ingredient_hint)
             if openfda_ing:
                 return {"source": "openfda_ingredient", "results": openfda_ing}

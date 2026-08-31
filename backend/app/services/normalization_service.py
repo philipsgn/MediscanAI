@@ -47,7 +47,17 @@ class NormalizationService:
         if item.match_method is not None:
             return item  # local đã match — không tốn network call
 
-        info = await drug_database.get_drug_full_info(item.brand_name, None)
+        # Chuẩn bị query sạch cho OpenFDA (tách bỏ nồng độ/dấu số dính kèm nếu có để query chính xác)
+        query_name = item.brand_name
+        if item.strength:
+            query_name = re.sub(re.escape(item.strength), "", query_name, flags=re.IGNORECASE).strip()
+        query_name = re.sub(r"[\d\.\%\/\s\w\/]*$", "", query_name).strip() if not query_name else query_name
+        clean_query = re.sub(r"[^\w\s\-]", " ", item.brand_name).split()[0] if " " in item.brand_name and not query_name else (query_name or item.brand_name)
+
+        info = await drug_database.get_drug_full_info(clean_query, None)
+        if not info:
+            info = await drug_database.get_drug_full_info(item.brand_name, None)
+
         if not info or not str(info.get("source", "")).startswith("openfda"):
             return item  # giữ nhánh unmatched (confidence ≤ 0.4, unverified)
 
