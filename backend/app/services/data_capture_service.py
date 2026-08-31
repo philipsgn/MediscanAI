@@ -2,13 +2,12 @@
 data_capture_service.py
 
 Service Quản lý Lưu trữ Dữ liệu Scan, Review Queue (HITL),
-và Ground Truth Dataset cho Mediscan AI Data Platform.
-Harden:
-- Ground Truth State Machine validation
-- Non-destructive correction & Optimistic locking
-- Idempotency & Concurrency conflict detection
-- Observable capture failure tracking
-- Snapshot integrity & Dataset reproducibility
+và Structured Ground Truth Dataset cho Mediscan AI Data Platform.
+
+TUÂN THỦ PRIVACY BY DESIGN (ARCHITECTURE.md 7.1):
+- Xử lý hoàn toàn trong bộ nhớ RAM, KHÔNG lưu file ảnh scan.
+- Chỉ lưu trữ structured text/drug artifacts, quality score, flags, và human corrections.
+- `image_sha256`: Checksum SHA-256 đối soát tính duy nhất trong RAM.
 """
 
 import hashlib
@@ -29,7 +28,6 @@ from app.schemas.data_platform_schema import (
     validate_state_transition,
 )
 from app.services.data_quality_service import data_quality_service
-from app.services.storage_service import storage_service
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +78,7 @@ class DataCaptureService:
         request_id: str,
         user_id: Optional[str],
         source_type: str,
-        image_bytes: bytes,
+        image_sha256: str,
         raw_ocr_items: List[Any],
         mapped_drugs: List[Any],
         clinical_assessment: Optional[Any] = None,
@@ -88,13 +86,11 @@ class DataCaptureService:
         """
         Lưu vết scan vào bảng `scan_records` kèm version lineage và quality evaluation.
         Có cơ chế Safe Degradation (không ném Exception làm ngắt quãng response của user).
+        KHÔNG LƯU ẢNH THÔ: image_sha256 chỉ là checksum hash 64-hex xử lý trong RAM.
         """
         self._total_captures += 1
         try:
-            # 1. Lưu ảnh vào storage vật lý và phân định rõ hash SHA256 vs storage URI
-            image_sha256, image_storage_ref = storage_service.save_scan_image(image_bytes)
-
-            # 2. Đánh giá chất lượng tự động
+            # 1. Đánh giá chất lượng tự động từ structured artifacts
             quality_score, quality_flags, initial_status = data_quality_service.evaluate_scan(
                 raw_ocr_items=raw_ocr_items,
                 mapped_drugs=mapped_drugs,
@@ -107,8 +103,6 @@ class DataCaptureService:
                 user_id=user_id,
                 source_type=source_type,
                 image_sha256=image_sha256,
-                image_storage_ref=image_storage_ref,
-                image_ref=image_storage_ref,
                 status=initial_status.value,
                 quality_score=quality_score,
                 quality_flags=quality_flags,
@@ -128,8 +122,8 @@ class DataCaptureService:
             await db.refresh(scan_record)
 
             logger.info(
-                "[DATA_CAPTURE_OK] scan_id=%s request_id=%s status=%s quality=%.2f storage=%s",
-                scan_record.id, request_id, scan_record.status, quality_score, image_storage_ref,
+                "[DATA_CAPTURE_OK] scan_id=%s request_id=%s status=%s quality=%.2f sha256=%s",
+                scan_record.id, request_id, scan_record.status, quality_score, image_sha256,
             )
             return scan_record
 
@@ -333,7 +327,7 @@ class DataCaptureService:
         result = await db.execute(stmt)
         records = list(result.scalars().all())
 
-        # Tính Snapshot Hash từ ID và version của tất cả các samples
+        # Tính Snapshot Hash từ ID, version và image_sha256 của tất cả các samples
         snapshot_payload = [
             f"{r.id}:{r.version}:{r.image_sha256}"
             for r in records

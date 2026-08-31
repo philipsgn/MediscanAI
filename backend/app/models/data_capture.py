@@ -2,8 +2,13 @@
 data_capture.py
 
 SQLAlchemy Model cho bảng `scan_records` — Data-Centric AI Platform.
-Lưu trữ toàn diện scan lineage, artifacts, automated quality flags,
+Lưu trữ toàn diện scan lineage, structured text/drug artifacts, automated quality flags,
 human corrections (HITL), optimistic locking version, và dataset candidate status.
+
+TUÂN THỦ PRIVACY BY DESIGN (ARCHITECTURE.md 7.1):
+- Xử lý hình ảnh hoàn toàn trên RAM (RAM-Only).
+- Tuyệt đối không lưu trữ raw image bytes, Base64, BLOB, file path hay image URI.
+- `image_sha256`: Checksum SHA-256 đối soát trong RAM phục vụ deduplication & audit log.
 """
 
 import uuid
@@ -42,21 +47,9 @@ class ScanRecordModel(Base):
         nullable=False,
         default="prescription",
     )
-    # Phân định rạch ròi giữa SHA256 (fingerprint) và Storage Ref (URI file thật)
+    # Checksum hash SHA-256 (64 hex) đối soát tính duy nhất trong RAM, không lưu ảnh vật lý
     image_sha256: Mapped[str] = mapped_column(
         String(64),
-        nullable=False,
-        default="",
-        index=True,
-    )
-    image_storage_ref: Mapped[str] = mapped_column(
-        String(255),
-        nullable=False,
-        default="",
-        index=True,
-    )
-    image_ref: Mapped[str] = mapped_column(
-        String(255),
         nullable=False,
         default="",
         index=True,

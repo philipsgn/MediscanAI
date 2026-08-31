@@ -18,7 +18,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Upgrade schema to include scan_records for Data-Centric AI Platform."""
+    """Upgrade schema to include scan_records for Data-Centric AI Platform (RAM-only privacy)."""
     op.create_table(
         'scan_records',
         sa.Column('id', sa.String(length=36), nullable=False),
@@ -26,8 +26,6 @@ def upgrade() -> None:
         sa.Column('user_id', sa.String(length=36), nullable=True),
         sa.Column('source_type', sa.String(length=50), nullable=False),
         sa.Column('image_sha256', sa.String(length=64), nullable=False, server_default=''),
-        sa.Column('image_storage_ref', sa.String(length=255), nullable=False, server_default=''),
-        sa.Column('image_ref', sa.String(length=255), nullable=False, server_default=''),
         sa.Column('status', sa.String(length=30), nullable=False),
         sa.Column('quality_score', sa.Float(), nullable=False),
         sa.Column('quality_flags', sa.JSON(), nullable=False),
@@ -52,8 +50,6 @@ def upgrade() -> None:
     op.create_index(op.f('ix_scan_records_id'), 'scan_records', ['id'], unique=False)
     op.create_index(op.f('ix_scan_records_request_id'), 'scan_records', ['request_id'], unique=False)
     op.create_index(op.f('ix_scan_records_image_sha256'), 'scan_records', ['image_sha256'], unique=False)
-    op.create_index(op.f('ix_scan_records_image_storage_ref'), 'scan_records', ['image_storage_ref'], unique=False)
-    op.create_index(op.f('ix_scan_records_image_ref'), 'scan_records', ['image_ref'], unique=False)
     op.create_index(op.f('ix_scan_records_status'), 'scan_records', ['status'], unique=False)
     op.create_index(op.f('ix_scan_records_is_dataset_candidate'), 'scan_records', ['is_dataset_candidate'], unique=False)
     op.create_index(op.f('ix_scan_records_dataset_version'), 'scan_records', ['dataset_version'], unique=False)
@@ -66,8 +62,6 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_scan_records_dataset_version'), table_name='scan_records')
     op.drop_index(op.f('ix_scan_records_is_dataset_candidate'), table_name='scan_records')
     op.drop_index(op.f('ix_scan_records_status'), table_name='scan_records')
-    op.drop_index(op.f('ix_scan_records_image_ref'), table_name='scan_records')
-    op.drop_index(op.f('ix_scan_records_image_storage_ref'), table_name='scan_records')
     op.drop_index(op.f('ix_scan_records_image_sha256'), table_name='scan_records')
     op.drop_index(op.f('ix_scan_records_request_id'), table_name='scan_records')
     op.drop_index(op.f('ix_scan_records_id'), table_name='scan_records')

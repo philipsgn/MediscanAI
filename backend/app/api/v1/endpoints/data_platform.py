@@ -2,15 +2,19 @@
 data_platform.py
 
 API Endpoints cho Mediscan AI Data-Centric Platform:
-- Quản lý hàng đợi Review Queue & Data Quality
+- Quản lý hàng đợi Review Queue & Data Quality (Structured Artifacts only)
 - Human-in-the-Loop (HITL) Correction với Optimistic Locking & Idempotency
 - Dataset Candidate & Active Learning Ground Truth Snapshot Export
 - Data Platform Durability Metrics
+
+TUÂN THỦ PRIVACY BY DESIGN (ARCHITECTURE.md 7.1):
+- Xử lý hoàn toàn trong bộ nhớ RAM, KHÔNG lưu file ảnh scan.
+- `image_sha256`: Checksum SHA-256 đối soát tính duy nhất trong RAM.
 """
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,7 +39,6 @@ from app.schemas.data_platform_schema import (
 from app.schemas.ocr_schema import EvaluationResponse, MappedDrugItem, OCRItem
 from app.schemas.user_schema import UserResponse
 from app.services.data_capture_service import ConcurrencyConflictError, data_capture_service
-from app.services.storage_service import storage_service
 
 logger = logging.getLogger(__name__)
 
@@ -82,8 +85,6 @@ async def list_review_queue(
             user_id=rec.user_id,
             source_type=rec.source_type,
             image_sha256=rec.image_sha256 or "",
-            image_storage_ref=rec.image_storage_ref or rec.image_ref,
-            image_ref=rec.image_ref,
             status=ScanRecordStatus(rec.status),
             quality_score=rec.quality_score,
             quality_flags=rec.quality_flags or [],
@@ -111,7 +112,7 @@ async def get_scan_review_detail(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ScanReviewDetailResponse:
-    """Lấy chi tiết toàn bộ artifacts của một scan phục vụ giao diện hiệu đính Human-in-the-Loop."""
+    """Lấy chi tiết toàn bộ structured artifacts của một scan phục vụ giao diện hiệu đính Human-in-the-Loop."""
     rec = await data_capture_service.get_scan_record(db, scan_id)
     if not rec:
         raise HTTPException(
@@ -130,8 +131,6 @@ async def get_scan_review_detail(
     normalized = [MappedDrugItem(**item) for item in (rec.normalized_result or [])]
     clinical = EvaluationResponse(**rec.clinical_result) if rec.clinical_result else None
     lineage = PipelineLineageMetadata(**(rec.version_metadata or {}))
-    storage_ref = rec.image_storage_ref or rec.image_ref
-    image_available = storage_service.image_exists(storage_ref)
 
     return ScanReviewDetailResponse(
         scan_id=rec.id,
@@ -139,9 +138,6 @@ async def get_scan_review_detail(
         user_id=rec.user_id,
         source_type=rec.source_type,
         image_sha256=rec.image_sha256 or "",
-        image_storage_ref=storage_ref,
-        image_ref=rec.image_ref,
-        image_available=image_available,
         status=ScanRecordStatus(rec.status),
         quality_score=rec.quality_score,
         quality_flags=rec.quality_flags or [],
@@ -270,6 +266,7 @@ async def export_dataset(
     """
     Xuất tập dữ liệu Ground Truth hoàn chỉnh cho Active Learning / Model Fine-tuning.
     Bao gồm: Raw OCR items, Ground Truth do Reviewer xác nhận, Model Lineage, và Snapshot Hash.
+    KHÔNG CHỨA ẢNH THÔ: Chỉ chứa structured text/tokens và checksum hash.
     """
     snapshot_hash, records = await data_capture_service.export_dataset(
         db=db,
@@ -288,16 +285,12 @@ async def export_dataset(
             corrected_drugs = [HumanCorrectedDrug(**d) for d in drugs_list]
 
         lineage = PipelineLineageMetadata(**(rec.version_metadata or {}))
-        storage_ref = rec.image_storage_ref or rec.image_ref
-        image_available = storage_service.image_exists(storage_ref)
 
         samples.append(
             DatasetExportItem(
                 scan_id=rec.id,
                 source_type=rec.source_type,
                 image_sha256=rec.image_sha256 or "",
-                image_storage_ref=storage_ref,
-                image_available=image_available,
                 raw_ocr_items=raw_ocr,
                 ground_truth_drugs=corrected_drugs,
                 original_ai_normalized_drugs=original_ai,

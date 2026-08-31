@@ -1,4 +1,5 @@
 # Endpoint OCR + Clinical Assessment Pipeline (Pure Local, No External VLM)
+import hashlib
 import io
 import logging
 import os
@@ -563,14 +564,15 @@ async def ocr_scan(
             clinical_latency_ms = int(round((time.perf_counter() - clinical_started) * 1000))
 
         # ═══════════════════════════════════════════════════════════════
-        # STEP 4: Data-Centric AI Platform Persistence (Safe Degradation)
+        # STEP 4: Structured Data Capture (RAM-Only Checksum, No Image Disk Storage)
         # ═══════════════════════════════════════════════════════════════
+        image_sha256 = hashlib.sha256(image_bytes).hexdigest()
         scan_record = await data_capture_service.capture_scan(
             db=db,
             request_id=request_id,
             user_id=current_user.id if current_user else None,
             source_type=source_type,
-            image_bytes=image_bytes,
+            image_sha256=image_sha256,
             raw_ocr_items=raw_ocr_items,
             mapped_drugs=mapped_drugs,
             clinical_assessment=clinical_assessment,

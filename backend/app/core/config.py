@@ -102,9 +102,6 @@ class Settings(BaseSettings):
     # Duong dan thu muc cache weight model OCR (neu can override vi tri ~/.paddlex/)
     OCR_MODEL_DIR: Optional[str] = None
 
-    # Thu muc luu tru scan images cho Data Platform & Training Lineage
-    SCAN_STORAGE_DIR: str = "data/storage/scans"
-
     model_config = SettingsConfigDict(
         env_file=("backend/.env", ".env"),
         env_file_encoding="utf-8",
@@ -128,7 +125,6 @@ OCR_MAX_FILE_SIZE_MB: int = settings.OCR_MAX_FILE_SIZE_MB
 OCR_MAX_IMAGE_DIMENSION: int = settings.OCR_MAX_IMAGE_DIMENSION
 OCR_MAX_IMAGE_PIXELS: int = settings.OCR_MAX_IMAGE_PIXELS
 OCR_MODEL_DIR: Optional[str] = settings.OCR_MODEL_DIR
-SCAN_STORAGE_DIR: str = settings.SCAN_STORAGE_DIR
 
 __all__ = [
     "Settings",
@@ -144,6 +140,5 @@ __all__ = [
     "OCR_MAX_IMAGE_DIMENSION",
     "OCR_MAX_IMAGE_PIXELS",
     "OCR_MODEL_DIR",
-    "SCAN_STORAGE_DIR",
 ]
 

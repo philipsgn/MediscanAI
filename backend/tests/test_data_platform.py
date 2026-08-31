@@ -1,20 +1,22 @@
 """
 test_data_platform.py
 
-P0/P1 Production Hardening Test Suite for Mediscan AI Data-Centric Platform:
-1. State Machine & Transition Validation (Strict Ground Truth Lifecycle).
-2. ONLY `ACCEPTED` status can become Dataset Candidate / Ground Truth.
-3. Separation of Image SHA-256 fingerprint vs. Image Storage Reference.
-4. Non-silent Data Capture Failure & Metrics Monitoring.
-5. Concurrent Review Safety (Optimistic Locking Conflict Detection).
-6. Mutation Idempotency (Safe Network Retries).
-7. Dataset Snapshot Hash Integrity & Reproducibility.
-8. Zero-Overwrite of Raw AI Predictions.
+Privacy Hardening & Data Platform Test Suite for Mediscan AI:
+1. RAM-Only Pipeline Verification: Scan processing creates ZERO image files on disk.
+2. Complete absence of image_storage_ref / image_ref in API schemas and responses.
+3. State Machine & Transition Validation (Strict Ground Truth Lifecycle).
+4. ONLY `ACCEPTED` status can become Dataset Candidate / Ground Truth.
+5. Non-silent Data Capture Failure & Metrics Monitoring.
+6. Concurrent Review Safety (Optimistic Locking Conflict Detection).
+7. Mutation Idempotency (Safe Network Retries).
+8. Dataset Snapshot Hash Integrity & Reproducibility.
+9. Zero-Overwrite of Raw AI Predictions.
 """
 
 import io
 import os
 import uuid
+from pathlib import Path
 from typing import Dict
 
 import pytest
@@ -40,7 +42,6 @@ from app.models.data_capture import ScanRecordModel
 from app.schemas.data_platform_schema import ScanRecordStatus
 from app.services.data_capture_service import data_capture_service
 from app.services.data_quality_service import data_quality_service
-from app.services.storage_service import storage_service
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -89,7 +90,58 @@ async def _create_authenticated_user(client: AsyncClient) -> Dict[str, str]:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1. State Machine & Transition Validation Tests
+# 1. RAM-Only Pipeline & ZERO Image Disk Persistence Verification
+# ─────────────────────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_ram_only_pipeline_zero_image_persistence():
+    """
+    KIỂM THỬ QUYỀN RIÊNG TƯ TUYỆT ĐỐI (ARCHITECTURE.md 7.1):
+    1. Scan thực tế xử lý 100% trong RAM.
+    2. Không sinh bất kỳ file ảnh nào trên đĩa cứng (thư mục data/storage không được tạo).
+    3. Không tồn tại các trường imageStorageRef / imageRef / imageAvailable trong response.
+    4. Chỉ lưu fingerprint checksum SHA-256 (64 hex) phục vụ deduplication/audit log.
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        auth = await _create_authenticated_user(client)
+        headers = {"Authorization": auth["Authorization"]}
+
+        await client.post(
+            "/api/v1/profile",
+            json={"age": 30, "conditions": [], "allergies": []},
+            headers=headers,
+        )
+
+        png_bytes = _make_minimal_png_bytes()
+        scan_resp = await client.post(
+            "/api/v1/ocr/scan",
+            files={"file": ("privacy_test.png", png_bytes, "image/png")},
+            data={"source_type": "packaging", "run_clinical": "false"},
+            headers=headers,
+        )
+        assert scan_resp.status_code == 200
+        scan_id = scan_resp.json()["scanId"]
+
+        # 1. Kiểm tra chi tiết scan review
+        detail_resp = await client.get(f"/api/v1/data/reviews/{scan_id}", headers=headers)
+        assert detail_resp.status_code == 200
+        detail = detail_resp.json()
+
+        # Checksum SHA-256 đối soát
+        assert len(detail["imageSha256"]) == 64
+        # Xác nhận các trường lưu trữ ảnh đã bị xóa hoàn toàn khỏi schema
+        assert "imageStorageRef" not in detail
+        assert "imageRef" not in detail
+        assert "imageAvailable" not in detail
+
+        # 2. Xác nhận không có bất kỳ thư mục data/storage nào được tạo trên ổ đĩa
+        assert not Path("data/storage").exists(), "LỖI BẢO MẬT: Thư mục data/storage vẫn tồn tại!"
+        assert not Path("data/storage/scans").exists(), "LỖI BẢO MẬT: Thư mục data/storage/scans vẫn tồn tại!"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2. State Machine & Transition Validation Tests
 # ─────────────────────────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
@@ -100,7 +152,6 @@ async def test_invalid_state_transition_is_rejected():
         auth = await _create_authenticated_user(client)
         headers = {"Authorization": auth["Authorization"]}
 
-        # Onboard user
         await client.post(
             "/api/v1/profile",
             json={"age": 30, "conditions": [], "allergies": []},
@@ -133,7 +184,7 @@ async def test_invalid_state_transition_is_rejected():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2. ONLY ACCEPTED Can Become Dataset Candidate
+# 3. ONLY ACCEPTED Can Become Dataset Candidate
 # ─────────────────────────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
@@ -201,40 +252,6 @@ async def test_only_accepted_can_become_dataset_candidate():
         )
         assert good_resp.status_code == 200
         assert good_resp.json()["isDatasetCandidate"] is True
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 3. Image SHA-256 vs. Storage Reference Separation
-# ─────────────────────────────────────────────────────────────────────────────
-
-@pytest.mark.asyncio
-async def test_image_sha256_distinct_from_storage_reference():
-    """Kiểm tra: image_sha256 là 64-char hex, trong khi image_storage_ref là URI file://."""
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        auth = await _create_authenticated_user(client)
-        headers = {"Authorization": auth["Authorization"]}
-
-        await client.post(
-            "/api/v1/profile",
-            json={"age": 30, "conditions": [], "allergies": []},
-            headers=headers,
-        )
-
-        png_bytes = _make_minimal_png_bytes()
-        scan_resp = await client.post(
-            "/api/v1/ocr/scan",
-            files={"file": ("test_storage.png", png_bytes, "image/png")},
-            data={"source_type": "packaging", "run_clinical": "false"},
-            headers=headers,
-        )
-        scan_id = scan_resp.json()["scanId"]
-
-        detail = (await client.get(f"/api/v1/data/reviews/{scan_id}", headers=headers)).json()
-        assert len(detail["imageSha256"]) == 64
-        assert not detail["imageSha256"].startswith("file://")
-        assert detail["imageStorageRef"].startswith("file://")
-        assert detail["imageAvailable"] is True
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -343,7 +360,7 @@ async def test_human_correction_is_idempotent():
 async def test_dataset_export_snapshot_hash_and_reproducibility():
     """
     Kiểm thử: Dataset export bao gồm snapshot_hash, lineage metadata
-    và chỉ xuất các bản ghi đã ACCEPTED.
+    và chỉ xuất các bản ghi structured đã ACCEPTED.
     """
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -387,6 +404,7 @@ async def test_dataset_export_snapshot_hash_and_reproducibility():
         sample = next(s for s in body["samples"] if s["scanId"] == scan_id)
         assert sample["lineage"]["gitCommitHash"] is not None
         assert sample["lineage"]["ocrModelHash"] is not None
+        assert "imageStorageRef" not in sample
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -404,7 +422,6 @@ async def test_data_capture_failure_is_observable_and_tracked(monkeypatch):
         auth = await _create_authenticated_user(client)
         headers = {"Authorization": auth["Authorization"]}
 
-        # Onboard user
         await client.post(
             "/api/v1/profile",
             json={"age": 30, "conditions": [], "allergies": []},
@@ -414,19 +431,13 @@ async def test_data_capture_failure_is_observable_and_tracked(monkeypatch):
         metrics_before = (await client.get("/api/v1/data/metrics", headers=headers)).json()
         initial_fails = metrics_before["failedCaptures"]
 
-        # Giả lập lỗi DB commit bên trong capture_scan
-        from sqlalchemy.exc import OperationalError
-
-        async def _mock_db_add_raise(*_args, **_kwargs):
-            raise OperationalError("Simulated DB connection lost", None, None)
-
-        # Gọi capture_scan trực tiếp để kiểm tra cơ chế tracking
+        # Gọi capture_scan trực tiếp với db=None để kiểm tra cơ chế tracking
         res = await data_capture_service.capture_scan(
             db=None,  # Will raise error
             request_id="test-fail-trace-1",
             user_id=auth["user_id"],
             source_type="packaging",
-            image_bytes=_make_minimal_png_bytes(),
+            image_sha256="0" * 64,
             raw_ocr_items=[],
             mapped_drugs=[],
         )

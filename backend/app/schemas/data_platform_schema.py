@@ -2,9 +2,13 @@
 data_platform_schema.py
 
 Pydantic Schemas cho Data-Centric AI Platform:
-- Review Queue & Data Quality Management
+- Review Queue & Data Quality Management (Structured Artifacts only)
 - Human-in-the-Loop (HITL) Correction with Optimistic Locking
 - Dataset Candidate & Active Learning Lineage & Snapshot Integrity
+
+TUÂN THỦ PRIVACY BY DESIGN (ARCHITECTURE.md 7.1):
+- Xử lý hoàn toàn trong bộ nhớ RAM, không lưu ảnh thô hoặc file URI.
+- `image_sha256`: Checksum đối soát tính duy nhất trong RAM.
 """
 
 from datetime import datetime
@@ -121,14 +125,12 @@ class HumanCorrectionResponse(BaseModel):
 
 
 class ScanReviewSummaryItem(BaseModel):
-    """Item tóm tắt trong danh sách hàng đợi Review."""
+    """Item tóm tắt trong danh sách hàng đợi Review (chỉ chứa structured metadata)."""
     scan_id: str
     request_id: str
     user_id: Optional[str] = None
     source_type: str
-    image_sha256: str
-    image_storage_ref: str
-    image_ref: str
+    image_sha256: str = Field(..., description="Mã băm SHA-256 đối soát của ảnh đầu vào (xử lý RAM-only)")
     status: ScanRecordStatus
     quality_score: float
     quality_flags: List[str]
@@ -153,15 +155,12 @@ class ScanReviewListResponse(BaseModel):
 
 
 class ScanReviewDetailResponse(BaseModel):
-    """Chi tiết toàn bộ scan artifacts phục vụ giao diện Reviewer."""
+    """Chi tiết toàn bộ structured artifacts phục vụ giao diện Reviewer."""
     scan_id: str
     request_id: str
     user_id: Optional[str] = None
     source_type: str
-    image_sha256: str
-    image_storage_ref: str
-    image_ref: str
-    image_available: bool = Field(True, description="Ảnh vật lý có thể truy xuất từ storage disk/cloud hay không")
+    image_sha256: str = Field(..., description="Mã băm SHA-256 đối soát của ảnh đầu vào (xử lý RAM-only)")
     status: ScanRecordStatus
     quality_score: float
     quality_flags: List[str]
@@ -205,12 +204,10 @@ class DatasetCandidateResponse(BaseModel):
 
 
 class DatasetExportItem(BaseModel):
-    """Một mẫu dữ liệu trong dataset xuất ra cho Active Learning / Fine-tuning."""
+    """Một mẫu dữ liệu trong dataset xuất ra cho Active Learning / Fine-tuning (Structured only)."""
     scan_id: str
     source_type: str
-    image_sha256: str
-    image_storage_ref: str
-    image_available: bool
+    image_sha256: str = Field(..., description="Mã băm SHA-256 đối soát của ảnh đầu vào (xử lý RAM-only)")
     raw_ocr_items: List[OCRItem]
     ground_truth_drugs: List[HumanCorrectedDrug]
     original_ai_normalized_drugs: List[MappedDrugItem]
