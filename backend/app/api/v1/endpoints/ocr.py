@@ -3,9 +3,10 @@ import os
 import re
 import sys
 import time
+import uuid
 from collections import Counter
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 # Ensure repository root is in sys.path for importing ai subsystem
 repo_root = str(Path(__file__).resolve().parents[4])
@@ -98,7 +99,7 @@ STRENGTH_REGEX = re.compile(
 )
 
 
-def _ocr_items_to_drug_items(raw_items: list, source_type: str) -> list:
+def _ocr_items_to_drug_items(raw_items: list[OCRItem], source_type: str) -> list:
     """Convert raw OCR text lines to DrugItem objects for normalization.
     - Pipeline 1 (packaging): Trích xuất tên sạch, lọc slogan/bao bì, dosage_instruction = None.
     - Pipeline 2 (prescription): Bóc tách tên thuốc, hàm lượng và ghép liều dùng liên tiếp."""
@@ -106,7 +107,7 @@ def _ocr_items_to_drug_items(raw_items: list, source_type: str) -> list:
 
     if source_type == "packaging":
         # Sắp xếp các box theo diện tích giảm dần để ưu tiên nhãn/tên thương mại lớn nhất
-        def _get_box_area(item: Any) -> float:
+        def _get_box_area(item: OCRItem) -> float:
             box = getattr(item, "box", None) or []
             if len(box) == 4:
                 return float(max(0.0, box[2] - box[0]) * max(0.0, box[3] - box[1]))
@@ -400,12 +401,26 @@ async def ocr_scan(
         raise
     # [P3/F3.5] Lỗi kết nối ngoài (OpenFDA/Ollama/OpenAI) đã được bắt CỤ THỂ bên
     # trong các services với graceful degradation; catch biên cuối này chỉ là
-    # phòng thủ cho lỗi bất ngờ — luôn chuyển thành HTTPException 500 có mã lỗi
-    # rõ ràng, không bao giờ để raise trần làm sập endpoint.
+    # phòng thủ cho lỗi bất ngờ — luôn chuyển thành HTTPException 500 với error
+    # contract chuẩn, không bao giờ để raise trần hoặc lộ stack trace ra Frontend.
     except Exception as exc:  # noqa: BLE001
+        request_id = str(uuid.uuid4())
+        import logging
+        logging.getLogger(__name__).exception(
+            "[OCR_PIPELINE_ERROR] request_id=%s stage=ocr_scan error=%s",
+            request_id,
+            exc,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Lỗi pipeline OCR+Clinical: {exc}",
+            detail={
+                "error_code": "INTERNAL_SERVER_ERROR",
+                "message": "Đã xảy ra lỗi trong quá trình xử lý ảnh. Vui lòng thử lại.",
+                "service": "ocr_clinical_pipeline",
+                "stage": "ocr_scan",
+                "request_id": request_id,
+                "retryable": True,
+            },
         ) from exc
 
 
