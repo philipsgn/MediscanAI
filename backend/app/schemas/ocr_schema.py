@@ -273,6 +273,7 @@ class FullScanResponse(BaseModel):
 
     [P2/F3-harden] `request_id` thêm vào để Frontend có thể gửi lại khi
     cần hỗ trợ — tương quan với server log (request_id ghi vào mọi log lỗi)."""
+    scan_id: Optional[str] = Field(None, description="Unique Scan Record ID trong Data Platform phục vụ Lineage & HITL Review")
     request_id: str = Field("", description="UUID để trace pipeline scan trong server log")
     engine: str
     source_type: str

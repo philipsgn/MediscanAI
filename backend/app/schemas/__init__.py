@@ -117,6 +117,19 @@ from app.schemas.history_reminder_schema import (
     ReminderResponse,
     AdherenceStats,
 )
+from app.schemas.data_platform_schema import (
+    ScanRecordStatus,
+    HumanCorrectedDrug,
+    HumanCorrectionRequest,
+    HumanCorrectionResponse,
+    ScanReviewSummaryItem,
+    ScanReviewListResponse,
+    ScanReviewDetailResponse,
+    DatasetCandidateRequest,
+    DatasetCandidateResponse,
+    DatasetExportItem,
+    DatasetExportResponse,
+)
 
 __all__ = [
     "UserProfile",
@@ -152,4 +165,15 @@ __all__ = [
     "ReminderLogItem",
     "ReminderResponse",
     "AdherenceStats",
+    "ScanRecordStatus",
+    "HumanCorrectedDrug",
+    "HumanCorrectionRequest",
+    "HumanCorrectionResponse",
+    "ScanReviewSummaryItem",
+    "ScanReviewListResponse",
+    "ScanReviewDetailResponse",
+    "DatasetCandidateRequest",
+    "DatasetCandidateResponse",
+    "DatasetExportItem",
+    "DatasetExportResponse",
 ]

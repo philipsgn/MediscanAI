@@ -44,6 +44,7 @@ from app.schemas import (  # Canonical response models — single source of trut
 )
 from app.schemas.user_schema import UserResponse
 from app.services.clinical_service import ClinicalAssessmentRequest, clinical_service
+from app.services.data_capture_service import data_capture_service
 from app.services.drug_database import drug_database
 from app.services.normalization_service import NormalizationService
 from app.services.ocr_engine import ocr_engine
@@ -562,16 +563,32 @@ async def ocr_scan(
             clinical_latency_ms = int(round((time.perf_counter() - clinical_started) * 1000))
 
         # ═══════════════════════════════════════════════════════════════
+        # STEP 4: Data-Centric AI Platform Persistence (Safe Degradation)
+        # ═══════════════════════════════════════════════════════════════
+        scan_record = await data_capture_service.capture_scan(
+            db=db,
+            request_id=request_id,
+            user_id=current_user.id if current_user else None,
+            source_type=source_type,
+            image_bytes=image_bytes,
+            raw_ocr_items=raw_ocr_items,
+            mapped_drugs=mapped_drugs,
+            clinical_assessment=clinical_assessment,
+        )
+        scan_id = scan_record.id if scan_record else None
+
+        # ═══════════════════════════════════════════════════════════════
         # RESPONSE
         # ═══════════════════════════════════════════════════════════════
         total_latency_ms = ocr_latency_ms + normalization_latency_ms + clinical_latency_ms
         logger.info(
-            "[OCR_SCAN_OK] request_id=%s source=%s drugs=%d clinical=%s total_ms=%d",
-            request_id, source_type, len(mapped_drugs),
+            "[OCR_SCAN_OK] scan_id=%s request_id=%s source=%s drugs=%d clinical=%s total_ms=%d",
+            scan_id, request_id, source_type, len(mapped_drugs),
             clinical_assessment is not None, total_latency_ms,
         )
 
         return FullScanResponse(
+            scan_id=scan_id,
             request_id=request_id,
             engine=ocr_result.engine,
             source_type=ocr_result.source_type,

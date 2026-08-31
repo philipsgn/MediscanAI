@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from slowapi.errors import RateLimitExceeded
 from app.api.v1.endpoints.auth import router as auth_router
+from app.api.v1.endpoints.data_platform import router as data_platform_router
 from app.api.v1.endpoints.drugs import router as drugs_router
 from app.api.v1.endpoints.history import router as history_router
 from app.api.v1.endpoints.ocr import router as ocr_router
@@ -87,6 +88,9 @@ app.include_router(ocr_router, prefix=settings.API_V1_STR)
 
 # Route Drug Lookup (autocomplete) [S4-Closeout/F4.3]
 app.include_router(drugs_router, prefix=settings.API_V1_STR)
+
+# Route Data-Centric AI Platform & HITL Review Queue
+app.include_router(data_platform_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/", tags=["Health Check"])
