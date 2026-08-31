@@ -3,9 +3,16 @@ data_capture_service.py
 
 Service Quản lý Lưu trữ Dữ liệu Scan, Review Queue (HITL),
 và Ground Truth Dataset cho Mediscan AI Data Platform.
+Harden:
+- Ground Truth State Machine validation
+- Non-destructive correction & Optimistic locking
+- Idempotency & Concurrency conflict detection
+- Observable capture failure tracking
+- Snapshot integrity & Dataset reproducibility
 """
 
 import hashlib
+import json
 import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -19,10 +26,16 @@ from app.schemas.data_platform_schema import (
     DatasetCandidateRequest,
     HumanCorrectionRequest,
     ScanRecordStatus,
+    validate_state_transition,
 )
 from app.services.data_quality_service import data_quality_service
+from app.services.storage_service import storage_service
 
 logger = logging.getLogger(__name__)
+
+
+class ConcurrencyConflictError(Exception):
+    """Ném ra khi phát hiện Optimistic Locking Conflict giữa các concurrent reviewer."""
 
 
 def _to_serializable(items: Any) -> Any:
@@ -43,6 +56,24 @@ def _to_serializable(items: Any) -> Any:
 class DataCaptureService:
     """Service chịu trách nhiệm lưu trữ lineage, điều phối review queue và tạo dataset."""
 
+    def __init__(self) -> None:
+        self._total_captures: int = 0
+        self._failed_captures: int = 0
+        self._last_errors: List[Dict[str, Any]] = []
+
+    def get_metrics(self) -> Dict[str, Any]:
+        """Cung cấp metrics giám sát độ tin cậy của Data Capture subsystem."""
+        return {
+            "total_captures": self._total_captures,
+            "failed_captures": self._failed_captures,
+            "success_rate": (
+                (self._total_captures - self._failed_captures) / self._total_captures
+                if self._total_captures > 0
+                else 1.0
+            ),
+            "recent_errors": self._last_errors[-10:],
+        }
+
     async def capture_scan(
         self,
         db: AsyncSession,
@@ -58,8 +89,12 @@ class DataCaptureService:
         Lưu vết scan vào bảng `scan_records` kèm version lineage và quality evaluation.
         Có cơ chế Safe Degradation (không ném Exception làm ngắt quãng response của user).
         """
+        self._total_captures += 1
         try:
-            image_ref = hashlib.sha256(image_bytes).hexdigest()
+            # 1. Lưu ảnh vào storage vật lý và phân định rõ hash SHA256 vs storage URI
+            image_sha256, image_storage_ref = storage_service.save_scan_image(image_bytes)
+
+            # 2. Đánh giá chất lượng tự động
             quality_score, quality_flags, initial_status = data_quality_service.evaluate_scan(
                 raw_ocr_items=raw_ocr_items,
                 mapped_drugs=mapped_drugs,
@@ -71,7 +106,9 @@ class DataCaptureService:
                 request_id=request_id,
                 user_id=user_id,
                 source_type=source_type,
-                image_ref=f"sha256:{image_ref}",
+                image_sha256=image_sha256,
+                image_storage_ref=image_storage_ref,
+                image_ref=image_storage_ref,
                 status=initial_status.value,
                 quality_score=quality_score,
                 quality_flags=quality_flags,
@@ -83,6 +120,7 @@ class DataCaptureService:
                 dataset_version=None,
                 dataset_tag=None,
                 version_metadata=lineage.model_dump(),
+                version=1,
             )
 
             db.add(scan_record)
@@ -90,16 +128,27 @@ class DataCaptureService:
             await db.refresh(scan_record)
 
             logger.info(
-                "[DATA_CAPTURE_OK] scan_id=%s request_id=%s status=%s quality=%.2f flags=%s",
-                scan_record.id, request_id, scan_record.status, quality_score, quality_flags,
+                "[DATA_CAPTURE_OK] scan_id=%s request_id=%s status=%s quality=%.2f storage=%s",
+                scan_record.id, request_id, scan_record.status, quality_score, image_storage_ref,
             )
             return scan_record
 
         except Exception as exc:  # noqa: BLE001
-            # Safe degradation: Log error nhưng không làm sập luồng chính của người dùng
+            self._failed_captures += 1
+            err_entry = {
+                "request_id": request_id,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "error": str(exc),
+                "error_type": type(exc).__name__,
+            }
+            self._last_errors.append(err_entry)
+            if len(self._last_errors) > 50:
+                self._last_errors.pop(0)
+
+            # Structured logging: Cảnh báo rõ ràng, không swallow im lặng
             logger.error(
-                "[DATA_CAPTURE_FAILED] request_id=%s error=%s (Safe Degradation Active)",
-                request_id, exc, exc_info=True,
+                "[DATA_CAPTURE_PERSISTENCE_FAILED] request_id=%s error_type=%s error=%s (P1 Data Loss Risk - Degraded)",
+                request_id, type(exc).__name__, exc, exc_info=True,
             )
             try:
                 await db.rollback()
@@ -132,12 +181,10 @@ class DataCaptureService:
         if max_quality is not None:
             stmt = stmt.where(ScanRecordModel.quality_score <= max_quality)
 
-        # Đếm tổng số bản ghi khớp điều kiện
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total_result = await db.execute(count_stmt)
         total = total_result.scalar_one_or_none() or 0
 
-        # Lấy danh sách bản ghi
         stmt = stmt.order_by(ScanRecordModel.created_at.desc()).offset(offset).limit(limit)
         result = await db.execute(stmt)
         items = list(result.scalars().all())
@@ -159,33 +206,64 @@ class DataCaptureService:
     ) -> ScanRecordModel:
         """
         Ghi nhận chỉnh sửa của Reviewer (HITL).
-        QUY TẮC BẢO VỆ: Tuyệt đối không ghi đè raw_ocr_result hay normalized_result gốc của AI.
+        QUY TẮC BẢO VỆ BẤT BIẾN:
+        1. Tuyệt đối không ghi đè raw_ocr_result hay normalized_result gốc của AI.
+        2. Validate state transitions qua State Machine.
+        3. Optimistic Locking version check để chặn Lost Update khi concurrent review.
+        4. Idempotent: Gửi lại cùng payload/decision không gây conflict vô lý.
         """
         scan = await self.get_scan_record(db, scan_id)
         if not scan:
             raise ValueError(f"Scan record với ID '{scan_id}' không tồn tại.")
 
-        # Lưu payload hiệu đính riêng biệt
+        current_status = ScanRecordStatus(scan.status)
+        target_status = correction_req.decision
+
+        # 1. Optimistic Locking check
+        if correction_req.expected_version is not None:
+            if scan.version != correction_req.expected_version:
+                raise ConcurrencyConflictError(
+                    f"Xung đột phiên bản (Optimistic Locking Conflict): Scan record hiện đang ở version {scan.version}, "
+                    f"nhưng reviewer gửi expected_version={correction_req.expected_version}. "
+                    "Một reviewer khác có thể đã cập nhật bản ghi này. Vui lòng tải lại dữ liệu mới nhất.",
+                )
+
+        # 2. Idempotency Check: nếu nội dung hiệu đính và quyết định giống hệt đã lưu
+        new_drugs_dump = [d.model_dump() for d in correction_req.corrected_drugs]
+        if scan.corrected_payload and isinstance(scan.corrected_payload, dict):
+            saved_drugs = scan.corrected_payload.get("corrected_drugs", [])
+            saved_decision = scan.corrected_payload.get("decision")
+            if saved_drugs == new_drugs_dump and saved_decision == target_status.value and scan.status == target_status.value:
+                logger.info("[HUMAN_CORRECTION_IDEMPOTENT] scan_id=%s decision=%s", scan.id, target_status.value)
+                return scan
+
+        # 3. State Machine Transition Validation
+        validate_state_transition(current_status, target_status)
+
+        # 4. Ghi nhận payload hiệu đính riêng biệt (Zero-Overwrite)
         corrected_payload = {
-            "corrected_drugs": [d.model_dump() for d in correction_req.corrected_drugs],
+            "corrected_drugs": new_drugs_dump,
             "submitted_at": datetime.now(timezone.utc).isoformat(),
             "reviewer_id": reviewer_id,
-            "decision": correction_req.decision.value,
+            "decision": target_status.value,
             "review_notes": correction_req.review_notes,
+            "previous_status": scan.status,
+            "previous_version": scan.version,
         }
 
         scan.corrected_payload = corrected_payload
-        scan.status = correction_req.decision.value
+        scan.status = target_status.value
         scan.reviewed_by = reviewer_id
         scan.reviewed_at = datetime.now(timezone.utc)
         scan.review_notes = correction_req.review_notes
+        scan.version += 1  # Increment version on every successful mutation
 
         await db.commit()
         await db.refresh(scan)
 
         logger.info(
-            "[HUMAN_CORRECTION_SAVED] scan_id=%s decision=%s reviewer=%s drugs_count=%d",
-            scan.id, scan.status, reviewer_id, len(correction_req.corrected_drugs),
+            "[HUMAN_CORRECTION_SAVED] scan_id=%s status=%s reviewer=%s version=%d drugs_count=%d",
+            scan.id, scan.status, reviewer_id, scan.version, len(correction_req.corrected_drugs),
         )
         return scan
 
@@ -197,28 +275,37 @@ class DataCaptureService:
     ) -> ScanRecordModel:
         """
         Đánh dấu scan làm ứng viên dataset cho Active Learning / Fine-tuning.
-        Chỉ cho phép khi scan đã được kiểm duyệt hợp lệ (ACCEPTED hoặc REVIEWED).
+        QUY TẮC NGHIÊM NGẶT:
+        CHỈ duy nhất trạng thái 'ACCEPTED' (đã được chuyên viên xác nhận Ground Truth)
+        mới được phép chuyển thành Dataset Candidate. Mọi trạng thái khác (PROCESSED,
+        REVIEW_REQUIRED, IN_REVIEW, REJECTED, REVIEWED) đều bị từ chối dứt khoát.
         """
         scan = await self.get_scan_record(db, scan_id)
         if not scan:
             raise ValueError(f"Scan record với ID '{scan_id}' không tồn tại.")
 
-        if scan.status not in {ScanRecordStatus.ACCEPTED.value, ScanRecordStatus.REVIEWED.value}:
+        if scan.status != ScanRecordStatus.ACCEPTED.value:
             raise ValueError(
                 f"Không thể tạo Dataset Candidate từ scan có trạng thái '{scan.status}'. "
-                "Chỉ các scan đã được kiểm duyệt (ACCEPTED hoặc REVIEWED) mới đủ điều kiện tạo Ground Truth.",
+                "CHỈ DUY NHẤT trạng thái 'ACCEPTED' (Ground Truth đã xác thực) mới đủ điều kiện tạo tập dữ liệu huấn luyện.",
             )
 
+        # Idempotency check
+        target_version = candidate_req.dataset_version or scan.dataset_version or DEFAULT_DATASET_VERSION
+        if scan.is_dataset_candidate and scan.dataset_version == target_version and scan.dataset_tag == candidate_req.dataset_tag:
+            return scan
+
         scan.is_dataset_candidate = True
-        scan.dataset_version = candidate_req.dataset_version or scan.dataset_version or DEFAULT_DATASET_VERSION
+        scan.dataset_version = target_version
         scan.dataset_tag = candidate_req.dataset_tag or scan.dataset_tag
+        scan.version += 1
 
         await db.commit()
         await db.refresh(scan)
 
         logger.info(
-            "[DATASET_CANDIDATE_MARKED] scan_id=%s dataset_version=%s tag=%s",
-            scan.id, scan.dataset_version, scan.dataset_tag,
+            "[DATASET_CANDIDATE_MARKED] scan_id=%s dataset_version=%s tag=%s version=%d",
+            scan.id, scan.dataset_version, scan.dataset_tag, scan.version,
         )
         return scan
 
@@ -227,18 +314,33 @@ class DataCaptureService:
         db: AsyncSession,
         dataset_version: Optional[str] = None,
         status: Optional[ScanRecordStatus] = None,
-    ) -> List[ScanRecordModel]:
-        """Truy xuất toàn bộ các scan đã đánh dấu dataset candidate kèm lineage đầy đủ."""
+    ) -> Tuple[str, List[ScanRecordModel]]:
+        """
+        Truy xuất toàn bộ các scan đã đánh dấu dataset candidate kèm lineage đầy đủ
+        và tính toán Snapshot Hash bảo đảm tính tái lập (Reproducibility).
+        """
         stmt = select(ScanRecordModel).where(ScanRecordModel.is_dataset_candidate.is_(True))
+
+        # Chỉ export các bản ghi ACCEPTED (Ground Truth)
+        stmt = stmt.where(ScanRecordModel.status == ScanRecordStatus.ACCEPTED.value)
 
         if dataset_version:
             stmt = stmt.where(ScanRecordModel.dataset_version == dataset_version)
         if status:
             stmt = stmt.where(ScanRecordModel.status == status.value)
 
-        stmt = stmt.order_by(ScanRecordModel.created_at.asc())
+        stmt = stmt.order_by(ScanRecordModel.id.asc())
         result = await db.execute(stmt)
-        return list(result.scalars().all())
+        records = list(result.scalars().all())
+
+        # Tính Snapshot Hash từ ID và version của tất cả các samples
+        snapshot_payload = [
+            f"{r.id}:{r.version}:{r.image_sha256}"
+            for r in records
+        ]
+        snapshot_hash = hashlib.sha256(json.dumps(snapshot_payload).encode("utf-8")).hexdigest()
+
+        return snapshot_hash, records
 
 
 data_capture_service = DataCaptureService()

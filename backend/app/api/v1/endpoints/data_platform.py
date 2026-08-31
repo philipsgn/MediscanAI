@@ -3,13 +3,14 @@ data_platform.py
 
 API Endpoints cho Mediscan AI Data-Centric Platform:
 - Quản lý hàng đợi Review Queue & Data Quality
-- Human-in-the-Loop (HITL) Correction
-- Dataset Candidate & Active Learning Ground Truth Export
+- Human-in-the-Loop (HITL) Correction với Optimistic Locking & Idempotency
+- Dataset Candidate & Active Learning Ground Truth Snapshot Export
+- Data Platform Durability Metrics
 """
 
 import logging
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +19,7 @@ from app.api.v1.endpoints.auth import get_current_user
 from app.core.versioning import DEFAULT_DATASET_VERSION, PipelineLineageMetadata
 from app.db.session import get_db
 from app.schemas.data_platform_schema import (
+    DataPlatformMetricsResponse,
     DatasetCandidateRequest,
     DatasetCandidateResponse,
     DatasetExportItem,
@@ -32,11 +34,21 @@ from app.schemas.data_platform_schema import (
 )
 from app.schemas.ocr_schema import EvaluationResponse, MappedDrugItem, OCRItem
 from app.schemas.user_schema import UserResponse
-from app.services.data_capture_service import data_capture_service
+from app.services.data_capture_service import ConcurrencyConflictError, data_capture_service
+from app.services.storage_service import storage_service
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/data", tags=["Data-Centric AI Platform & HITL Review Queue"])
+
+
+@router.get("/metrics", response_model=DataPlatformMetricsResponse)
+async def get_data_platform_metrics(
+    current_user: UserResponse = Depends(get_current_user),
+) -> DataPlatformMetricsResponse:
+    """Cung cấp metrics giám sát độ bền vững (durability) và tỷ lệ thành công của Data Capture."""
+    metrics_dict = data_capture_service.get_metrics()
+    return DataPlatformMetricsResponse(**metrics_dict)
 
 
 @router.get("/reviews", response_model=ScanReviewListResponse)
@@ -69,12 +81,15 @@ async def list_review_queue(
             request_id=rec.request_id,
             user_id=rec.user_id,
             source_type=rec.source_type,
+            image_sha256=rec.image_sha256 or "",
+            image_storage_ref=rec.image_storage_ref or rec.image_ref,
             image_ref=rec.image_ref,
             status=ScanRecordStatus(rec.status),
             quality_score=rec.quality_score,
             quality_flags=rec.quality_flags or [],
             is_dataset_candidate=rec.is_dataset_candidate,
             dataset_version=rec.dataset_version,
+            version=rec.version,
             created_at=rec.created_at,
             reviewed_at=rec.reviewed_at,
             reviewed_by=rec.reviewed_by,
@@ -115,13 +130,18 @@ async def get_scan_review_detail(
     normalized = [MappedDrugItem(**item) for item in (rec.normalized_result or [])]
     clinical = EvaluationResponse(**rec.clinical_result) if rec.clinical_result else None
     lineage = PipelineLineageMetadata(**(rec.version_metadata or {}))
+    storage_ref = rec.image_storage_ref or rec.image_ref
+    image_available = storage_service.image_exists(storage_ref)
 
     return ScanReviewDetailResponse(
         scan_id=rec.id,
         request_id=rec.request_id,
         user_id=rec.user_id,
         source_type=rec.source_type,
+        image_sha256=rec.image_sha256 or "",
+        image_storage_ref=storage_ref,
         image_ref=rec.image_ref,
+        image_available=image_available,
         status=ScanRecordStatus(rec.status),
         quality_score=rec.quality_score,
         quality_flags=rec.quality_flags or [],
@@ -133,6 +153,7 @@ async def get_scan_review_detail(
         dataset_version=rec.dataset_version,
         dataset_tag=rec.dataset_tag,
         version_metadata=lineage,
+        version=rec.version,
         reviewed_by=rec.reviewed_by,
         reviewed_at=rec.reviewed_at,
         review_notes=rec.review_notes,
@@ -150,7 +171,10 @@ async def submit_human_correction(
 ) -> HumanCorrectionResponse:
     """
     Submit hiệu đính từ Human Reviewer (HITL).
-    Bảo đảm: Lưu corrected_payload riêng biệt, không ghi đè raw AI output.
+    Bảo đảm:
+    - Lưu corrected_payload riêng biệt, không ghi đè raw AI output.
+    - Kiểm tra Optimistic Locking qua body.expected_version (phòng chống Lost Update).
+    - Validate State Machine transitions.
     """
     try:
         updated_scan = await data_capture_service.submit_human_correction(
@@ -159,11 +183,23 @@ async def submit_human_correction(
             reviewer_id=current_user.id,
             correction_req=body,
         )
+    except ConcurrencyConflictError as cce:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "error_code": "OPTIMISTIC_LOCK_CONFLICT",
+                "message": str(cce),
+                "service": "data_platform",
+                "stage": "human_correction",
+                "request_id": scan_id,
+                "retryable": True,
+            },
+        ) from cce
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail={
-                "error_code": "SCAN_RECORD_NOT_FOUND",
+                "error_code": "INVALID_REVIEW_STATE_TRANSITION",
                 "message": str(exc),
                 "service": "data_platform",
                 "stage": "human_correction",
@@ -175,9 +211,10 @@ async def submit_human_correction(
     return HumanCorrectionResponse(
         scan_id=updated_scan.id,
         status=ScanRecordStatus(updated_scan.status),
+        version=updated_scan.version,
         reviewed_by=current_user.id,
         reviewed_at=updated_scan.reviewed_at or datetime.now(timezone.utc),
-        message=f"Đã lưu kết quả hiệu đính thành công với trạng thái '{updated_scan.status}'.",
+        message=f"Đã lưu kết quả hiệu đính thành công với trạng thái '{updated_scan.status}' (version {updated_scan.version}).",
         corrected_drugs_count=len(body.corrected_drugs),
     )
 
@@ -191,7 +228,7 @@ async def mark_dataset_candidate(
 ) -> DatasetCandidateResponse:
     """
     Đánh dấu scan thành ứng viên dataset huấn luyện.
-    Chỉ cho phép khi scan có trạng thái ACCEPTED hoặc REVIEWED (Ground Truth hợp lệ).
+    QUY TẮC: Chỉ cho phép khi scan có trạng thái ACCEPTED (Ground Truth đã xác thực).
     """
     try:
         updated_scan = await data_capture_service.mark_dataset_candidate(
@@ -218,6 +255,7 @@ async def mark_dataset_candidate(
         dataset_version=updated_scan.dataset_version or DEFAULT_DATASET_VERSION,
         dataset_tag=updated_scan.dataset_tag,
         status=ScanRecordStatus(updated_scan.status),
+        version=updated_scan.version,
         message=f"Đã gắn cờ Dataset Candidate thành công cho phiên bản '{updated_scan.dataset_version}'.",
     )
 
@@ -225,15 +263,15 @@ async def mark_dataset_candidate(
 @router.get("/datasets/export", response_model=DatasetExportResponse)
 async def export_dataset(
     dataset_version: Optional[str] = Query(None, description="Lọc theo dataset version (mặc định tất cả ứng viên)"),
-    status_filter: Optional[ScanRecordStatus] = Query(None, alias="status", description="Lọc theo trạng thái ('ACCEPTED' | 'REVIEWED')"),
+    status_filter: Optional[ScanRecordStatus] = Query(None, alias="status", description="Lọc theo trạng thái ('ACCEPTED')"),
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> DatasetExportResponse:
     """
     Xuất tập dữ liệu Ground Truth hoàn chỉnh cho Active Learning / Model Fine-tuning.
-    Bao gồm: Raw OCR items, Ground Truth do Reviewer xác nhận, và Model Lineage Metadata.
+    Bao gồm: Raw OCR items, Ground Truth do Reviewer xác nhận, Model Lineage, và Snapshot Hash.
     """
-    records = await data_capture_service.export_dataset(
+    snapshot_hash, records = await data_capture_service.export_dataset(
         db=db,
         dataset_version=dataset_version,
         status=status_filter,
@@ -250,17 +288,22 @@ async def export_dataset(
             corrected_drugs = [HumanCorrectedDrug(**d) for d in drugs_list]
 
         lineage = PipelineLineageMetadata(**(rec.version_metadata or {}))
+        storage_ref = rec.image_storage_ref or rec.image_ref
+        image_available = storage_service.image_exists(storage_ref)
 
         samples.append(
             DatasetExportItem(
                 scan_id=rec.id,
                 source_type=rec.source_type,
-                image_ref=rec.image_ref,
+                image_sha256=rec.image_sha256 or "",
+                image_storage_ref=storage_ref,
+                image_available=image_available,
                 raw_ocr_items=raw_ocr,
                 ground_truth_drugs=corrected_drugs,
                 original_ai_normalized_drugs=original_ai,
                 quality_score=rec.quality_score,
                 quality_flags=rec.quality_flags or [],
+                version=rec.version,
                 reviewed_by=rec.reviewed_by,
                 reviewed_at=rec.reviewed_at,
                 lineage=lineage,
@@ -268,7 +311,8 @@ async def export_dataset(
         )
 
     return DatasetExportResponse(
-        dataset_version=dataset_version or "all_candidates",
+        dataset_version=dataset_version or "all_accepted_candidates",
+        snapshot_hash=snapshot_hash,
         exported_at=datetime.now(timezone.utc),
         total_samples=len(samples),
         samples=samples,

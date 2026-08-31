@@ -3,13 +3,13 @@ data_capture.py
 
 SQLAlchemy Model cho bảng `scan_records` — Data-Centric AI Platform.
 Lưu trữ toàn diện scan lineage, artifacts, automated quality flags,
-human corrections (HITL) và dataset candidate status.
+human corrections (HITL), optimistic locking version, và dataset candidate status.
 """
 
 import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, JSON, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
@@ -42,9 +42,23 @@ class ScanRecordModel(Base):
         nullable=False,
         default="prescription",
     )
+    # Phân định rạch ròi giữa SHA256 (fingerprint) và Storage Ref (URI file thật)
+    image_sha256: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        default="",
+        index=True,
+    )
+    image_storage_ref: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        default="",
+        index=True,
+    )
     image_ref: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
+        default="",
         index=True,
     )
     status: Mapped[str] = mapped_column(
@@ -100,6 +114,12 @@ class ScanRecordModel(Base):
         JSON,
         nullable=False,
         default=dict,
+    )
+    # Optimistic locking version để phòng chống Lost Update khi concurrent review
+    version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1,
     )
     reviewed_by: Mapped[Optional[str]] = mapped_column(
         String(36),
