@@ -983,7 +983,7 @@
     ],
     "is_unique_strength": true,
     "common_strengths": ["4.2mg"],
-    "_strength_source": "Dược thư Quốc gia Việt Nam (Bộ Y Tế) & Tờ HDSD Sanofi-Aventis VN"
+    "_strength_source": "Dược thư Quốc gia Việt Nam 2 (Chuyên luận Chymotrypsin) & Tờ HDSD Sanofi-Aventis Việt Nam (SĐK DAV: VD-22631-15, Hàm lượng 21 microkatals tương đương 4.2mg / 4200 đơn vị USP)"
   },
   {
     "id": "DRUG_105",
@@ -1000,6 +1000,6 @@
     ],
     "is_unique_strength": true,
     "common_strengths": ["4.2mg"],
-    "_strength_source": "Dược thư Quốc gia Việt Nam (Bộ Y Tế)"
+    "_strength_source": "Dược thư Quốc gia Việt Nam (Chuyên luận Chymotrypsin) & Quyết định cấp phép Cục Quản lý Dược DAV (Hàm lượng 4.2mg / 4200 USP UI)"
   }
 ]
