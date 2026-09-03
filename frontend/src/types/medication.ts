@@ -21,7 +21,7 @@ export interface IUserProfile {
 export interface IDrugItem {
   brandName: string;
   activeIngredient?: string;
-  strength: string;
+  strength?: string;
   dosageInstruction?: string;
   confidenceScore: number;
   isVerified: boolean;
@@ -34,6 +34,8 @@ export interface IDrugItem {
   matchMethod?: 'exact' | 'fuzzy' | 'ingredient_fallback' | 'openfda' | 'openfda_ingredient';
   /** [F3.7] Cảnh báo nhẹ hàm lượng nhập khác DB chuẩn — hiển thị UI, không chặn submit. */
   strengthMismatchWarning?: string | null;
+  /** [Stage 13] Danh sách biến thể hàm lượng chuẩn từ CSDL */
+  variants?: string[];
 }
 
 export interface IExtractedDrugItem {
@@ -73,6 +75,25 @@ export interface IDosageCheckResult {
   note: string;
 }
 
+export type DrugCoverageStatusType = 'COVERED' | 'NOT_COVERED' | 'AMBIGUOUS' | 'UNRESOLVED' | 'SOURCE_UNAVAILABLE';
+
+export interface IDrugCoverageItem {
+  drugName: string;
+  canonicalIngredient?: string | null;
+  status: DrugCoverageStatusType;
+  provenance?: string | null;
+  note: string;
+}
+
+export interface IDatasetProvenanceInfo {
+  datasetName: string;
+  activeVersion: string;
+  totalInteractionPairs: number;
+  coveredIngredientsCount: number;
+  license: string;
+  sha256Checksum?: string | null;
+}
+
 export interface IEvaluationResponse {
   totalDrugsAnalyzed: number;
   alerts: IInteractionAlert[];
@@ -81,6 +102,12 @@ export interface IEvaluationResponse {
   dosageChecks: IDosageCheckResult[];
   /** [Task 5.5] Tóm tắt tổng hợp toàn bộ 4 layer */
   finalSummary: string;
+  /** [Stage 12] Trạng thái bao phủ CSDL tương tác ('FULL' | 'PARTIAL' | 'UNRESOLVED' | 'UNAVAILABLE') */
+  coverageStatus?: 'FULL' | 'PARTIAL' | 'UNRESOLVED' | 'UNAVAILABLE';
+  /** [Stage 12] Chi tiết độ bao phủ của từng thuốc */
+  drugCoverageDetails?: IDrugCoverageItem[];
+  /** [Stage 12] Metadata CSDL tri thức active */
+  provenanceMetadata?: IDatasetProvenanceInfo;
 }
 
 export interface IDrugEvaluationRequest {

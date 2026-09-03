@@ -1,5 +1,5 @@
-# Pydantic models cho kết quả OCR (ONNX PP-OCRv6) - Internal use
 import logging
+from enum import Enum
 from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field, ConfigDict, field_validator
@@ -131,13 +131,57 @@ class DosageCheckResult(BaseModel):
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
 
+class DrugCoverageStatus(str, Enum):
+    """Trạng thái bao phủ CSDL tương tác cho từng thuốc (Stage 12 Invariant INV-12-01)."""
+    COVERED = "COVERED"                          # Hoạt chất đã verify và nằm trong CSDL DDI
+    NOT_COVERED_IN_DATASET = "NOT_COVERED"      # Hoạt chất verify được nhưng CSDL DDI chưa có dữ liệu
+    AMBIGUOUS_REVIEW_REQUIRED = "AMBIGUOUS"     # Có nhiều ứng viên cần User duyệt (chống silent pick)
+    UNRESOLVED = "UNRESOLVED"                    # Không chuẩn hóa được danh tính hoạt chất
+    SOURCE_UNAVAILABLE = "SOURCE_UNAVAILABLE"   # Lỗi mạng / timeout từ nguồn chuẩn hóa ngoại vi
+
+
+class DrugCoverageItem(BaseModel):
+    """Thông tin chi tiết độ bao phủ CSDL tương tác cho từng thuốc đầu vào."""
+    drug_name: str = Field(..., description="Tên thuốc trích xuất / nhập vào")
+    canonical_ingredient: Optional[str] = Field(None, description="Hoạt chất chuẩn hóa nếu xác thực thành công")
+    status: DrugCoverageStatus = Field(..., description="Trạng thái phân tích độ bao phủ")
+    provenance: Optional[str] = Field(None, description="Nguồn gốc định danh (rxnorm, local_db, openfda_unverified, none)")
+    note: str = Field(default="", description="Ghi chú lâm sàng về độ bao phủ")
+
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+
+class DatasetProvenanceInfo(BaseModel):
+    """Metadata thông tin nguồn gốc và phiên bản CSDL tri thức thuốc đang hoạt động."""
+    dataset_name: str = Field("DDInter", description="Tên CSDL tương tác thuốc active")
+    active_version: str = Field("2.0", description="Phiên bản CSDL đang chạy Production")
+    total_interaction_pairs: int = Field(20, description="Tổng số cặp tương tác được lập chỉ mục")
+    covered_ingredients_count: int = Field(28, description="Tổng số hoạt chất độc lập có trong CSDL")
+    license: str = Field("CC BY-NC-SA 4.0", description="Giấy phép phân phối CSDL")
+    sha256_checksum: Optional[str] = Field(None, description="Mã băm toàn vẹn tệp CSDL")
+
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+
 class EvaluationResponse(BaseModel):
-    """Response chính — 4 Layer (Overdose, Drug-Drug, Drug-Condition, Dosage)."""
+    """Response chính — 4 Layer (Overdose, Drug-Drug, Drug-Condition, Dosage) + Stage 12 Governance."""
     total_drugs_analyzed: int = 0
-    alerts: List[InteractionAlert] = []
-    schedule_suggestions: List[str] = Field(default=[], description="Gợi ý phân chia lịch uống thuốc an toàn")
-    dosage_checks: List[DosageCheckResult] = Field(default=[], description="Kết quả Layer 4 - đối chiếu liều dùng")
+    alerts: List[InteractionAlert] = Field(default_factory=list)
+    schedule_suggestions: List[str] = Field(default_factory=list, description="Gợi ý phân chia lịch uống thuốc an toàn")
+    dosage_checks: List[DosageCheckResult] = Field(default_factory=list, description="Kết quả Layer 4 - đối chiếu liều dùng")
     final_summary: str = Field("", description="Tóm tắt tổng quan tình trạng và lời khuyên cuối cùng cho User")
+    # [Stage 12 Extended Governance Fields]
+    coverage_status: str = Field("UNAVAILABLE", description="Trạng thái bao phủ CSDL tổng thể: 'FULL' | 'PARTIAL' | 'UNRESOLVED' | 'UNAVAILABLE'")
+    drug_coverage_details: List[DrugCoverageItem] = Field(default_factory=list, description="Chi tiết độ bao phủ dữ liệu cho từng thuốc")
+    provenance_metadata: Optional[DatasetProvenanceInfo] = Field(default_factory=DatasetProvenanceInfo, description="Metadata provenance của CSDL tri thức")
+
+    @field_validator("coverage_status", mode="before")
+    @classmethod
+    def _validate_coverage_status(cls, v: object) -> str:
+        s = str(v or "").strip().upper()
+        if s in {"FULL", "PARTIAL", "UNRESOLVED", "UNAVAILABLE"}:
+            return s
+        return "UNAVAILABLE"
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
@@ -177,7 +221,7 @@ class MappedDrugItem(BaseModel):
     drug_id: Optional[str] = None
     brand_name: str
     active_ingredient: Optional[str] = None
-    strength: str
+    strength: Optional[str] = ""
     dosage_instruction: Optional[str] = None
     category: Optional[str] = None
     max_daily_dosage: Optional[str] = None
@@ -187,6 +231,7 @@ class MappedDrugItem(BaseModel):
     match_method: Optional[str] = None
     # [F3.7] Cach bao dam ham luong khac DB (light warn — hien thi UI, KHONG block submit)
     strength_mismatch_warning: Optional[str] = None
+    variants: List[str] = []
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 

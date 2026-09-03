@@ -9,10 +9,10 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from slowapi.errors import RateLimitExceeded
-from app.api.v1.endpoints.auth import router as auth_router
-from app.api.v1.endpoints.data_platform import router as data_platform_router
+from app.api.v1.endpoints.auth import get_optional_current_user, router as auth_router
 from app.api.v1.endpoints.drugs import router as drugs_router
 from app.api.v1.endpoints.history import router as history_router
+from app.api.v1.endpoints.medications import router as medications_router
 from app.api.v1.endpoints.ocr import router as ocr_router
 from app.api.v1.endpoints.profile import router as profile_router
 from app.api.v1.endpoints.reminders import router as reminders_router
@@ -23,9 +23,13 @@ from app.schemas import (
     EvaluationResponse,
     InteractionAlert,
 )
+from app.schemas.user_schema import UserResponse
 from app.db.init_db import init_db
+from app.db.session import get_db
 from app.services.clinical_service import ClinicalAssessmentRequest, clinical_service
 from app.services.evaluation_service import evaluation_service
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -79,18 +83,16 @@ app.include_router(auth_router, prefix=settings.API_V1_STR)
 # Route Personalized Clinical Health Profile (Stage 9)
 app.include_router(profile_router, prefix=settings.API_V1_STR)
 
-# Route Medication History & Smart Reminders (Stage 10)
+# Route Medication History & Smart Reminders & Cabinet (Stage 10)
 app.include_router(history_router, prefix=settings.API_V1_STR)
 app.include_router(reminders_router, prefix=settings.API_V1_STR)
+app.include_router(medications_router, prefix=settings.API_V1_STR)
 
 # Route OCR + Clinical Assessment Pipeline
 app.include_router(ocr_router, prefix=settings.API_V1_STR)
 
 # Route Drug Lookup (autocomplete) [S4-Closeout/F4.3]
 app.include_router(drugs_router, prefix=settings.API_V1_STR)
-
-# Route Data-Centric AI Platform & HITL Review Queue
-app.include_router(data_platform_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/", tags=["Health Check"])
@@ -140,8 +142,7 @@ async def warmup() -> dict[str, Any]:
 
     started = time.perf_counter()
     try:
-        _ = ocr_engine.paddle_ocr
-        _ = ocr_engine.paddle_ocr_packaging
+        ocr_engine.warmup()
         elapsed_ms = int(round((time.perf_counter() - started) * 1000))
         return {
             "status": "ok",
@@ -203,12 +204,17 @@ def _match_llm_alert(rule_alert: InteractionAlert, llm_pool: List[Any]) -> Optio
     response_model=EvaluationResponse,
     tags=["Clinical Assessment Engine"],
 )
-async def evaluate_interactions(payload: DrugEvaluationRequest) -> EvaluationResponse:
+async def evaluate_interactions(
+    payload: DrugEvaluationRequest,
+    current_user: Optional[UserResponse] = Depends(get_optional_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> EvaluationResponse:
     """
     Đánh giá tương tác thuốc (giữ nguyên contract legacy cho frontend).
     BƯỚC 1 — Rule-engine Stage 5 quyết định tập alert + severity cuối cùng.
     BƯỚC 2 — LLM chỉ enrich description/recommendation bằng ngôn ngữ tự nhiên.
     Layer 1: Overdose/Duplicate · Layer 2: Drug-Drug · Layer 3: Drug-Condition.
+    BƯỚC 3 — Tự động lưu Lịch sử (Internal Write) cho authenticated user (Zero Image).
     """
     # ── BƯỚC 1: Rule engine = source of truth cho severity [F3.3] ────────────
     eval_result = evaluation_service.evaluate_medications(payload.drugs, payload.user_profile)
@@ -277,13 +283,59 @@ async def evaluate_interactions(payload: DrugEvaluationRequest) -> EvaluationRes
             schedule_suggestions.append(rec)
             seen_lower.add(rec.strip().lower())
 
-        return EvaluationResponse(
+    eval_response = EvaluationResponse(
         total_drugs_analyzed=eval_result.total_drugs_analyzed,
         alerts=enriched,
         schedule_suggestions=schedule_suggestions,
         dosage_checks=eval_result.dosage_checks,  # [Task 5.5] Layer 4
         final_summary=eval_result.final_summary,  # [Task 5.5] tổng hợp 4 layer
+        coverage_status=eval_result.coverage_status,
+        drug_coverage_details=eval_result.drug_coverage_details,
+        provenance_metadata=eval_result.provenance_metadata,
     )
+
+    # ── BƯỚC 3: Tự động lưu Lịch sử (Internal Write) khi người dùng đã xác thực ─
+    if current_user and current_user.id:
+        try:
+            from app.services.history_service import history_service
+            from app.schemas.history_reminder_schema import ScanHistoryCreate
+
+            highest_sev = "NONE"
+            if any(a.severity == "HIGH" for a in enriched):
+                highest_sev = "HIGH"
+            elif any(a.severity == "MEDIUM" for a in enriched):
+                highest_sev = "MEDIUM"
+            elif any(a.severity == "LOW" for a in enriched):
+                highest_sev = "LOW"
+
+            drug_names = [d.brand_name for d in payload.drugs if d.brand_name]
+
+            raw_snapshot = {
+                "alerts": [a.model_dump(by_alias=True) for a in enriched],
+                "dosageChecks": [dc.model_dump(by_alias=True) for dc in eval_result.dosage_checks],
+                "finalSummary": eval_result.final_summary,
+                "scheduleSuggestions": schedule_suggestions,
+                "coverageStatus": eval_result.coverage_status,
+                "drugCoverageDetails": [d.model_dump(by_alias=True) for d in eval_result.drug_coverage_details],
+                "provenanceMetadata": eval_result.provenance_metadata.model_dump(by_alias=True) if eval_result.provenance_metadata else None,
+                "drugs": [d.model_dump(by_alias=True) for d in payload.drugs],
+            }
+
+            await history_service.create_internal_history(
+                db,
+                user_id=current_user.id,
+                data=ScanHistoryCreate(
+                    source_type="manual",
+                    drug_names=drug_names,
+                    highest_severity=highest_sev,
+                    summary=eval_result.final_summary,
+                    raw_payload=raw_snapshot,
+                ),
+            )
+        except Exception as hist_err:  # noqa: BLE001
+            logger.warning("Không thể tự động lưu History cho evaluate: %s", hist_err)
+
+    return eval_response
 
 
 if __name__ == "__main__":

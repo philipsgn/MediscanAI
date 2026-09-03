@@ -25,13 +25,15 @@ export const API_ENDPOINTS = {
   authMe: '/auth/me',
   /** Profile endpoints (Stage 9) */
   profileMe: '/profile/me',
-  profileUpsert: '/profile',
+  profileUpsert: '/profile/me',
   /** History endpoints (Stage 10) */
   historyMe: '/history/me',
-  historySave: '/history',
   /** Reminder endpoints (Stage 10) */
   remindersMe: '/reminders/me',
   remindersCreate: '/reminders',
+  /** Cabinet / Medications endpoints (Stage 10) */
+  medications: '/medications',
+  medicationsMe: '/medications/me',
 } as const;
 
 export type ApiEndpointPath = keyof typeof API_ENDPOINTS;

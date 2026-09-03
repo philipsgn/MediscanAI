@@ -21,12 +21,29 @@ interface DrugVerificationFormProps {
 }
 
 export function DrugVerificationForm({ initialData, onSave, onCancel, sourceType }: DrugVerificationFormProps) {
-  const { register, handleSubmit, setValue, watch } = useForm<IDrugItem>({
+  const { register, handleSubmit, setValue, watch, reset } = useForm<IDrugItem>({
     defaultValues: {
       ...initialData,
       dosageInstruction: initialData.dosageInstruction || '',
     }
   });
+
+  // Đồng bộ lại dữ liệu form mỗi khi initialData thay đổi (khi đổi ảnh mới hoặc chuyển item trong hàng đợi)
+  useEffect(() => {
+    reset({
+      ...initialData,
+      dosageInstruction: initialData.dosageInstruction || '',
+    });
+    setDosageState({
+      morning: false,
+      noon: false,
+      evening: false,
+      night: false,
+      qty: 1
+    });
+    setSuggestions([]);
+    setShowSuggestions(false);
+  }, [initialData, reset]);
 
   /** [P3/F4.6] 3-tier confidence: đỏ <0.5 (rủi ro cao), vàng <0.7 (thấp), xanh ≥0.7. */
   const confidence = initialData.confidenceScore;
@@ -172,12 +189,40 @@ export function DrugVerificationForm({ initialData, onSave, onCancel, sourceType
             )}
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-700">Hàm lượng</label>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-700">Hàm lượng</label>
+              <span className="text-[11px] text-gray-400">Không bắt buộc nếu hộp không ghi</span>
+            </div>
             <input 
               {...register('strength')}
               className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow outline-none"
-              placeholder="VD: 500mg"
+              placeholder="VD: 500mg (hoặc để trống nếu bao bì không ghi)"
             />
+            {/* Quick-Select Variant Pills (Stage 13) */}
+            {initialData.variants && initialData.variants.length > 0 && (
+              <div className="pt-1">
+                <span className="text-[11px] text-slate-500 font-medium block mb-1">Gợi ý hàm lượng chuẩn CSDL:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {initialData.variants.map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setValue('strength', v, { shouldValidate: true })}
+                      className="px-2.5 py-1 text-xs rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-colors font-medium"
+                    >
+                      {v}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setValue('strength', '', { shouldValidate: true })}
+                    className="px-2.5 py-1 text-xs rounded-md bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 transition-colors"
+                  >
+                    Bao bì không ghi
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

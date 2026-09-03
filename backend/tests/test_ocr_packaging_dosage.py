@@ -61,3 +61,48 @@ def test_ocr_empty_and_short_text_filtered():
     raw = [_stub(""), _stub(" "), _stub("x")]
     items = _ocr_items_to_drug_items(raw, source_type="packaging")
     assert items == []
+
+
+def test_ocr_packaging_splits_trailing_strength_numbers():
+    """Quy tắc tiền xử lý: <TênChữ><Số> (Oricox120, Panadol500, Hapacol250)
+    phải tự động bóc tách thành tên sạch và hàm lượng suy luận đơn vị mg."""
+    raw = [
+        _stub("Oricox120"),
+        _stub("Panadol500"),
+        _stub("Hapacol250"),
+    ]
+    items = _ocr_items_to_drug_items(raw, source_type="packaging")
+    assert len(items) == 3
+
+    assert items[0].brand_name == "Oricox"
+    assert items[0].strength == "120mg"
+
+    assert items[1].brand_name == "Panadol"
+    assert items[1].strength == "500mg"
+
+    assert items[2].brand_name == "Hapacol"
+    assert items[2].strength == "250mg"
+
+    # Kiểm tra biến thể có dấu gạch ngang Oricox-120
+    hyphen_item = _ocr_items_to_drug_items([_stub("Oricox-120")], source_type="packaging")
+    assert hyphen_item[0].brand_name == "Oricox"
+    assert hyphen_item[0].strength == "120mg"
+
+
+def test_oricox_end_to_end_normalization():
+    """Oricox120 sau khi bóc tách phải chuẩn hóa thành công sang Etoricoxib trong CSDL Việt Nam."""
+    from app.services.normalization_service import NormalizationService
+    from app.services.drug_database import drug_database
+
+    drug_database._load_local_db()
+    raw = [_stub("Oricox120")]
+    items = _ocr_items_to_drug_items(raw, source_type="packaging")
+
+    norm_svc = NormalizationService()
+    normalized = norm_svc.normalize_drug_item(items[0])
+
+    assert "Oricox" in normalized.brand_name
+    assert normalized.active_ingredient == "Etoricoxib"
+    assert normalized.strength == "120mg"
+    assert normalized.is_verified is True
+

@@ -101,6 +101,11 @@ class Settings(BaseSettings):
     OCR_MAX_IMAGE_PIXELS: int = 50_000_000
     # Duong dan thu muc cache weight model OCR (neu can override vi tri ~/.paddlex/)
     OCR_MODEL_DIR: Optional[str] = None
+    # OCR Model Lifecycle & Versioning (Stage 11 Architecture Gate)
+    OCR_ACTIVE_MODEL_VERSION: str = "ppocrv6_tiny_baseline"
+    OCR_CUSTOM_DET_MODEL_DIR: Optional[str] = None
+    OCR_CUSTOM_REC_MODEL_DIR: Optional[str] = None
+    OCR_MODEL_REGISTRY_PATH: Optional[str] = None
 
     model_config = SettingsConfigDict(
         env_file=("backend/.env", ".env"),
@@ -125,6 +130,10 @@ OCR_MAX_FILE_SIZE_MB: int = settings.OCR_MAX_FILE_SIZE_MB
 OCR_MAX_IMAGE_DIMENSION: int = settings.OCR_MAX_IMAGE_DIMENSION
 OCR_MAX_IMAGE_PIXELS: int = settings.OCR_MAX_IMAGE_PIXELS
 OCR_MODEL_DIR: Optional[str] = settings.OCR_MODEL_DIR
+OCR_ACTIVE_MODEL_VERSION: str = settings.OCR_ACTIVE_MODEL_VERSION
+OCR_CUSTOM_DET_MODEL_DIR: Optional[str] = settings.OCR_CUSTOM_DET_MODEL_DIR
+OCR_CUSTOM_REC_MODEL_DIR: Optional[str] = settings.OCR_CUSTOM_REC_MODEL_DIR
+OCR_MODEL_REGISTRY_PATH: Optional[str] = settings.OCR_MODEL_REGISTRY_PATH
 
 __all__ = [
     "Settings",
@@ -140,5 +149,9 @@ __all__ = [
     "OCR_MAX_IMAGE_DIMENSION",
     "OCR_MAX_IMAGE_PIXELS",
     "OCR_MODEL_DIR",
+    "OCR_ACTIVE_MODEL_VERSION",
+    "OCR_CUSTOM_DET_MODEL_DIR",
+    "OCR_CUSTOM_REC_MODEL_DIR",
+    "OCR_MODEL_REGISTRY_PATH",
 ]
 

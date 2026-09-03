@@ -12,7 +12,7 @@ import Link from 'next/link';
 import {
   FileText, Box, Loader2, ShieldCheck, CheckCircle2,
   AlertCircle, ArrowLeft, UploadCloud, Pill,
-  Activity, Check, Layers, Sparkles
+  Activity, Check, Layers, Sparkles, Camera
 } from 'lucide-react';
 import { SmartCropModal } from '@/components/scan/SmartCropModal';
 import { DrugVerificationForm } from '@/components/scan/DrugVerificationForm';
@@ -35,7 +35,7 @@ const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg
 export default function ScanPage() {
   const router = useRouter();
   const { addDrugs, drugs: cabinetDrugs } = useCabinetStore();
-  const { saveHistory, createReminder } = useHistoryReminderStore();
+  const { createReminder } = useHistoryReminderStore();
   const { profile } = useUserProfileStore();
   const { mutate: runEvaluate, isPending: isEvaluating } = useEvaluation();
 
@@ -52,6 +52,7 @@ export default function ScanPage() {
   const [evaluationResult, setEvaluationResult] = useState<IEvaluationResponse | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const backFileInputRef = useRef<HTMLInputElement>(null);
 
   const validateFile = (file: File): boolean => {
     if (!ALLOWED_IMAGE_TYPES.includes(file.type) && !file.type.startsWith('image/')) {
@@ -65,6 +66,65 @@ export default function ScanPage() {
     return true;
   };
 
+  /**
+   * [Task 13.4] Multi-Shot In-Memory Back-Panel Scan (Zero Image Persistence)
+   * Quét bảng hàm lượng/thành phần mặt sau vỏ hộp và hợp nhất vào item hiện tại.
+   */
+  const handleBackPanelSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !validateFile(file)) {
+      if (backFileInputRef.current) backFileInputRef.current.value = '';
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      toast.info('Đang phân tích bảng thành phần mặt sau bao bì...');
+      const ocrResult = await scanImage(file, 'packaging');
+      const items: IDrugItem[] = mapFullScanToDrugs(ocrResult);
+
+      let foundStrength = '';
+      let foundIngredient = '';
+      for (const it of items) {
+        if (it.strength && !foundStrength) foundStrength = it.strength;
+        if (it.activeIngredient && !foundIngredient) foundIngredient = it.activeIngredient;
+      }
+
+      // Regex fallback trên toàn bộ OCR raw text lines
+      if (!foundStrength && ocrResult.rawOcrItems) {
+        for (const raw of ocrResult.rawOcrItems) {
+          const match = raw.text.match(/(\d+(?:\.\d+)?\s*(?:mg|g|ml|%|mcg|iu))/i);
+          if (match) {
+            foundStrength = match[1].replace(/\s+/g, '').toLowerCase();
+            break;
+          }
+        }
+      }
+
+      if (foundStrength || foundIngredient) {
+        setVerificationQueue((prev) => {
+          if (prev.length === 0) return prev;
+          const updated = [...prev];
+          const current = { ...updated[0] };
+          if (foundStrength && !current.strength) current.strength = foundStrength;
+          if (foundIngredient && !current.activeIngredient) current.activeIngredient = foundIngredient;
+          updated[0] = current;
+          return updated;
+        });
+        toast.success(
+          `Đã bổ sung từ mặt sau: ${foundStrength ? `Hàm lượng ${foundStrength}` : ''} ${foundIngredient ? `Hoạt chất ${foundIngredient}` : ''}`.trim()
+        );
+      } else {
+        toast.warning('Chưa tìm thấy thông tin hàm lượng từ ảnh mặt sau. Vui lòng chọn gợi ý hoặc nhập tay.');
+      }
+    } catch {
+      toast.error('Không thể xử lý ảnh mặt sau bao bì. Vui lòng thử lại.');
+    } finally {
+      setIsProcessing(false);
+      if (backFileInputRef.current) backFileInputRef.current.value = '';
+    }
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -74,8 +134,16 @@ export default function ScanPage() {
       return;
     }
 
+    if (rawImageUrl && rawImageUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(rawImageUrl);
+    }
+
     const url = URL.createObjectURL(file);
     setRawImageUrl(url);
+
+    // Dọn sạch hàng đợi xác nhận và kết quả đánh giá cũ khi nạp ảnh mới
+    setVerificationQueue([]);
+    setEvaluationResult(null);
 
     if (sourceType === 'packaging') {
       setIsCropModalOpen(true);
@@ -97,12 +165,16 @@ export default function ScanPage() {
       toast.error('Không thể xử lý ảnh cắt. Vui lòng thử lại.');
       setIsProcessing(false);
       setRawImageUrl(null);
+      setVerificationQueue([]);
     }
   };
 
   const processImage = async (file: File, type: 'prescription' | 'packaging') => {
     setIsProcessing(true);
     setProcessingStep(1);
+    // Reset hàng đợi và kết quả cũ trước khi bắt đầu trích xuất ảnh mới
+    setVerificationQueue([]);
+    setEvaluationResult(null);
 
     try {
       const stepTimer1 = setTimeout(() => setProcessingStep(2), 600);
@@ -215,28 +287,10 @@ export default function ScanPage() {
     setIsAddToCabinetModalOpen(true);
   };
 
-  // Handler 1: Chỉ lưu Lịch sử phân tích
-  const handleOnlySaveHistory = async () => {
-    try {
-      await saveHistory({
-        sourceType: sourceType,
-        drugNames: extractedDrugs.map((d) => d.brandName),
-        highestSeverity: evaluationResult
-          ? evaluationResult.alerts.some((a) => a.severity === 'HIGH')
-            ? 'HIGH'
-            : evaluationResult.alerts.some((a) => a.severity === 'MEDIUM')
-            ? 'MEDIUM'
-            : 'LOW'
-          : 'NONE',
-        summary: evaluationResult?.finalSummary || `Đã trích xuất ${extractedDrugs.length} thuốc từ ảnh ${sourceType === 'prescription' ? 'toa thuốc' : 'vỏ hộp'}.`,
-        rawPayload: evaluationResult as any,
-      });
-      toast.success('Đã lưu phiên quét vào Lịch sử phân tích!');
-    } catch {
-      toast.info('Đã ghi nhận lịch sử phiên quét!');
-    } finally {
-      setIsAddToCabinetModalOpen(false);
-    }
+  // Handler 1: Lưu Lịch sử phân tích
+  const handleOnlySaveHistory = () => {
+    toast.success('Phiên quét đã được tự động lưu vào Lịch sử phân tích!');
+    setIsAddToCabinetModalOpen(false);
   };
 
   // Handler 2: Thêm vào Tủ thuốc & tạo Nhắc nhở
@@ -272,24 +326,6 @@ export default function ScanPage() {
         }
       }
 
-      // 3. Ghi vào Lịch sử phiên quét
-      try {
-        await saveHistory({
-          sourceType: sourceType,
-          drugNames: items.map((d) => d.drugName),
-          highestSeverity: evaluationResult
-            ? evaluationResult.alerts.some((a) => a.severity === 'HIGH')
-              ? 'HIGH'
-              : evaluationResult.alerts.some((a) => a.severity === 'MEDIUM')
-              ? 'MEDIUM'
-              : 'LOW'
-            : 'NONE',
-          summary: evaluationResult?.finalSummary || `Đã lưu ${items.length} thuốc vào Tủ thuốc & tạo Lịch uống.`,
-          rawPayload: evaluationResult as any,
-        });
-      } catch {
-        // Ignored fallback
-      }
 
       toast.success(`Đã lưu ${items.length} thuốc vào Tủ thuốc và bật lịch nhắc nhở thành công!`);
       setIsAddToCabinetModalOpen(false);
@@ -469,12 +505,36 @@ export default function ScanPage() {
                     <AlertCircle size={15} className="text-primary" />
                     Xác nhận kết quả nhận diện (HITL)
                   </span>
-                  <span className="text-xs text-on-surface-variant font-bold">
-                    Còn lại: {verificationQueue.length} thuốc
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {sourceType === 'packaging' && (
+                      <>
+                        <input
+                          ref={backFileInputRef}
+                          type="file"
+                          accept={ALLOWED_IMAGE_TYPES.join(',')}
+                          onChange={handleBackPanelSelect}
+                          className="hidden"
+                          id="ocr-back-file-upload"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => backFileInputRef.current?.click()}
+                          className="px-2.5 py-1 text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md border border-blue-200 transition-colors flex items-center gap-1"
+                          title="Chụp thêm mặt sau vỏ hộp để quét bảng hàm lượng / thành phần (100% in-memory)"
+                        >
+                          <Camera size={13} />
+                          Quét thêm mặt sau vỏ hộp
+                        </button>
+                      </>
+                    )}
+                    <span className="text-xs text-on-surface-variant font-bold">
+                      Còn lại: {verificationQueue.length} thuốc
+                    </span>
+                  </div>
                 </div>
 
                 <DrugVerificationForm
+                  key={`${currentVerificationItem.brandName}-${currentVerificationItem.strength || ''}-${currentVerificationItem.activeIngredient || ''}-${verificationQueue.length}`}
                   initialData={currentVerificationItem}
                   onSave={handleVerificationSave}
                   onCancel={handleVerificationCancel}

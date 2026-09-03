@@ -14,7 +14,7 @@ docker compose down
 Write-Host "`n========== [3/3] Đang rebuild và khởi chạy Docker Compose mới... ==========" -ForegroundColor Cyan
 # Chạy ở chế độ Detached (-d) để không chiếm dụng terminal của bạn.
 # Bạn có thể xem log bằng lệnh: docker compose logs -f
-docker compose up --build -d
+docker compose up --build
 
 Write-Host "`n✔ Hoàn thành! Mediscan AI đang chạy ngầm tại:" -ForegroundColor Green
 Write-Host "- Frontend: http://localhost:3001" -ForegroundColor Yellow

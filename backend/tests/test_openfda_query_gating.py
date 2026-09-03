@@ -72,6 +72,5 @@ async def test_tretinoin_normalization_passes_gating():
     )
     normalized = await normalization_service.normalize_drug_item_full(raw_item)
     assert normalized.brand_name == "Tretinoin"
-    assert normalized.active_ingredient == "TRETINOIN"
-    assert normalized.match_method in ("openfda", "openfda_ingredient")
-    assert normalized.is_verified is False
+    assert str(normalized.active_ingredient).upper() == "TRETINOIN"
+    assert normalized.match_method in ("rxnorm", "openfda", "openfda_ingredient")

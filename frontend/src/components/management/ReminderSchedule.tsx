@@ -1,17 +1,18 @@
 'use client';
 
 /**
- * ReminderSchedule — Nhắc Nhở Uống Thuốc & Theo Dõi Tuân Thủ (Sky Blue & Borderless Minimalism).
- * Rebranding: MediScan.
+ * ReminderSchedule — Nhắc Nhở Uống Thuốc & Theo Dõi Tuân Thủ Điều Trị.
+ * Hỗ trợ theo dõi Tuân thủ trong ngày (Daily) & Cả quá trình (Overall).
+ * Giới hạn ghi nhận 1 lần/ngày/nhắc nhở để chống tăng ảo số lần uống.
  */
 
 import React, { useState, useEffect } from 'react';
 import {
   Clock, CheckCircle2, XCircle, Plus, Trash2, Power, Sun, Sunset, Moon, Sunrise,
-  TrendingUp, Pill, Loader2, Check, X
+  TrendingUp, Pill, Loader2, Check, X, CalendarCheck, Award, AlertCircle
 } from 'lucide-react';
 import { useHistoryReminderStore } from '@/store/historyReminderStore';
-import { IReminderCreate, IReminderItem } from '@/types/history_reminder';
+import { IReminderCreate, IReminderItem, IReminderLogItem } from '@/types/history_reminder';
 import { toast } from '@/components/common/Toast';
 
 const TIME_OF_DAY_SLOTS = [
@@ -43,6 +44,17 @@ export function ReminderSchedule() {
   useEffect(() => {
     fetchReminders();
   }, [fetchReminders]);
+
+  const getTodayDateString = () => {
+    const d = new Date();
+    return d.toISOString().split('T')[0];
+  };
+
+  const getTodayLog = (logs?: IReminderLogItem[]): IReminderLogItem | null => {
+    if (!logs || logs.length === 0) return null;
+    const todayStr = getTodayDateString();
+    return logs.find((log) => log.timestamp.startsWith(todayStr)) || null;
+  };
 
   const handleAddReminder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,43 +106,97 @@ export function ReminderSchedule() {
     try {
       await logReminderStatus(id, status);
       if (status === 'taken') {
-        toast.success(`Đã ghi nhận: Đã uống ${drugName}!`);
+        toast.success(`Đã ghi nhận: Đã uống ${drugName} hôm nay!`);
       } else {
-        toast.info(`Đã ghi nhận: Bỏ qua ${drugName}.`);
+        toast.info(`Đã ghi nhận: Bỏ qua ${drugName} hôm nay.`);
       }
     } catch {
       toast.error('Có lỗi xảy ra.');
     }
   };
 
+  const todayRate = stats.todayAdherenceRate ?? 0;
+  const overallRate = stats.adherenceRate ?? 0;
+  const todayTaken = stats.todayTakenCount ?? 0;
+  const todayScheduled = stats.todayTotalScheduled ?? stats.totalReminders ?? 0;
+  const todaySkipped = stats.todaySkippedCount ?? 0;
+
   return (
     <div className="space-y-6 font-[var(--font-inter)] text-xs">
 
-      {/* ── Treatment Adherence Metric Card ── */}
-      <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
-            <TrendingUp size={18} className="text-sky-600" />
-            <span>Chỉ số tuân thủ điều trị</span>
+      {/* ── Dual Treatment Adherence Metric Cards ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Card 1: Tuân thủ trong ngày hôm nay */}
+        <div className="bg-white rounded-2xl border border-sky-100 p-5 shadow-sm space-y-3 relative overflow-hidden">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
+              <div className="p-1.5 rounded-lg bg-sky-50 text-sky-600">
+                <CalendarCheck size={18} />
+              </div>
+              <div>
+                <span>Tuân thủ trong ngày</span>
+                <span className="block text-[11px] font-normal text-slate-400">Tiến độ cữ thuốc hôm nay</span>
+              </div>
+            </div>
+
+            <div className={`px-3 py-1 rounded-full text-xs font-bold border ${
+              todayRate >= 80
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : todayRate >= 50
+                ? 'bg-amber-50 border-amber-200 text-amber-700'
+                : 'bg-sky-50 border-sky-200 text-sky-700'
+            }`}>
+              {todayRate}% Hôm nay
+            </div>
           </div>
 
-          <div className="px-3 py-1 rounded-full bg-sky-50 border border-sky-100 text-sky-700 text-xs font-bold">
-            {stats.adherenceRate}% Tuân thủ
+          <div className="space-y-2">
+            <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  todayRate >= 80 ? 'bg-emerald-500' : todayRate >= 50 ? 'bg-amber-500' : 'bg-sky-500'
+                }`}
+                style={{ width: `${Math.min(todayRate, 100)}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-slate-500 pt-1">
+              <span>Đã uống: <strong className="text-emerald-700 font-bold">{todayTaken} / {todayScheduled}</strong> cữ</span>
+              <span>Bỏ qua: <strong className="text-rose-600 font-bold">{todaySkipped}</strong> cữ</span>
+              <span>Còn lại: <strong className="text-slate-700 font-bold">{Math.max(0, todayScheduled - todayTaken - todaySkipped)}</strong></span>
+            </div>
           </div>
         </div>
 
-        {/* Progress bar */}
-        <div className="space-y-2">
-          <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-sky-500 rounded-full transition-all duration-300"
-              style={{ width: `${Math.min(stats.adherenceRate, 100)}%` }}
-            />
+        {/* Card 2: Tuân thủ cả quá trình */}
+        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm space-y-3 relative overflow-hidden">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
+              <div className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600">
+                <Award size={18} />
+              </div>
+              <div>
+                <span>Tuân thủ cả quá trình</span>
+                <span className="block text-[11px] font-normal text-slate-400">Đánh giá toàn bộ lịch sử điều trị</span>
+              </div>
+            </div>
+
+            <div className="px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-bold">
+              {overallRate}% Tích lũy
+            </div>
           </div>
-          <div className="flex justify-between text-xs text-slate-500 pt-1">
-            <span>Đã uống: <strong className="text-slate-800">{stats.takenCount}</strong> lần</span>
-            <span>Bỏ qua: <strong className="text-slate-800">{stats.skippedCount}</strong> lần</span>
-            <span>Tổng số thuốc: <strong className="text-slate-800">{stats.totalReminders}</strong></span>
+
+          <div className="space-y-2">
+            <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-indigo-500 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(overallRate, 100)}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-slate-500 pt-1">
+              <span>Tổng đã uống: <strong className="text-slate-800">{stats.takenCount}</strong> lần</span>
+              <span>Tổng bỏ qua: <strong className="text-slate-800">{stats.skippedCount}</strong> lần</span>
+              <span>Tổng lịch: <strong className="text-slate-800">{stats.totalReminders}</strong></span>
+            </div>
           </div>
         </div>
       </div>
@@ -268,18 +334,30 @@ export function ReminderSchedule() {
                 ) : (
                   <div className="space-y-2.5">
                     {slotReminders.map((r) => {
-                      const latestLog = r.logs && r.logs.length > 0 ? r.logs[0] : null;
+                      const todayLog = getTodayLog(r.logs);
+                      const isTakenToday = todayLog?.status === 'taken';
+                      const isSkippedToday = todayLog?.status === 'skipped';
 
                       return (
                         <div
                           key={r.id}
-                          className={`p-3 rounded-xl border transition-all space-y-2 ${
-                            r.isActive ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-50/60 border-slate-100 opacity-60'
+                          className={`p-3.5 rounded-xl border transition-all space-y-2.5 ${
+                            !r.isActive
+                              ? 'bg-slate-50/60 border-slate-100 opacity-60'
+                              : isTakenToday
+                              ? 'bg-emerald-50/30 border-emerald-200 shadow-sm'
+                              : isSkippedToday
+                              ? 'bg-rose-50/30 border-rose-200 shadow-sm'
+                              : 'bg-white border-slate-200 shadow-sm'
                           }`}
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex items-center gap-2">
-                              <Pill size={15} className="text-sky-600 shrink-0" />
+                              <div className={`p-1.5 rounded-lg ${
+                                isTakenToday ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-50 text-sky-600'
+                              }`}>
+                                <Pill size={15} className="shrink-0" />
+                              </div>
                               <div>
                                 <span className="font-bold text-slate-900 text-xs block">{r.drugName}</span>
                                 {r.dosageInstruction && (
@@ -292,7 +370,7 @@ export function ReminderSchedule() {
                               <button
                                 type="button"
                                 onClick={() => handleToggleActive(r)}
-                                title={r.isActive ? 'Bật' : 'Tắt'}
+                                title={r.isActive ? 'Tắt nhắc nhở' : 'Bật nhắc nhở'}
                                 className={`p-1.5 rounded-lg text-xs transition-all ${
                                   r.isActive
                                     ? 'bg-sky-50 text-sky-600 hover:bg-sky-100'
@@ -318,36 +396,60 @@ export function ReminderSchedule() {
                               {r.reminderTime}
                             </span>
 
-                            {latestLog && (
-                              <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${
-                                latestLog.status === 'taken'
-                                  ? 'text-emerald-700 bg-emerald-50'
-                                  : 'text-rose-700 bg-rose-50'
+                            {todayLog ? (
+                              <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1 ${
+                                isTakenToday
+                                  ? 'text-emerald-700 bg-emerald-100 border border-emerald-200'
+                                  : 'text-rose-700 bg-rose-100 border border-rose-200'
                               }`}>
-                                {latestLog.status === 'taken' ? 'Đã uống' : 'Bỏ qua'}
+                                {isTakenToday ? (
+                                  <>
+                                    <Check size={11} className="stroke-[3]" />
+                                    <span>Đã uống hôm nay</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <X size={11} className="stroke-[3]" />
+                                    <span>Đã bỏ qua hôm nay</span>
+                                  </>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 flex items-center gap-1">
+                                <AlertCircle size={11} />
+                                <span>Chưa uống hôm nay</span>
                               </span>
                             )}
                           </div>
 
+                          {/* Action Buttons: 1 lần trong ngày, có thể chuyển đổi taken <-> skipped */}
                           <div className="grid grid-cols-2 gap-2 pt-0.5">
                             <button
                               type="button"
                               onClick={() => handleLogStatus(r.id, 'taken', r.drugName)}
-                              disabled={!r.isActive}
-                              className="py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-lg flex items-center justify-center gap-1.5 disabled:opacity-40 shadow-sm transition-all"
+                              disabled={!r.isActive || isTakenToday}
+                              className={`py-1.5 px-2 font-semibold text-xs rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                                isTakenToday
+                                  ? 'bg-emerald-600 text-white cursor-default shadow-sm ring-2 ring-emerald-200 opacity-95'
+                                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-200'
+                              } disabled:cursor-not-allowed`}
                             >
-                              <CheckCircle2 size={13} />
-                              <span>Đã uống</span>
+                              <CheckCircle2 size={13} className={isTakenToday ? 'text-white' : 'text-emerald-600'} />
+                              <span>{isTakenToday ? 'Đã uống' : 'Đã uống'}</span>
                             </button>
 
                             <button
                               type="button"
                               onClick={() => handleLogStatus(r.id, 'skipped', r.drugName)}
-                              disabled={!r.isActive}
-                              className="py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg flex items-center justify-center gap-1.5 disabled:opacity-40 transition-all"
+                              disabled={!r.isActive || isSkippedToday}
+                              className={`py-1.5 px-2 font-semibold text-xs rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                                isSkippedToday
+                                  ? 'bg-rose-600 text-white cursor-default shadow-sm ring-2 ring-rose-200 opacity-95'
+                                  : 'bg-slate-100 text-slate-700 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 border border-slate-200'
+                              } disabled:cursor-not-allowed`}
                             >
-                              <XCircle size={13} />
-                              <span>Bỏ qua</span>
+                              <XCircle size={13} className={isSkippedToday ? 'text-white' : 'text-slate-500'} />
+                              <span>{isSkippedToday ? 'Bỏ qua' : 'Bỏ qua'}</span>
                             </button>
                           </div>
                         </div>

@@ -441,6 +441,17 @@
       "default_route": "Uống",
       "max_daily_dose_mg": 9000,
       "category": "Thuốc bao phủ niêm mạc tiêu hóa"
+    },
+    {
+      "id": "DRUG_041",
+      "brand_name": "Alpha Choay 4.2mg",
+      "aliases": ["Alpha Choay", "Alphachymotrypsin", "Alphachymotrypsine", "Alphachymotrysin", "Alphachymotrysin 4,2mg", "Chymotrypsin"],
+      "active_ingredient": "Chymotrypsin",
+      "strength": "4.2mg",
+      "dosage_form": "Viên nén",
+      "default_route": "Uống / Ngậm dưới lưỡi",
+      "max_daily_dose_mg": 25.2,
+      "category": "Kháng viêm dạng men (Enzyme)"
     }
   ]
 }

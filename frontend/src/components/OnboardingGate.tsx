@@ -20,7 +20,7 @@ const PUBLIC_PAGES = ['/login', '/register'];
 export function OnboardingGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { hydrateFromStorage: hydrateProfile, fetchProfile } = useUserProfileStore();
+  const { fetchProfile } = useUserProfileStore();
   const { hydrateFromStorage: hydrateAuth, isAuthenticated } = useAuthStore();
 
   const [status, setStatus] = useState<'checking' | 'ready'>('checking');
@@ -34,7 +34,7 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
 
     // 2. Hydrate auth & profile state
     hydrateAuth();
-    hydrateProfile();
+    fetchProfile();
 
     const token = typeof window !== 'undefined' ? localStorage.getItem('mediscan_access_token') : null;
 
@@ -57,7 +57,7 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
     }
 
     setStatus('ready');
-  }, [pathname, router, hydrateAuth, hydrateProfile]);
+  }, [pathname, router, hydrateAuth, fetchProfile]);
 
   if (status === 'checking' && !PUBLIC_PAGES.includes(pathname)) {
     return (

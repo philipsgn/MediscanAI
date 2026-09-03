@@ -47,7 +47,7 @@ Tài liệu này mô tả chi tiết kiến trúc hệ thống, luồng xử lý
 2. **Graceful Degradation / Hybrid Fallback (Suy thoái có kiểm soát):**
    * Nếu chất lượng hình ảnh đơn thuốc/vỏ hộp kém dẫn đến độ tin cậy trích xuất (Confidence Score) thấp hoặc mô hình VLM gặp lỗi kết nối, hệ thống sẽ tự động chuyển sang chế độ **Smart Form** (Form nhập liệu thông minh tích hợp tìm kiếm gợi ý từ điển) để người dùng tự chọn nhanh biệt dược/hoạt chất.
 3. **Privacy & Safety First (Bảo mật & An toàn thông tin):**
-   * **Bảo mật:** Dữ liệu hình ảnh y tế nhạy cảm chỉ được xử lý tạm thời trên bộ nhớ đệm (In-memory buffer) của Server, không lưu trữ vĩnh viễn trừ khi có sự đồng ý tường minh (Consent) của người dùng.
+   * **Bảo mật (Zero Image Persistence & RAM-Only):** Dữ liệu hình ảnh y tế nhạy cảm chỉ được nạp và xử lý tạm thời trên RAM (In-memory buffer) của Server, tuyệt đối không lưu trữ xuống đĩa cứng, database, cache hay temporary file ở mọi Stage.
    * **An toàn:** Báo cáo tương tác thuốc được phân cấp rõ ràng theo các mức độ nghiêm trọng và luôn đi kèm điều khoản miễn trừ trách nhiệm y tế (Disclaimer).
 
 ---
@@ -325,12 +325,213 @@ mediscan-ai/
 
 ## 7. Quy Trình Bảo Mật & Trách Nhiệm Pháp Lý (Security & Legal)
 
-### 🔒 7.1. Bảo Vệ Dữ Liệu Riêng Tư (Data Privacy)
+### 🔒 7.1. Bảo Vệ Dữ Liệu Riêng Tư (Data Privacy & RAM-Only Inference)
 Để tuân thủ các nguyên tắc bảo mật dữ liệu y tế nhạy cảm (HIPAA/GDPR-like):
-* **In-memory Processing:** Mọi tệp hình ảnh đơn thuốc/vỏ hộp tải lên Backend chỉ được nạp trực tiếp vào RAM (In-memory buffer), gửi tới API VLM của Cloud Node qua kết nối HTTPS bảo mật và giải phóng ngay lập tức.
-* **Không lưu trữ ảnh thô:** Hệ thống không lưu trữ ảnh đơn thuốc vật lý lên đĩa cứng của server trừ khi người dùng kích hoạt tính năng "Lịch sử Toa thuốc" và đồng ý bằng văn bản điện tử (Consent Checkbox).
+* **In-memory Processing (Zero Image Persistence):** Mọi tệp hình ảnh đơn thuốc/vỏ hộp tải lên Backend chỉ được nạp trực tiếp vào RAM (In-memory buffer) với giới hạn kích thước (Bounded Memory Read). Hệ thống không sử dụng API bên ngoài (VLM) mà xử lý cục bộ bằng mô hình PP-OCRv6 qua ONNX Runtime. Ảnh được giải phóng ngay sau khi trích xuất chuỗi ký tự và bounding box.
+* **Không lưu trữ ảnh thô:** Hệ thống **TUYỆT ĐỐI KHÔNG** lưu trữ bất kỳ ảnh thô nào xuống đĩa cứng (disk), cơ sở dữ liệu (database), object storage, cache hay temporary file ở mọi Stage. Fingerprint của ảnh (`image_sha256`) chỉ được tính toán trong RAM để làm checksum.
+* **Inference Thread-Safety & Warmup:** Khởi tạo mô hình (Lazy Initialization) được bảo vệ bằng `threading.Lock` để tránh Race Condition hoặc Over-Memory. Quá trình Warmup (load ONNX kernels) được thực hiện an toàn bằng cách truyền một ảnh dummy qua toàn bộ pipeline để đảm bảo request thật đầu tiên của User không chịu Cold Start Penalty.
 
 ### ⚖️ 7.2. Bộ Lọc Điều Khoản Miễn Trừ Trách Nhiệm (Disclaimer Interceptor)
 Quy trình hiển thị kết quả y khoa bắt buộc tuân theo quy tắc an toàn nghiêm ngặt:
 * **First-run Interceptor:** Khi người dùng truy cập trang Phân Tích Báo Cáo lần đầu tiên, hệ thống sẽ kích hoạt một cửa sổ Modal yêu cầu người dùng đọc và chấp nhận các điều khoản miễn trừ trách nhiệm y tế.
 * **Nhắc nhở thường trực:** Mọi trang kết quả đánh giá tương tác thuốc đều đính kèm một dòng cảnh báo dễ nhìn ở chân trang, ghi rõ: *"Các kết quả phân tích từ AI chỉ mang tính chất tham khảo, không có giá trị thay thế chỉ định chuyên môn của Bác sĩ."*
+
+---
+
+## 8. Kiến Trúc Xác Thực & Phân Quyền (Authentication & Security Architecture)
+
+### 🔑 8.1. Luồng Xác Thực (Authentication Flow)
+Hệ thống sử dụng cơ chế xác thực không trạng thái (Stateless JWT Authentication) kết hợp lưu trữ thực thể người dùng trong PostgreSQL:
+1. **Đăng ký (Register):** Tiếp nhận `username`, `email`, `password` (tối thiểu 6 ký tự). Chuẩn hóa email/username (lowercase, trim). Kiểm tra tính duy nhất (Unique Constraint) trong Database. Băm mật khẩu bằng `bcrypt.hashpw` kèm salt ngẫu nhiên. Trả về `accessToken`, `refreshToken` và thông tin `user`.
+2. **Đăng nhập (Login):** Nhận diện người dùng linh hoạt qua Username hoặc Email + Mật khẩu. Hỗ trợ cả payload JSON và Form-Data OAuth2 standard. So khớp mật khẩu qua `bcrypt.checkpw`. Cấp cặp JWT Access/Refresh Token.
+3. **Cấp mới Token (Refresh):** Xác thực `refreshToken` (thời hạn 7 ngày, claim `type="refresh"`). Cấp mới `accessToken` mà không yêu cầu người dùng nhập lại mật khẩu.
+4. **Trích xuất Danh tính (Current User):** Middleware / Dependency `get_current_user` trích xuất `Authorization: Bearer <token>`, giải mã payload JWT và truy vấn thông tin User từ Database.
+
+### 🛡️ 8.2. Ranh Giới Tin Cậy (Trust Boundaries)
+
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           PUBLIC BOUNDARY                               │
+│  - POST /api/v1/auth/register    - POST /api/v1/auth/login              │
+│  - POST /api/v1/auth/refresh     - GET  /api/v1/drugs/search            │
+│  - GET  /health/live             - GET  /health/ready                   │
+│  - POST /health/warmup                                                  │
+└─────────────────────────────────────────────────────────────────────────┘
+                                   │ (Bearer JWT Validation)
+                                   ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          PROTECTED BOUNDARY                             │
+│  - GET  /api/v1/auth/me          - GET/PUT /api/v1/profile/me           │
+│  - POST /api/v1/ocr/scan         - GET     /api/v1/history/             │
+│  - GET/POST /api/v1/reminders/   - Data Platform Review Queue           │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### ⏳ 8.3. Vòng Đời & Ràng Buộc Token (Token Lifecycle & Session Security Architecture)
+
+#### A. Access Token Specification
+- **Thuật toán & Ký số:** Thuật toán ký `HS256`, ép buộc explicit allowlist `algorithms=["HS256"]` trong `jwt.decode` nhằm loại trừ triệt để lỗ hổng `alg:none`.
+- **Thời hạn (TTL):** 24 giờ (`ACCESS_TOKEN_EXPIRE_MINUTES = 1440`).
+- **Required Claims:**
+  ```json
+  {
+    "sub": "usr_xxxxxxxxxxxx",
+    "exp": 1756684800,
+    "iat": 1756598400,
+    "type": "access"
+  }
+  ```
+- **Validation Pipeline:**
+  `Authorization Header` ➔ `Bearer Extraction` ➔ `PyJWT Decode (explicit HS256)` ➔ `Expiration Check` ➔ `Required Claims (sub, exp, iat, type)` ➔ `type == 'access'` ➔ `Database User Lookup` ➔ `is_active == True` ➔ `Return UserResponse`.
+
+#### B. Refresh Token Specification & Analysis
+- **Thời hạn (TTL):** 7 ngày (`REFRESH_TOKEN_EXPIRE_DAYS = 7`).
+- **Required Claims:** `{"sub": "usr_...", "exp": ..., "iat": ..., "type": "refresh"}`.
+- **Phân phối:** Trả về trong JSON Response Body (`TokenResponse`) cùng Access Token.
+- **Ranh giới bảo mật & Lưu trữ:** Phía Frontend lưu trữ trong Auth Storage (Client Memory / Secure Local Storage). Refresh Token chỉ dùng duy nhất tại endpoint `POST /api/v1/auth/refresh` để cấp mới Access Token.
+- **Replay & Revocation Decision (Stage 8):** Hệ thống áp dụng mô hình **Stateless Token Verification** trong Stage 8. Khi có nhu cầu vô hiệu hóa tức thời (Server-side Revocation) hoặc Token Family Rotation chống Replay Attack ở quy mô lớn, kiến trúc sẽ mở rộng bảng `revoked_tokens` / Redis Denylist mà không làm thay đổi format JWT payload hiện hữu.
+
+#### C. Token Type Separation Invariant
+Bắt buộc tách biệt hoàn toàn phạm vi sử dụng của hai loại token:
+```text
+Access Token
+    ├── HỢP LỆ  ➔ Tất cả Protected APIs (GET /auth/me, POST /ocr/scan, GET/PUT /profile/me, ...)
+    └── BỊ CHẶN ➔ POST /api/v1/auth/refresh (HTTP 401: INVALID_REFRESH_TOKEN)
+
+Refresh Token
+    ├── HỢP LỆ  ➔ Duy nhất POST /api/v1/auth/refresh
+    └── BỊ CHẶN ➔ Tất cả Protected APIs (HTTP 401: INVALID_TOKEN)
+```
+
+#### D. User State Invariant
+Một JWT hợp lệ về mặt mật mã học (chữ ký đúng và chưa hết hạn) **chưa đủ** để cấp quyền truy cập. Mọi request qua `get_current_user` bắt buộc phải thỏa mãn đồng thời:
+```text
+JWT Cryptographically Valid
+AND Token Not Expired (exp > current_time)
+AND Token Type Correct (type == "access")
+AND User Exists in Database
+AND User.is_active == True
+```
+Nếu `user.is_active == False` hoặc user đã bị xóa, request lập tức bị từ chối với mã lỗi `HTTP 401 UNAUTHORIZED` (hoặc `HTTP 404 USER_NOT_FOUND`), ngăn chặn vĩnh viễn việc tài khoản bị khóa tiếp tục dùng token cũ.
+
+### 🔒 8.4. Xử Lý Mật Khẩu & Bảo Vệ Riêng Tư (Password & Privacy Invariants)
+- **Zero Plaintext Password:** Tuyệt đối không lưu trữ, log, hay trả về mật khẩu gốc ở bất kỳ tầng nào.
+- **Zero Credential Logging:** Log hệ thống không ghi nhận mật khẩu, token thô, giá trị header `Authorization` hay thông tin nhận dạng nhạy cảm.
+- **Rate Limiting:** Áp dụng giới hạn `5 requests / phút` đối với các endpoint `/auth/login` và `/auth/register` qua `slowapi` nhằm ngăn chặn tấn công dò mật khẩu (Brute-force / Credential Stuffing).
+
+### ⚠️ 8.5. Đồng Bộ Hóa Error Contract Cho Authentication
+Mọi phản hồi lỗi từ phân hệ Auth phải tuân thủ nghiêm ngặt 6-key contract chung của hệ thống:
+```json
+{
+  "detail": {
+    "error_code": "UNAUTHORIZED | INVALID_CREDENTIALS | USER_ALREADY_EXISTS | INVALID_TOKEN | INVALID_REFRESH_TOKEN | MISSING_REFRESH_TOKEN | USER_NOT_FOUND | RATE_LIMIT_EXCEEDED",
+    "message": "Thông điệp lỗi chi tiết cho người dùng",
+    "service": "auth",
+    "stage": "authentication",
+    "request_id": "req-uuid-hoac-x-request-id",
+    "retryable": false
+  }
+}
+```
+
+### 👥 8.6. Nền Tảng Phân Quyền Tương Lai (Future RBAC Foundation)
+Để chuẩn bị cho hệ thống Data Platform Review Queue (Stage sau) phân định quyền giữa Người dùng thông thường và Bác sĩ/Auditor thẩm định dữ liệu:
+- Bảng `users` thiết kế mở rộng sẵn sàng bổ sung cột `role` với các giá trị: `USER` (mặc định), `MEDICAL_AUDITOR` (thẩm định đơn thuốc & ground truth), `ADMIN` (quản trị hệ thống).
+- Dependency `get_current_user` độc lập với tầng Authorization; các role-check dependencies (`require_role("MEDICAL_AUDITOR")`) sẽ bọc ngoài `get_current_user` mà không phá vỡ hợp đồng định danh hiện tại.
+
+### 💻 8.7. Kiến Trúc Frontend Auth State & Token Lifecycle (Stage 8.3)
+
+#### A. Token Storage Strategy
+- **Access Token:** Lưu trong `localStorage` (`mediscan_access_token`) và đồng bộ vào Cookie (`mediscan_auth_token`, SameSite=Lax, 7 ngày) để phục vụ việc kiểm tra route tức thì tại **Next.js Edge Middleware**.
+- **Refresh Token:** Lưu trong `localStorage` (`mediscan_refresh_token`). Chỉ sử dụng duy nhất khi Axios Interceptor nhận mã `401 Unauthorized`.
+- **User Metadata:** Lưu trong `localStorage` (`mediscan_auth_user`) phục vụ khởi tạo nhanh giao diện khi hydrate.
+
+#### B. Frontend Auth State Machine
+```text
+                  ┌────────────┐
+                  │  APP_BOOT  │
+                  └─────┬──────┘
+                        │
+                        ▼
+                ┌───────────────┐
+                │ AUTH_LOADING  │ (Hydrate & call GET /auth/me)
+                └───────┬───────┘
+           ┌────────────┴────────────┐
+  (Valid Session)             (No / Invalid Token)
+           │                         │
+           ▼                         ▼
+   ┌───────────────┐         ┌─────────────────┐
+   │ AUTHENTICATED │         │ UNAUTHENTICATED │
+   └───────┬───────┘         └─────────────────┘
+           │                         ▲
+   (401 on Request)                  │
+           ▼                         │
+     ┌───────────┐   (Refresh Fail / │
+     │ REFRESHING│ ──── Logout) ─────┘
+     └─────┬─────┘
+           │ (Refresh Success)
+           ▼
+   ┌───────────────┐
+   │ AUTHENTICATED │
+   └───────────────┘
+```
+
+#### C. Axios Interceptor & Concurrent 401 Queueing
+- Sử dụng biến cờ `isRefreshing` cùng hàng đợi `failedQueue` (Promise resolver array).
+- Khi có nhiều request đồng thời gặp mã `HTTP 401`:
+  - Request đầu tiên kích hoạt gọi API `POST /api/v1/auth/refresh`.
+  - Các request tiếp theo được đưa vào `failedQueue` tạm dừng.
+  - Khi refresh thành công: Cập nhật token mới, giải phóng toàn bộ hàng đợi và retry các request đang chờ.
+  - Khi refresh thất bại: Xóa sạch token, xóa cookie, giải phóng queue với lỗi và chuyển hướng về `/login`.
+
+#### D. Route Protection & Anti-Flash Boundary
+- **Next.js Middleware (`src/middleware.ts`):** Kiểm tra cookie `mediscan_auth_token` tại Edge server. Chưa đăng nhập ➔ Redirect sang `/login?redirect=...`. Đã đăng nhập nhưng vào `/login` hoặc `/register` ➔ Redirect sang `/cabinet`.
+- **Client Auth Guard:** Các trang protected (`/cabinet`, `/history`, `/scan`) kiểm tra `isHydrated` từ Zustand `authStore` trước khi render component nội dung, hiển thị Skeleton / Spinner mượt mà tránh hiện tượng chớp nháy dữ liệu (Flash of Unauthenticated Content).
+
+---
+
+## 9. KIẾN TRÚC NGUỒN TRI THỨC THUỐC & CẦU NỐI ĐỊNH DANH (DRUG KNOWLEDGE SOURCES & IDENTIFIER BRIDGE)
+
+### 9.1. Phân Tầng Thẩm Quyền (Authority-Driven Normalization Pipeline)
+```text
+OCR Output ───> [ 1. Local DB (Sync) ]
+                         │ (Miss)
+                         ▼
+                [ 2. RxNorm / RxNav REST API (Primary Authority) ]
+                         │
+             ┌───────────┴───────────┐
+      (RESOLVED)                (UNRESOLVED / REVIEW)
+             │                           │
+             ▼                           ▼
+   [ Identifier Bridge ]       [ 3. OpenFDA API (Supporting Evidence) ]
+ (RxCUI -> Canonical)            (Max Conf <= 0.6, is_verified=False, HITL)
+             │
+             ▼
+   [ 4. DDInter Local v2.0 ]
+  (On-premise frozenset lookup)
+             │
+             ▼
+  [ 4-Layer Clinical Engine ]
+```
+
+### 9.2. Ma Trận Quyết Định Nguồn Dữ Liệu (Source Decision Matrix)
+- **RxNorm / RxNav (Thẩm quyền chuẩn hóa Chính - Primary):** Sử dụng API NLM/NIH (`rxcui.json`, `properties.json`, `approximateTerm.json`). Trả về Concept RxCUI với confidence score cao (0.85–1.0). Khi có nhiều ứng viên mơ hồ, trả về trạng thái `CANDIDATE_REQUIRES_REVIEW` chuyển giao diện HITL duyệt thay vì tự ý chọn ngầm.
+- **OpenFDA (Bằng chứng hỗ trợ Phụ - Secondary Supporting Evidence):** Chỉ kích hoạt khi Local DB và RxNorm không giải quyết được. Bắt buộc gắn cờ `is_verified=False`, kẹp trần `confidence_score <= 0.6`, không bao giờ tự động chuyển thẳng sang phân tích tương tác nếu chưa có người dùng xác nhận.
+- **DDInter (Cơ sở Dữ liệu Tương tác Thuốc On-Premise):** Tải hoàn chỉnh tại máy chủ nội bộ (`backend/app/data/ddinter_interactions.json`, phiên bản 2.0 theo giấy phép CC BY-NC-SA 4.0). Tra cứu tương tác cặp thuốc theo $O(1)$ thông qua cấu trúc `frozenset([drug_a, drug_b])`. Tuyệt đối không gọi external live API trong luồng request.
+
+### 9.3. Ba Bất Biến Lâm Sàng Cốt Lõi (Core Clinical Invariants)
+1. **INV-01 (Authority Gate):** Chỉ những thuốc đã được xác thực danh tính qua CSDL tin cậy hoặc RxNorm Concept mới được đưa vào kiểm tra tương tác tự động.
+2. **INV-02 (Unknown Is Better Than Wrong):** Thuốc chưa được giải quyết danh tính (`UNRESOLVED`) hoặc chỉ là gợi ý (`CANDIDATE_REQUIRES_REVIEW`) sẽ bị CHẶN khỏi bộ suy diễn tương tác để tránh báo động giả gây nguy hiểm cho người dùng.
+3. **INV-03 (Provenance Tracking):** Mọi cảnh báo tương tác xuất phát từ DDInter đều mang đầy đủ mã định danh nguồn (`ddinter_id`, `dataset_version: "2.0"`).
+
+### 9.4. Quản Trị CSDL Tri Thức & Kiểm Soát Độ Bao Phủ DDI (Stage 12 Governance & Coverage)
+- **Clinical Coverage State Machine (INV-12-01..04):**
+  - Phân loại rõ 5 trạng thái cấp thuốc: `COVERED`, `NOT_COVERED`, `AMBIGUOUS`, `UNRESOLVED`, `SOURCE_UNAVAILABLE`.
+  - Phân biệt minh bạch giữa `NO_RECORD_IN_DATASET` (không có bản ghi trong phạm vi CSDL) và kết luận phủ định tuyệt đối.
+  - Bắt buộc cảnh báo danh sách thuốc chưa đủ dữ liệu phân tích khi `coverage_status != "FULL"`.
+- **Dataset Governance & Integrity Validator:**
+  - Tệp Manifest: `backend/app/data/manifest.json` ghi nhận mã SHA256 checksum và trạng thái rollback minh bạch (`rollback_available: false`).
+  - Validator: `backend/app/governance/dataset_validator.py` kiểm định tính toàn vẹn cú pháp, tính duy nhất của ID, không trùng cặp đối xứng và không có self-pairs trước khi promote dataset.
+
+
+

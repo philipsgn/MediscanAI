@@ -38,12 +38,18 @@ class ClinicalNERParser:
         self.default_slot_times = default_slot_times or default_ocr_config.default_slot_times
 
     def extract_strength(self, text: str) -> Optional[str]:
-        """Trích xuất hàm lượng thuốc (VD: 500mg, 1g, 1000mg/62.5mg, 10ml)."""
+        """Trích xuất hàm lượng thuốc (VD: 500mg, 1g, 1000mg/62.5mg, 10ml, hoặc suy luận từ Oricox120)."""
         if not text:
             return None
         match = STRENGTH_REGEX.search(text)
         if match:
             return match.group(1).strip()
+        # Heuristic cho dạng <TênChữ><Số> (Oricox120 -> 120mg)
+        m = re.search(r"\b([a-zA-ZÀ-ỹ]{2,})[\s\-_]*(\d{1,4}(?:[\.,]\d+)?)\b", text)
+        if m:
+            prefix = m.group(1).lower()
+            if prefix not in {"vitamin", "lan", "ngay", "gio", "vien", "tab", "tabs", "sl", "qty"}:
+                return f"{m.group(2).strip()}mg"
         return None
 
     def extract_dosage_form(self, text: str) -> Optional[str]:

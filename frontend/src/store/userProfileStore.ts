@@ -1,126 +1,89 @@
 /**
  * Zustand store cho UserProfile — Quản lý Hồ sơ Y tế Cá nhân hóa (Stage 9).
- * Đồng bộ với Backend API (/api/v1/profile) khi người dùng đã xác thực,
- * đồng thời duy trì fallback localStorage khi offline hoặc chưa đăng nhập.
+ * Backend REST API (/api/v1/profile/me) là Single Source of Truth.
+ * Dữ liệu lưu trong Zustand memory, tự động dọn sạch khi Logout.
  */
 
 import { create } from 'zustand';
 import { IUserProfile } from '@/types/medication';
 import { profileService } from '@/services/profileService';
+import { useAuthStore } from '@/store/authStore';
 
-const STORAGE_KEY = 'mediscan_user_profile';
+const LEGACY_STORAGE_KEY = 'mediscan_user_profile';
 
 interface UserProfileState {
   profile: IUserProfile | null;
   isLoading: boolean;
   error: string | null;
 
-  /** Lưu/Cập nhật profile vào backend API (nếu đã login) + localStorage */
-  setProfile: (p: IUserProfile) => Promise<void>;
+  /** Lưu/Cập nhật profile lên backend API */
+  setProfile: (p: IUserProfile) => Promise<IUserProfile>;
   /** Truy xuất profile từ Backend API */
-  fetchProfile: () => Promise<void>;
-  /** Xóa profile khỏi store + localStorage */
+  fetchProfile: () => Promise<IUserProfile | null>;
+  /** Xóa profile khỏi Zustand memory và localStorage */
   clearProfile: () => void;
-  /** Đọc từ localStorage vào store (dùng làm fallback) */
-  hydrateFromStorage: () => void;
+  /** Xóa thông báo lỗi */
+  clearError: () => void;
 }
 
-function isValidProfile(obj: unknown): obj is IUserProfile {
-  if (typeof obj !== 'object' || obj === null) return false;
-  const record = obj as Record<string, unknown>;
-  return typeof record.age === 'number' && record.age > 0;
-}
-
-function readProfileFromStorage(): IUserProfile | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed: unknown = JSON.parse(raw);
-    return isValidProfile(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-export const useUserProfileStore = create<UserProfileState>((set, get) => ({
+export const useUserProfileStore = create<UserProfileState>((set) => ({
   profile: null,
   isLoading: false,
   error: null,
 
-  setProfile: async (p: IUserProfile) => {
+  clearError: () => set({ error: null }),
+
+  setProfile: async (p: IUserProfile): Promise<IUserProfile> => {
     set({ isLoading: true, error: null });
-
-    // Lưu vào localStorage trước để giữ trải nghiệm mượt mà
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
-    }
-    set({ profile: p });
-
-    // Nếu có JWT token -> lưu lên backend API
-    const token = typeof window !== 'undefined' ? localStorage.getItem('mediscan_access_token') : null;
-    if (token) {
-      try {
-        const saved = await profileService.upsertProfile(p);
-        set({ profile: saved, isLoading: false });
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
-        }
-      } catch (err: unknown) {
-        logger_warn("Lưu profile lên backend API không thành công, giữ local fallback", err);
-        set({ isLoading: false });
-      }
-    } else {
-      set({ isLoading: false });
+    try {
+      const saved = await profileService.upsertProfile(p);
+      set({ profile: saved, isLoading: false, error: null });
+      return saved;
+    } catch (err: unknown) {
+      const errorMsg =
+        err instanceof Error
+          ? err.message
+          : 'Lưu hồ sơ y tế không thành công. Vui lòng thử lại.';
+      set({ isLoading: false, error: errorMsg });
+      throw new Error(errorMsg);
     }
   },
 
-  fetchProfile: async () => {
+  fetchProfile: async (): Promise<IUserProfile | null> => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('mediscan_access_token') : null;
     if (!token) {
-      get().hydrateFromStorage();
-      return;
+      set({ profile: null, isLoading: false });
+      return null;
     }
 
     set({ isLoading: true, error: null });
     try {
       const serverProfile = await profileService.getProfile();
-      set({ profile: serverProfile, isLoading: false });
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(serverProfile));
-      }
+      set({ profile: serverProfile, isLoading: false, error: null });
+      return serverProfile;
     } catch {
-      // Nếu 404 (chưa tạo profile trên backend) -> fallback đọc localStorage
-      get().hydrateFromStorage();
-      set({ isLoading: false });
+      // 404 (Chưa khai báo profile) hoặc lỗi token -> reset memory
+      set({ profile: null, isLoading: false });
+      return null;
     }
   },
 
   clearProfile: () => {
-    set({ profile: null, error: null });
+    set({ profile: null, error: null, isLoading: false });
     if (typeof window !== 'undefined') {
-      localStorage.removeItem(STORAGE_KEY);
-    }
-  },
-
-  hydrateFromStorage: () => {
-    const stored = readProfileFromStorage();
-    if (stored) {
-      set({ profile: stored });
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
     }
   },
 }));
 
-function logger_warn(msg: string, err: unknown) {
-  if (process.env.NODE_ENV !== 'production') {
-    console.warn(msg, err);
-  }
-}
-
-/** Utility: kiểm tra nhanh user đã hoàn tất onboarding chưa. */
+/** Utility: kiểm tra nhanh user đã hoàn tất onboarding chưa dựa trên JWT User state. */
 export function isOnboardingComplete(): boolean {
   if (typeof window === 'undefined') return false;
   try {
+    const authUser = useAuthStore.getState().user;
+    if (authUser && authUser.isProfileCompleted === true) {
+      return true;
+    }
     const rawUser = localStorage.getItem('mediscan_auth_user');
     if (rawUser) {
       const user = JSON.parse(rawUser);
@@ -131,5 +94,6 @@ export function isOnboardingComplete(): boolean {
   } catch {
     // fallback
   }
-  return readProfileFromStorage() !== null;
+  return useUserProfileStore.getState().profile !== null;
 }
+

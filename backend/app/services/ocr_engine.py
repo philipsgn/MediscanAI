@@ -7,6 +7,7 @@ from __future__ import annotations
 import asyncio
 import os
 import time
+import threading
 from pathlib import Path
 from typing import Any, Optional
 
@@ -38,8 +39,12 @@ from app.core.config import (
     OCR_ENGINE,
     OCR_PROCESSING_SLA_MS,
     OCR_MODEL_DIR,
+    OCR_ACTIVE_MODEL_VERSION,
+    OCR_CUSTOM_DET_MODEL_DIR,
+    OCR_CUSTOM_REC_MODEL_DIR,
 )
 from app.schemas.ocr_schema import MedicineScanResult, OCRItem
+from app.services.ocr_model_registry import ModelArtifactManifest, ocr_model_registry
 
 
 class OcrEngine:
@@ -50,18 +55,35 @@ class OcrEngine:
         lang: str = OCR_LANG,
         max_dim: int = OCR_MAX_DIM,
         max_concurrent: int = 2,
+        active_version: str = OCR_ACTIVE_MODEL_VERSION,
     ) -> None:
         self.lang = lang
         self.max_dim = max_dim
         self.max_concurrent = max_concurrent
+        self.active_version = active_version
         self._semaphore: Optional[asyncio.Semaphore] = None
         self._paddle_ocr: Optional[Any] = None
         self._paddle_ocr_packaging: Optional[Any] = None
+        self._lock = threading.Lock()
 
         if OCR_MODEL_DIR:
             os.environ["PADDLE_PDX_DIR"] = OCR_MODEL_DIR
             os.environ["PADDLE_HOME"] = OCR_MODEL_DIR
 
+        # Nếu có custom model dirs được chỉ định qua config, đăng ký vào Registry
+        if OCR_CUSTOM_DET_MODEL_DIR or OCR_CUSTOM_REC_MODEL_DIR:
+            custom_manifest = ModelArtifactManifest(
+                version=self.active_version,
+                model_type="fine_tuned" if self.active_version != "ppocrv6_tiny_baseline" else "baseline",
+                base_model="PP-OCRv6_tiny",
+                domain="general",
+                training_framework="PaddleOCR 3.7.0 / PaddleX 3.7.2",
+                inference_runtime=OCR_ENGINE,
+                text_detection_model_dir=OCR_CUSTOM_DET_MODEL_DIR,
+                text_recognition_model_dir=OCR_CUSTOM_REC_MODEL_DIR,
+                status="production",
+            )
+            ocr_model_registry.register_manifest(custom_manifest)
 
     @property
     def semaphore(self) -> asyncio.Semaphore:
@@ -70,49 +92,64 @@ class OcrEngine:
             self._semaphore = asyncio.Semaphore(self.max_concurrent)
         return self._semaphore
 
+    def get_active_model_info(self) -> Dict[str, Any]:
+        """Truy xuất thông tin mô hình OCR đang được kích hoạt."""
+        manifest = ocr_model_registry.get_manifest(self.active_version)
+        return {
+            "active_version": self.active_version,
+            "engine": OCR_ENGINE,
+            "lang": self.lang,
+            "max_dim": self.max_dim,
+            "manifest": manifest.model_dump() if manifest else None,
+        }
+
     @property
     def paddle_ocr(self) -> Any:
         """Khởi tạo PaddleOCR cho Stream A (Prescription/Receipt) - PP-OCRv6_tiny ONNX CPU."""
-        if self._paddle_ocr is None:
-            from paddleocr import PaddleOCR  # type: ignore[import-not-found]
+        with self._lock:
+            if self._paddle_ocr is None:
+                from paddleocr import PaddleOCR  # type: ignore[import-not-found]
 
-            self._paddle_ocr = PaddleOCR(
-                text_detection_model_name="PP-OCRv6_tiny_det",
-                text_recognition_model_name="PP-OCRv6_tiny_rec",
-                use_textline_orientation=False,
-                device="cpu",
-                lang=self.lang,
-                engine=OCR_ENGINE,
-                use_doc_orientation_classify=False,  # Tắt cho receipt thẳng đứng
-                use_doc_unwarping=False,  # Tắt unwarping cho receipt
-                # Tối ưu cho thermal receipt / prescription
-                text_det_thresh=0.3,
-                text_det_box_thresh=0.5,
-                text_det_unclip_ratio=1.6,
-            )
-        return self._paddle_ocr
+                init_params = ocr_model_registry.resolve_runtime_params(
+                    version=self.active_version,
+                    stream_type="prescription",
+                    orientation_enabled=False,
+                    unwarping_enabled=False,
+                )
+                self._paddle_ocr = PaddleOCR(**init_params)
+            return self._paddle_ocr
 
     @property
     def paddle_ocr_packaging(self) -> Any:
         """Khởi tạo PaddleOCR cho Stream B (Packaging Label) - PP-OCRv6_tiny ONNX CPU."""
-        if self._paddle_ocr_packaging is None:
-            from paddleocr import PaddleOCR  # type: ignore[import-not-found]
+        with self._lock:
+            if self._paddle_ocr_packaging is None:
+                from paddleocr import PaddleOCR  # type: ignore[import-not-found]
 
-            self._paddle_ocr_packaging = PaddleOCR(
-                text_detection_model_name="PP-OCRv6_tiny_det",
-                text_recognition_model_name="PP-OCRv6_tiny_rec",
-                use_textline_orientation=False,
-                device="cpu",
-                lang=self.lang,
-                engine=OCR_ENGINE,
-                use_doc_orientation_classify=OCR_DOC_ORIENTATION,  # Có thể bật cho packaging nếu cấu hình env
-                use_doc_unwarping=OCR_DOC_UNWARPING,  # Có thể bật cho packaging nếu cấu hình env
-                # Tối ưu cho bao bì: detect text theo nhiều hướng
-                text_det_thresh=0.4,
-                text_det_box_thresh=0.6,
-                text_det_unclip_ratio=1.8,
-            )
-        return self._paddle_ocr_packaging
+                init_params = ocr_model_registry.resolve_runtime_params(
+                    version=self.active_version,
+                    stream_type="packaging",
+                    orientation_enabled=OCR_DOC_ORIENTATION,
+                    unwarping_enabled=OCR_DOC_UNWARPING,
+                )
+                self._paddle_ocr_packaging = PaddleOCR(**init_params)
+            return self._paddle_ocr_packaging
+
+    def warmup(self) -> None:
+        """Tạo ảnh 1x1 dummy để nạp ONNX kernels vào memory ở cả 2 luồng."""
+        if np is None:
+            return
+        dummy_img = np.zeros((1, 1, 3), dtype=np.uint8)
+        
+        try:
+            self.paddle_ocr.predict(dummy_img)
+        except Exception:  # noqa: BLE001
+            pass
+            
+        try:
+            self.paddle_ocr_packaging.predict(dummy_img)
+        except Exception:  # noqa: BLE001
+            pass
 
     def close(self) -> None:
         if self._paddle_ocr is not None:
@@ -225,7 +262,10 @@ class OcrEngine:
         height, width = image.shape[:2]
 
         start = time.perf_counter()
-        result = self.paddle_ocr.predict(image)
+        try:
+            result = self.paddle_ocr.predict(image)
+        except Exception as exc:
+            raise RuntimeError("OCR_INFERENCE_FAILED") from exc
         latency_ms = int(round((time.perf_counter() - start) * 1000))
 
         items = self._extract_items(result)
@@ -247,7 +287,10 @@ class OcrEngine:
         height, width = image.shape[:2]
 
         start = time.perf_counter()
-        result = self.paddle_ocr_packaging.predict(image)
+        try:
+            result = self.paddle_ocr_packaging.predict(image)
+        except Exception as exc:
+            raise RuntimeError("OCR_INFERENCE_FAILED") from exc
         latency_ms = int(round((time.perf_counter() - start) * 1000))
 
         items = self._extract_items(result)

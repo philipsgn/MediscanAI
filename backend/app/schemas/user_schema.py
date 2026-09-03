@@ -17,11 +17,17 @@ class UserRegister(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel, extra="ignore")
 
+    def get_clean_email(self) -> str:
+        return self.email.strip().lower()
+
+    def get_clean_username(self) -> str:
+        return self.username.strip().lower()
+
 
 class UserLogin(BaseModel):
     username: Optional[str] = Field(None, description="Tên đăng nhập hoặc Email")
     username_or_email: Optional[str] = Field(None, alias="usernameOrEmail", description="Tên đăng nhập hoặc Email")
-    password: str = Field(..., description="Mật khẩu")
+    password: str = Field(..., min_length=1, description="Mật khẩu")
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel, extra="ignore")
 
@@ -54,6 +60,7 @@ class TokenResponse(BaseModel):
 
 class TokenPayload(BaseModel):
     sub: str = Field(..., description="Subject - User ID")
+    iat: int = Field(..., description="Thời gian phát hành (Unix timestamp)")
     exp: int = Field(..., description="Thời gian hết hạn (Unix timestamp)")
     type: str = Field("access", description="Loại token ('access' | 'refresh')")
 
@@ -62,4 +69,5 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str = Field(..., description="JWT Refresh Token để xin cấp Access Token mới")
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel, extra="ignore")
+
 

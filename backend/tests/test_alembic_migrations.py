@@ -60,14 +60,18 @@ async def test_alembic_fresh_database_upgrade_head(temp_db_config):
 
         async with engine.connect() as conn:
             tables = await conn.run_sync(_get_tables)
-            expected_tables = {"users", "user_profiles", "scan_histories", "reminders", "alembic_version"}
+            expected_tables = {"users", "user_profiles", "user_medications", "scan_histories", "reminders", "alembic_version"}
             assert expected_tables.issubset(tables), f"Thiếu bảng trong DB: {expected_tables - tables}"
+            assert "scan_records" not in tables, "Bảng scan_records không được phép tồn tại trên head!"
 
             user_cols = await conn.run_sync(_get_columns, "users")
             assert {"id", "username", "email", "hashed_password", "is_profile_completed"}.issubset(user_cols)
 
             profile_cols = await conn.run_sync(_get_columns, "user_profiles")
             assert {"id", "user_id", "age", "conditions", "allergies"}.issubset(profile_cols)
+
+            med_cols = await conn.run_sync(_get_columns, "user_medications")
+            assert {"id", "user_id", "brand_name", "is_active"}.issubset(med_cols)
     finally:
         await engine.dispose()
 

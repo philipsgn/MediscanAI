@@ -29,7 +29,9 @@ build/
 .DS_Store
 Thumbs.db
 
-# ─── Temporary files ───
+# ─── Temporary files & Storage ───
 *.log
 _v_s3_ctx.txt
 backend/_v_s3_pytest.txt
+backend/data/
+storage/

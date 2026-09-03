@@ -173,10 +173,12 @@ export function ClinicalOnboardingWizard() {
 
       toast.success('Hồ sơ y tế đã được thiết lập thành công!');
       router.replace('/cabinet');
-    } catch {
-      useAuthStore.getState().updateUser({ isProfileCompleted: true });
-      toast.success('Đã lưu hồ sơ y tế cục bộ!');
-      router.replace('/cabinet');
+    } catch (err: unknown) {
+      const errorMsg =
+        err instanceof Error
+          ? err.message
+          : 'Lưu hồ sơ y tế không thành công. Vui lòng kiểm tra lại và thử lại.';
+      toast.error(errorMsg);
     } finally {
       setIsSubmitting(false);
     }

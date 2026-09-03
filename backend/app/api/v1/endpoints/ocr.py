@@ -45,7 +45,6 @@ from app.schemas import (  # Canonical response models — single source of trut
 )
 from app.schemas.user_schema import UserResponse
 from app.services.clinical_service import ClinicalAssessmentRequest, clinical_service
-from app.services.data_capture_service import data_capture_service
 from app.services.drug_database import drug_database
 from app.services.normalization_service import NormalizationService
 from app.services.ocr_engine import ocr_engine
@@ -192,25 +191,36 @@ def _convert_ocr_items(raw_items: list) -> list[OCRItem]:
 
 
 PRESCRIPTION_DRUG_PATTERNS = [
-    re.compile(r"^\s*\d+[\.\)]\s*(?:T[êe]n\s+thu[oôó]c|Thu[oôó]c)?\s*(?:\([^\)]*\))?\s*[:\.]*\s*(.+)", re.IGNORECASE),
+    # 1. Tên thuốc / 1) Thuốc: / 1/ Paracetamol
+    re.compile(r"^\s*\d+[\.\)\/\-]\s*(?:T[êe]n\s+thu[oôó]c|Thu[oôó]c)?\s*(?:\([^\)]*\))?\s*[:\.]*\s*(.+)", re.IGNORECASE),
+    # Rp: / Rx: / Rp. / Rx.
+    re.compile(r"^\s*(?:Rp|Rx)[\s\.:]+(.+)", re.IGNORECASE),
+    # Gạch đầu dòng: - Paracetamol / + Augmentin / • Medrol / * Panadol
+    re.compile(r"^\s*[\-\+\*•]\s*(?:T[êe]n\s+thu[oôó]c|Thu[oôó]c)?\s*(?:\([^\)]*\))?\s*[:\.]*\s*(.+)", re.IGNORECASE),
+    # Tên thuốc: ...
     re.compile(r"(?:T[êe]n\s+thu[oôó]c|Thu[oôó]c)\s*(?:\([^\)]*\))?\s*[:\.]+\s*(.+)", re.IGNORECASE),
 ]
 
 PRESCRIPTION_IGNORE_PATTERNS = [
-    re.compile(r"^(?:TOA\s*THU[OÔÓ]C|PRESCRIPTION)", re.IGNORECASE),
+    re.compile(r"^(?:TOA\s*THU[OÔÓ]C|PRESCRIPTION|[ĐD][OƠƠ]N\s*THU[OÔÓ]C)", re.IGNORECASE),
     re.compile(r"^(?:H[oọ]\s*v[aà]\s*t[eê]n|Full\s*name)", re.IGNORECASE),
     re.compile(r"^(?:Tu[oôò]i|Age)", re.IGNORECASE),
     re.compile(r"^(?:[ĐD][iị]a\s*ch[iỉ]|Address)", re.IGNORECASE),
     re.compile(r"^(?:Ch[aẩâ]n\s*[đd]o[aá]n|Diagnosis)", re.IGNORECASE),
-    re.compile(r"^(?:Ng[aà]y|Date|Th[aá]ng|Month|N[aăâ]m|Year)", re.IGNORECASE),
+    re.compile(r"^(?:Ng[aà]y|Date)\s*(?:\d+|\.{2,}|\_{2,}|th[aá]ng|k[yý]|\:|\/)", re.IGNORECASE),
+    re.compile(r"^(?:Th[aá]ng|Month|N[aăâ]m|Year)\s*(?:\d+|\.{2,}|\_{2,}|\:|\/)", re.IGNORECASE),
     re.compile(r"^(?:B[aá]c\s*s[iĩ]|Doctor|K[yý]\s*t[eê]n|Sign)", re.IGNORECASE),
-    re.compile(r"^(?:Take\s*medicine|U[oôố]ng\s*thu[oôó]c\s*sau)", re.IGNORECASE),
+    re.compile(r"^(?:Take\s*medicine|U[oôố]ng\s*thu[oôó]c\s*sau\s*khi\s*ăn\s*no)", re.IGNORECASE),
+    re.compile(r"^(?:L[oờ]i\s*d[aăặ]n|D[aăặ]n\s*d[oò]|L[iị]ch\s*t[aái]\s*kh[aá]m)", re.IGNORECASE),
 ]
 
 DOSAGE_INSTRUCTION_PATTERNS = [
-    re.compile(r"(?:S[oó]\s*l[uưr][oợơ]ng|Dosage)", re.IGNORECASE),
-    re.compile(r"(?:S[aá]ng|Morning|Tr[uưưa]+|Afternoon|T[oôó]i|Night)", re.IGNORECASE),
-    re.compile(r"(?:tr[uưr][oóớ]c\s*[aāă]n|sau\s*[aāă]n)", re.IGNORECASE),
+    re.compile(r"(?:S[oó]\s*l[uưr][oợơ]ng|Dosage|SL)", re.IGNORECASE),
+    re.compile(r"(?:C[aá]ch\s*d[uù]ng|H[uư][oớ]ng\s*d[aẫâ]n|Usage|Directions|Hdsd)", re.IGNORECASE),
+    re.compile(r"(?:S[aá]ng|Morning|Tr[uưưa]+|Afternoon|T[oôó]i|Night|Chi[eề]u|[ĐD][eê]m)", re.IGNORECASE),
+    re.compile(r"(?:tr[uưr][oóớ]c\s*[aāă]n|sau\s*[aāă]n|khi\s*[đd]au|khi\s*s[oôó]t)", re.IGNORECASE),
+    re.compile(r"(?:U[oôố]ng|Ng[aậ]m|Nhai|B[oôi]|Ti[eê]m|Nh[oọ]|Uong)\b", re.IGNORECASE),
+    re.compile(r"(?:l[aà]n\s*/\s*ng[aà]y|ng[aà]y\s*\d+\s*l[aà]n|vi[eê]n\s*/\s*l[aà]n|\d+\s*vi[eê]n)", re.IGNORECASE),
 ]
 
 PACKAGING_IGNORE_PATTERNS = [
@@ -227,6 +237,58 @@ STRENGTH_REGEX = re.compile(
     r"(\d+(?:[\.,]\d+)?\s*(?:mg|g|ml|mcg|iu|%|\/)(?:\s*(?:w\/w|w\/v))?)",
     re.IGNORECASE,
 )
+
+TRAILING_STRENGTH_NUM_REGEX = re.compile(
+    r"^([a-zA-ZÀ-ỹ\s]+?)[\s\-_]*(\d{1,4}(?:[\.,]\d+)?)$",
+    re.UNICODE,
+)
+VITAMIN_EXCLUDE_PATTERN = re.compile(r"^(?:vitamin\s*)?[a-zA-Z]\d{1,2}$", re.IGNORECASE)
+
+
+def _extract_brand_and_strength(raw_text: str) -> tuple[str, str]:
+    """Bóc tách nồng độ/hàm lượng và chuẩn hóa tên thương mại từ OCR text.
+    1. Nếu có đơn vị nồng độ chuẩn (mg, g, ml, mcg,...) -> giữ nguyên brand_name và lấy strength.
+    2. Nếu tên thuốc có dạng <TênChữ><Số> không có đơn vị (VD: Oricox120, Panadol500, Hapacol250)
+       -> tự động tách thành tên thương mại sạch (Oricox) và hàm lượng suy luận (120mg).
+    """
+    cleaned = re.sub(r"[\.\…\s]+$", "", raw_text)
+    cleaned = re.sub(r"^[\.\…\s]+", "", cleaned)
+    cleaned = re.sub(r"\.{2,}", " ", cleaned).strip()
+
+    st_match = STRENGTH_REGEX.search(cleaned)
+    if st_match:
+        return cleaned, st_match.group(1).strip()
+
+    if not VITAMIN_EXCLUDE_PATTERN.match(cleaned):
+        m = TRAILING_STRENGTH_NUM_REGEX.match(cleaned)
+        if m:
+            brand_part = m.group(1).strip(" -_")
+            num_part = m.group(2).strip()
+            if len(brand_part) >= 2:
+                return brand_part, f"{num_part}mg"
+
+    return cleaned, ""
+
+
+def _clean_prescription_dosage(dosage_text: Optional[str]) -> Optional[str]:
+    """Làm sạch rác định dạng (dấu chấm lửng ......., buổi uống rỗng) trong hướng dẫn liều dùng."""
+    if not dosage_text:
+        return None
+    # Chuyển chuỗi 2 chấm trở lên thành khoảng trắng
+    cleaned = re.sub(r"\.{2,}", " ", dosage_text)
+    # Loại bỏ các slot buổi trống (VD: "Trưa (Afternoon): |" hoặc "| Trưa:")
+    parts = [p.strip() for p in cleaned.split("|")]
+    filtered_parts = []
+    for p in parts:
+        # Giữ lại nếu chứa số (số viên) hoặc các từ chỉ định dùng thuốc
+        has_val = bool(re.search(r"\d", p)) or any(
+            w in p.lower() for w in ["uống", "viên", "gói", "trước", "sau", "khi", "lần", "ngậm", "nhai", "bôi", "tiêm", "nhỏ", "morning", "night", "noon"]
+        )
+        if has_val:
+            filtered_parts.append(p)
+    res = " | ".join(filtered_parts) if filtered_parts else cleaned
+    res = re.sub(r"\s+", " ", res).strip(" -|:.")
+    return res or None
 
 
 def _ocr_items_to_drug_items(raw_items: list[OCRItem], source_type: str) -> list:
@@ -257,17 +319,11 @@ def _ocr_items_to_drug_items(raw_items: list[OCRItem], source_type: str) -> list
             if any(p.search(text) for p in PACKAGING_IGNORE_PATTERNS):
                 continue
 
-            cleaned = re.sub(r"[\.\…\s]+$", "", text)
-            cleaned = re.sub(r"^[\.\…\s]+", "", cleaned)
-            cleaned = re.sub(r"\.{2,}", " ", cleaned)
-
-            # Tách nồng độ
-            st_match = STRENGTH_REGEX.search(cleaned)
-            strength = st_match.group(1).strip() if st_match else ""
+            brand_name, strength = _extract_brand_and_strength(text)
 
             drug_items.append(
                 DrugItem(
-                    brand_name=cleaned,
+                    brand_name=brand_name,
                     strength=strength,
                     confidence_score=conf,
                     dosage_instruction=None,  # Pipeline 1: Bắt buộc do User nhập tay ở Smart Form
@@ -293,12 +349,10 @@ def _ocr_items_to_drug_items(raw_items: list[OCRItem], source_type: str) -> list
             if not text or len(text) < 2:
                 continue
             if any(c.isalpha() for c in text):
-                cleaned = re.sub(r"[\.\…\s]+$", "", text)
-                st_match = STRENGTH_REGEX.search(cleaned)
-                strength = st_match.group(1).strip() if st_match else ""
+                brand_name, strength = _extract_brand_and_strength(text)
                 drug_items.append(
                     DrugItem(
-                        brand_name=cleaned,
+                        brand_name=brand_name,
                         strength=strength,
                         confidence_score=getattr(item, "confidence", 0.9),
                         dosage_instruction=getattr(item, "dosage_instruction", None),
@@ -316,7 +370,8 @@ def _ocr_items_to_drug_items(raw_items: list[OCRItem], source_type: str) -> list
             continue
         if not any(c.isalpha() for c in text):
             continue
-        if any(p.search(text) for p in PRESCRIPTION_IGNORE_PATTERNS):
+        is_dosage_line = any(p.search(text) for p in DOSAGE_INSTRUCTION_PATTERNS)
+        if not is_dosage_line and any(p.search(text) for p in PRESCRIPTION_IGNORE_PATTERNS):
             continue
 
         drug_match = None
@@ -329,15 +384,17 @@ def _ocr_items_to_drug_items(raw_items: list[OCRItem], source_type: str) -> list
         if drug_match:
             cleaned = re.sub(r"[\.\…\s]+$", "", drug_match)
             cleaned = re.split(r"(?:S[oó]\s*l[uưr][oợơ]ng|Dosage)", cleaned, flags=re.IGNORECASE)[0].strip()
+            # Cắt bỏ số lượng/quy cách đóng gói cuối dòng: (10 viên), (20v), x 20 viên, SL: 20
+            cleaned = re.sub(r"\s*[\(x\-]?\s*\d+\s*(?:vi[eê]n|v|g[oó]i|chai|l[oọ]|ng[aà]y|tab|tabs|caps?)\s*\)?$", "", cleaned, flags=re.IGNORECASE)
+            cleaned = re.sub(r"\s*[\(\[]\s*(?:SL|qty|s[oố]\s*l[uư][oợ][nng])\s*[:\.]*\s*\d+\s*[a-zA-ZÀ-ỹ\s]*[\)\]]$", "", cleaned, flags=re.IGNORECASE)
             cleaned = re.sub(r"[\.\…\s]+$", "", cleaned)
-            cleaned = re.sub(r"^[\.\…\s]+", "", cleaned)
-            cleaned = re.sub(r"\.{2,}", " ", cleaned)
+            cleaned = re.sub(r"^[\.\…\s\-\+\*•]+", "", cleaned)
+            cleaned = re.sub(r"\.{2,}", " ", cleaned).strip()
 
-            st_match = STRENGTH_REGEX.search(cleaned)
-            strength = st_match.group(1).strip() if st_match else ""
+            brand_name, strength = _extract_brand_and_strength(cleaned)
 
             current_drug = DrugItem(
-                brand_name=cleaned,
+                brand_name=brand_name,
                 strength=strength,
                 confidence_score=getattr(item, "confidence", 0.9),
                 dosage_instruction=None,
@@ -348,6 +405,11 @@ def _ocr_items_to_drug_items(raw_items: list[OCRItem], source_type: str) -> list
                 current_drug.dosage_instruction += " | " + text
             else:
                 current_drug.dosage_instruction = text
+
+    # Làm sạch rác định dạng cho toàn bộ các liều thuốc đã trích xuất
+    for d in drug_items:
+        if d.dosage_instruction:
+            d.dosage_instruction = _clean_prescription_dosage(d.dosage_instruction)
 
     return drug_items
 
@@ -361,7 +423,7 @@ def _map_drug_items(normalized: list) -> list[MappedDrugItem]:
                 drug_id=getattr(drug, "drug_id", None),
                 brand_name=drug.brand_name,
                 active_ingredient=drug.active_ingredient,
-                strength=drug.strength,
+                strength=drug.strength or "",
                 dosage_instruction=drug.dosage_instruction,
                 category=getattr(drug, "category", None),
                 max_daily_dosage=getattr(drug, "max_daily_dosage", None),
@@ -370,6 +432,7 @@ def _map_drug_items(normalized: list) -> list[MappedDrugItem]:
                 is_verified=drug.is_verified,
                 match_method=drug.match_method,  # [P3/F3.6] field chính thức trong schema
                 strength_mismatch_warning=getattr(drug, "strength_mismatch_warning", None),  # [F3.7]
+                variants=getattr(drug, "variants", []) or drug_database.get_drug_variants(drug.brand_name),
             )
         )
     return mapped
@@ -564,33 +627,17 @@ async def ocr_scan(
             clinical_latency_ms = int(round((time.perf_counter() - clinical_started) * 1000))
 
         # ═══════════════════════════════════════════════════════════════
-        # STEP 4: Structured Data Capture (RAM-Only Checksum, No Image Disk Storage)
-        # ═══════════════════════════════════════════════════════════════
-        image_sha256 = hashlib.sha256(image_bytes).hexdigest()
-        scan_record = await data_capture_service.capture_scan(
-            db=db,
-            request_id=request_id,
-            user_id=current_user.id if current_user else None,
-            source_type=source_type,
-            image_sha256=image_sha256,
-            raw_ocr_items=raw_ocr_items,
-            mapped_drugs=mapped_drugs,
-            clinical_assessment=clinical_assessment,
-        )
-        scan_id = scan_record.id if scan_record else None
-
-        # ═══════════════════════════════════════════════════════════════
-        # RESPONSE
+        # RESPONSE (Zero Image Persistence & No Platform Side-Effects)
         # ═══════════════════════════════════════════════════════════════
         total_latency_ms = ocr_latency_ms + normalization_latency_ms + clinical_latency_ms
         logger.info(
-            "[OCR_SCAN_OK] scan_id=%s request_id=%s source=%s drugs=%d clinical=%s total_ms=%d",
-            scan_id, request_id, source_type, len(mapped_drugs),
+            "[OCR_SCAN_OK] request_id=%s source=%s drugs=%d clinical=%s total_ms=%d",
+            request_id, source_type, len(mapped_drugs),
             clinical_assessment is not None, total_latency_ms,
         )
 
         return FullScanResponse(
-            scan_id=scan_id,
+            scan_id=None,
             request_id=request_id,
             engine=ocr_result.engine,
             source_type=ocr_result.source_type,
@@ -610,6 +657,20 @@ async def ocr_scan(
     except HTTPException:
         raise
     except Exception as exc:  # noqa: BLE001
+        if isinstance(exc, RuntimeError) and str(exc) == "OCR_INFERENCE_FAILED":
+            logger.error("[OCR_INFERENCE_FAILED] request_id=%s", request_id)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=_make_error_detail(
+                    error_code="OCR_INFERENCE_FAILED",
+                    message="Không thể trích xuất văn bản từ hình ảnh. Vui lòng chụp lại ảnh rõ nét hơn.",
+                    stage="ocr_inference",
+                    request_id=request_id,
+                    service=service_name,
+                    retryable=False,
+                ),
+            ) from exc
+            
         retryable = is_transient_error(exc)
         logger.exception(
             "[OCR_PIPELINE_ERROR] request_id=%s stage=ocr_scan retryable=%s error_type=%s",
@@ -790,6 +851,20 @@ async def process_scan_pipeline(
     except HTTPException:
         raise
     except Exception as exc:  # noqa: BLE001
+        if isinstance(exc, RuntimeError) and str(exc) == "OCR_INFERENCE_FAILED":
+            logger.error("[OCR_INFERENCE_FAILED] request_id=%s", request_id)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=_make_error_detail(
+                    error_code="OCR_INFERENCE_FAILED",
+                    message="Không thể trích xuất văn bản từ hình ảnh. Vui lòng chụp lại ảnh rõ nét hơn.",
+                    stage="ocr_inference",
+                    request_id=request_id,
+                    service=service_name,
+                    retryable=False,
+                ),
+            ) from exc
+            
         retryable = is_transient_error(exc)
         logger.exception(
             "[PROCESS_PIPELINE_ERROR] request_id=%s retryable=%s error_type=%s",

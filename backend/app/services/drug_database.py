@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Any, Optional
 
@@ -36,6 +37,10 @@ class DrugDatabase:
                 brand_lower = drug.get("brand_name", "").lower().strip()
                 if brand_lower:
                     self.brand_to_drug[brand_lower] = drug
+                    # Index thêm base brand name không chứa hàm lượng (VD: "Oricox 120mg" -> "oricox")
+                    base_brand = re.sub(r"\s*\d+(?:[\.,]\d+)?\s*(?:mg|g|ml|mcg|iu|%|\/).*$", "", brand_lower).strip()
+                    if base_brand and base_brand not in self.brand_to_drug:
+                        self.brand_to_drug[base_brand] = drug
                 
                 ingredients = drug.get("active_ingredient", "")
                 if ingredients:
@@ -90,6 +95,30 @@ class DrugDatabase:
             if drug.get("id") == drug_id:
                 return drug
         return None
+
+    def get_drug_variants(self, brand_or_ingredient: str) -> list[str]:
+        """Lấy danh sách các biến thể hàm lượng chuẩn theo tên thương mại hoặc hoạt chất."""
+        if not brand_or_ingredient:
+            return []
+        term = brand_or_ingredient.lower().strip()
+        # 1. Tra cứu theo brand name exact / fuzzy
+        drug = self.find_by_brand_exact(term) or self.find_by_brand_fuzzy(term, threshold=75)
+        if drug and drug.get("common_strengths"):
+            return list(drug["common_strengths"])
+        if drug and drug.get("strength"):
+            return [str(drug["strength"])]
+
+        # 2. Tra cứu theo hoạt chất
+        drugs_by_ing = self.find_by_ingredient(term)
+        variants = []
+        for d in drugs_by_ing:
+            if d.get("common_strengths"):
+                for s in d["common_strengths"]:
+                    if s not in variants:
+                        variants.append(s)
+            elif d.get("strength") and d["strength"] not in variants:
+                variants.append(str(d["strength"]))
+        return variants
 
     def search_drugs(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         """Tìm kiếm thuốc theo từ khóa (brand name hoặc hoạt chất)."""

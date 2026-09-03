@@ -1,0 +1,19 @@
+{
+  "manifest_version": "1.0",
+  "active_dataset": {
+    "dataset_name": "DDInter",
+    "version": "2.0",
+    "filename": "ddinter_interactions.json",
+    "sha256": "8c75c00ab912554822a4bbf10e6ecfb6bb5b38ac45bb17c891c988f93fe068b4",
+    "license": "Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)",
+    "source_url": "https://ddinter.scbdd.com/",
+    "imported_at": "2026-09-01T17:50:00Z",
+    "total_interaction_pairs": 20,
+    "covered_ingredients_count": 28
+  },
+  "governance": {
+    "rollback_available": false,
+    "rollback_targets": [],
+    "policy": "Rollback targets must physically exist and pass schema & integrity validation before registration."
+  }
+}

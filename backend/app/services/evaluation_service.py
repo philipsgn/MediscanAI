@@ -4,9 +4,8 @@ Tuân thủ kiến trúc Backend-Centralized Logic theo AGENTS.md §3.A
 """
 import json
 import re
-from itertools import combinations
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional, Tuple
 
 from app.schemas import DrugItem, UserProfile, InteractionAlert, EvaluationResponse
 
@@ -273,22 +272,152 @@ class EvaluationService:
             print(f"Lỗi tải dosage_guidelines: {e}")
             return {}
 
+    def _evaluate_drug_coverage(
+        self, drugs: List[DrugItem], dd_service: Optional[Any] = None
+    ) -> Tuple[str, List["DrugCoverageItem"]]:
+        """[Stage 12] Đánh giá độ bao phủ CSDL tương tác thuốc cho từng thuốc đầu vào (INV-12-01..04)."""
+        from app.services.ddinter_service import ddinter_service
+        from app.services.identifier_bridge import identifier_bridge
+        from app.schemas.ocr_schema import DrugCoverageItem, DrugCoverageStatus
+
+        active_dd = dd_service or ddinter_service
+        coverage_items: List[DrugCoverageItem] = []
+        has_unresolved = False
+        has_ambiguous = False
+        has_not_covered = False
+
+        if not active_dd.integrity_verified or not active_dd.get_covered_ingredients():
+            # CSDL rỗng, không tải được hoặc checksum mismatch -> Fail closed sang UNAVAILABLE
+            for drug in drugs:
+                raw_name = drug.brand_name or "Thuốc không tên"
+                coverage_items.append(DrugCoverageItem(
+                    drug_name=raw_name,
+                    canonical_ingredient=None,
+                    status=DrugCoverageStatus.SOURCE_UNAVAILABLE,
+                    provenance="ddinter_integrity_failed",
+                    note="CSDL tương tác thuốc DDInter không khả dụng hoặc bị lỗi toàn vẹn checksum.",
+                ))
+            return "UNAVAILABLE", coverage_items
+
+        for drug in drugs:
+            raw_name = drug.brand_name or "Thuốc không tên"
+            if not drug.active_ingredient or not drug.active_ingredient.strip():
+                coverage_items.append(DrugCoverageItem(
+                    drug_name=raw_name,
+                    canonical_ingredient=None,
+                    status=DrugCoverageStatus.UNRESOLVED,
+                    provenance=None,
+                    note="Chưa xác định được hoạt chất gốc để đối chiếu CSDL tương tác.",
+                ))
+                has_unresolved = True
+                continue
+
+            if drug.match_method == "rxnorm_approximate":
+                coverage_items.append(DrugCoverageItem(
+                    drug_name=raw_name,
+                    canonical_ingredient=None,
+                    status=DrugCoverageStatus.AMBIGUOUS_REVIEW_REQUIRED,
+                    provenance="rxnorm_approximate",
+                    note="Có nhiều ứng viên tương tự — yêu cầu xác nhận trước khi tra cứu DDI.",
+                ))
+                has_ambiguous = True
+                continue
+
+            # INV-12-04: OpenFDA / external unverified candidate cannot promote to COVERED without user verification
+            method_clean = str(drug.match_method or "").strip().lower()
+            is_unverified_external = (
+                bool(method_clean)
+                and ("openfda" in method_clean or "external" in method_clean or "fallback" in method_clean)
+                and drug.is_verified is not True
+            )
+            if is_unverified_external:
+                coverage_items.append(DrugCoverageItem(
+                    drug_name=raw_name,
+                    canonical_ingredient=drug.active_ingredient.strip(),
+                    status=DrugCoverageStatus.AMBIGUOUS_REVIEW_REQUIRED,
+                    provenance=str(drug.match_method),
+                    note="Bằng chứng hỗ trợ từ nguồn ngoại vi chưa được xác thực — yêu cầu người dùng xác nhận trước khi tra cứu DDI.",
+                ))
+                has_ambiguous = True
+                continue
+
+            # Bridging to canonical ingredient
+            bridged = identifier_bridge.bridge_raw_ingredient(drug.active_ingredient, drug.brand_name)
+            if bridged and bridged.is_safe_for_ddi:
+                canon = bridged.canonical_ingredient
+                if active_dd.is_drug_in_universe(canon):
+                    coverage_items.append(DrugCoverageItem(
+                        drug_name=raw_name,
+                        canonical_ingredient=canon,
+                        status=DrugCoverageStatus.COVERED,
+                        provenance=bridged.provenance,
+                        note=f"Hoạt chất '{canon}' có trong CSDL tri thức DDInter v2.0.",
+                    ))
+                else:
+                    coverage_items.append(DrugCoverageItem(
+                        drug_name=raw_name,
+                        canonical_ingredient=canon,
+                        status=DrugCoverageStatus.NOT_COVERED_IN_DATASET,
+                        provenance=bridged.provenance,
+                        note=f"Hoạt chất '{canon}' chưa có dữ liệu tương tác trong CSDL DDInter v2.0.",
+                    ))
+                    has_not_covered = True
+            else:
+                coverage_items.append(DrugCoverageItem(
+                    drug_name=raw_name,
+                    canonical_ingredient=None,
+                    status=DrugCoverageStatus.UNRESOLVED,
+                    provenance="unbridged",
+                    note="Hoạt chất chưa được định danh rõ ràng — không đủ điều kiện tra cứu CSDL tương tác.",
+                ))
+                has_unresolved = True
+
+        if has_unresolved or has_ambiguous:
+            overall_status = "UNRESOLVED"
+        elif has_not_covered:
+            overall_status = "PARTIAL"
+        elif not drugs:
+            overall_status = "FULL"
+        else:
+            overall_status = "FULL"
+
+        return overall_status, coverage_items
+
     def _build_final_summary(
         self,
         alerts: List[InteractionAlert],
         dosage_checks: List["DosageCheckResult"],
+        coverage_status: str = "FULL",
+        drug_coverage_details: Optional[List["DrugCoverageItem"]] = None,
     ) -> str:
-        """Tổng hợp final_summary rule-based (không gọi LLM — giữ latency).
+        """Tổng hợp final_summary rule-based tuân thủ bất biến lâm sàng Stage 12 (INV-12-01..04)."""
+        from app.schemas.ocr_schema import DrugCoverageStatus
 
-        Mẫu an toàn: nêu số lượng cảnh báo các mức + kết quả đối chiếu liều,
-        luôn kèm khuyến nghị tham vấn bác sĩ; tuyệt đối tuân thủ đềi cấm ngôn từ tiêu cực về đơn thuốc (§5)."""
         high = sum(1 for a in alerts if a.severity == "HIGH")
         medium = sum(1 for a in alerts if a.severity == "MEDIUM")
         low = sum(1 for a in alerts if a.severity == "LOW")
 
         parts = []
         if high + medium + low == 0:
-            parts.append("Không phát hiện cảnh báo tương tác thuốc nghiêm trọng trong danh sách hiện tại.")
+            if coverage_status == "UNAVAILABLE":
+                parts.append(
+                    "Cảnh báo hệ thống: CSDL tương tác thuốc DDInter không khả dụng hoặc bị lỗi toàn vẹn "
+                    "— Tính năng tra cứu tương tác bị khóa an toàn (Fail-Closed). Bắt buộc tham vấn bác sĩ hoặc dược sĩ!"
+                )
+            elif coverage_status == "FULL":
+                parts.append("Đã đối chiếu toàn bộ thuốc với CSDL Tương tác DDInter v2.0 — Không ghi nhận bản ghi tương tác nguy hiểm trong phạm vi CSDL.")
+            elif coverage_status == "PARTIAL":
+                uncovered = [item.drug_name for item in (drug_coverage_details or []) if item.status == DrugCoverageStatus.NOT_COVERED_IN_DATASET]
+                parts.append(
+                    f"Đã kiểm tra tương tác thuốc. Lưu ý: có {len(uncovered)} thuốc ({', '.join(uncovered)}) chưa có dữ liệu tương tác trong CSDL DDInter v2.0. "
+                    "'Không có cảnh báo' KHÔNG đồng nghĩa với an toàn tuyệt đối — bắt buộc tham vấn bác sĩ/dược sĩ."
+                )
+            else:  # UNRESOLVED / AMBIGUOUS
+                unresolved = [item.drug_name for item in (drug_coverage_details or []) if item.status in (DrugCoverageStatus.UNRESOLVED, DrugCoverageStatus.AMBIGUOUS_REVIEW_REQUIRED)]
+                parts.append(
+                    f"Có {len(unresolved)} thuốc chưa được định danh rõ ràng hoặc đang chờ xác nhận ({', '.join(unresolved)}). "
+                    "Hệ thống không thể kiểm tra tương tác tự động cho các thuốc này — vui lòng kiểm tra lại bước xác nhận thông tin."
+                )
         else:
             bits = []
             if high:
@@ -298,6 +427,10 @@ class EvaluationService:
             if low:
                 bits.append(f"{low} cảnh báo mức thấp")
             parts.append(f"Phát hiện {', '.join(bits)} về tương tác/trùng lặp/chống chỉ định.")
+            if coverage_status != "FULL":
+                uncovered_all = [item.drug_name for item in (drug_coverage_details or []) if item.status != DrugCoverageStatus.COVERED]
+                if uncovered_all:
+                    parts.append(f"(Lưu ý: Có {len(uncovered_all)} thuốc chưa có đủ dữ liệu tương tác trong CSDL: {', '.join(uncovered_all)}).")
 
         # Thông tin Layer 4
         dosage_counts = {"flag": 0, "ok": 0, "skip": 0}
@@ -313,9 +446,14 @@ class EvaluationService:
                 f"Có {dosage_counts['flag']} thuốc có liều dùng chênh lệch đáng xem xét — "
                 "vui lòng xác nhận lại với bác sĩ kê đơn."
             )
-        else:
+        elif dosage_counts["ok"]:
             parts.append(
                 "Liều dùng khai báo (có dữ liệu) nằm trong giới hạn khuyến cáo tham khảo."
+            )
+        if dosage_counts["skip"]:
+            parts.append(
+                f"Lưu ý: Có {dosage_counts['skip']} thuốc chưa đủ dữ liệu hàm lượng/liều dùng — "
+                "Layer 4 đã bỏ qua đối chiếu liều, vui lòng kiểm tra kỹ trên bao bì/tờ HDSD hoặc hỏi ý kiến dược sĩ."
             )
 
         parts.append(
@@ -327,16 +465,16 @@ class EvaluationService:
     # ─────────────────────────────────────────────────────────────────────────────
     # LAYER 1..4 gọi từ entry point
     # ─────────────────────────────────────────────────────────────────────────────
-    # LAYER 1..4 gọi từ entry point
-    # ─────────────────────────────────────────────────────────────────────────────
     def evaluate_medications(
         self,
         drugs: List[DrugItem],
         user_profile: Optional[UserProfile] = None
     ) -> EvaluationResponse:
         """
-        Engine Đánh Giá 3 Lớp — entry point chính.
+        Engine Đánh Giá Lâm Sàng — entry point chính tích hợp Stage 12 Governance.
         """
+        from app.services.ddinter_service import ddinter_service
+
         alerts: List[InteractionAlert] = []
 
         # === LAYER 1: Overdose / Duplicate Active Ingredient ===
@@ -359,8 +497,12 @@ class EvaluationService:
         # Tạo schedule suggestions cơ bản
         suggestions = self._generate_schedule_suggestions(drugs, alerts)
 
-        # Final summary — tổng hợp toàn bộ 4 layer (AGENTS §3.B.4)
-        final_summary = self._build_final_summary(alerts, dosage_checks)
+        # Stage 12: Coverage & Governance Evaluation
+        coverage_status, coverage_details = self._evaluate_drug_coverage(drugs)
+        provenance_metadata = ddinter_service.get_dataset_provenance()
+
+        # Final summary — tổng hợp toàn bộ 4 layer + coverage state (INV-12-01..04)
+        final_summary = self._build_final_summary(alerts, dosage_checks, coverage_status, coverage_details)
 
         return EvaluationResponse(
             total_drugs_analyzed=len(drugs),
@@ -368,6 +510,9 @@ class EvaluationService:
             schedule_suggestions=suggestions,
             dosage_checks=dosage_checks,
             final_summary=final_summary,
+            coverage_status=coverage_status,
+            drug_coverage_details=coverage_details,
+            provenance_metadata=provenance_metadata,
         )
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -468,7 +613,7 @@ class EvaluationService:
                     prescribed_or_input_dosage=instruction,
                     recommended_dosage=recommended_str,
                     is_appropriate=None,
-                    note="Khong trich xuat duoc ham luong — vui long kiem tra voi bac si/duoc sy.",
+                    note="Bao bì không ghi rõ hàm lượng (mg) — Bỏ qua đối chiếu quá liều Layer 4, vui lòng kiểm tra thêm tờ HDSD hoặc tham vấn bác sĩ/dược sĩ.",
                 ))
                 continue
 
@@ -552,8 +697,9 @@ class EvaluationService:
                 qty_per_dose = _extract_qty_per_dose(drug.dosage_instruction)
                 daily_mg = per_dose_mg * doses_per_day * qty_per_dose
                 total_daily_mg += daily_mg
+                str_display = drug.strength if drug.strength else "chưa rõ hàm lượng"
                 detail_parts.append(
-                    f"{drug.brand_name} ({drug.strength}) × {qty_per_dose} viên × {doses_per_day} lần = {daily_mg:.0f}mg/ngày"
+                    f"{drug.brand_name} ({str_display}) × {qty_per_dose} viên × {doses_per_day} lần = {daily_mg:.0f}mg/ngày"
                 )
 
             # Kiểm tra ngưỡng tối đa từ DB
@@ -606,26 +752,69 @@ class EvaluationService:
         return alerts
 
     # ─────────────────────────────────────────────────────────────────────────
-    # LAYER 2: Drug-Drug Interaction Check
+    # LAYER 2: Drug-Drug Interaction Check (Core Matrix + DDInter v2.0 Local)
     # ─────────────────────────────────────────────────────────────────────────
     def _check_drug_drug(self, drugs: List[DrugItem]) -> List[InteractionAlert]:
-        alerts = []
-        # Tập tất cả hoạt chất (lowercase, tách bởi /)
-        all_ingredients: set[str] = set()
-        for drug in drugs:
-            if drug.active_ingredient:
-                for ing in drug.active_ingredient.split("/"):
-                    all_ingredients.add(ing.strip().lower())
+        from app.services.ddinter_service import ddinter_service
+        from app.services.identifier_bridge import identifier_bridge
 
+        alerts: List[InteractionAlert] = []
+        # Tập tất cả hoạt chất đã được verify qua Identifier Bridge
+        safe_canonical_ingredients: set[str] = set()
+        raw_ingredients: set[str] = set()
+        alerted_pairs: set[frozenset[str]] = set()
+
+        for drug in drugs:
+            if drug.active_ingredient and drug.active_ingredient.strip():
+                # INV-12-04: OpenFDA / external unverified items are blocked from safe canonical DDI lookup until verified
+                method_clean = str(drug.match_method or "").strip().lower()
+                if (
+                    bool(method_clean)
+                    and ("openfda" in method_clean or "external" in method_clean or "fallback" in method_clean)
+                    and drug.is_verified is not True
+                ):
+                    continue
+                for ing in drug.active_ingredient.split("/"):
+                    clean_ing = ing.strip().lower()
+                    if clean_ing:
+                        raw_ingredients.add(clean_ing)
+                        bridged = identifier_bridge.bridge_raw_ingredient(clean_ing, drug.brand_name)
+                        if bridged and bridged.is_safe_for_ddi:
+                            safe_canonical_ingredients.add(bridged.canonical_ingredient)
+
+        # 1. Tra cứu ma trận ưu tiên cao nội bộ (Core Emergency Rules)
         for interaction in DRUG_DRUG_INTERACTIONS:
             pair: set[str] = interaction["pair"]
-            # Kiểm tra cả hai ingredient trong pair có trong tủ thuốc không
-            if pair.issubset(all_ingredients):
+            # Kiểm tra cả hai ingredient trong pair có trong tủ thuốc không (raw hoặc canonical)
+            if pair.issubset(raw_ingredients) or pair.issubset(safe_canonical_ingredients):
+                pair_key = frozenset(pair)
+                alerted_pairs.add(pair_key)
                 alerts.append(InteractionAlert(
                     severity=interaction["severity"],
                     title=interaction["title"],
                     description=interaction["description"],
                     recommendation=interaction["recommendation"]
+                ))
+
+        # 2. Tra cứu mở rộng từ CSDL DDInter v2.0 On-Premise cho các hoạt chất safe (chỉ khi CSDL verified)
+        if ddinter_service.integrity_verified:
+            ddinter_results = ddinter_service.find_all_interactions(list(safe_canonical_ingredients))
+            for entry in ddinter_results:
+                pair_key = frozenset([entry.drug_a, entry.drug_b])
+                if pair_key in alerted_pairs:
+                    continue  # Đã có cảnh báo từ core matrix
+
+                alerted_pairs.add(pair_key)
+                title_prefix = "🔴 Chống chỉ định" if entry.severity == "HIGH" else ("🟡 Thận trọng" if entry.severity == "MEDIUM" else "ℹ️ Tương tác nhẹ")
+                alerts.append(InteractionAlert(
+                    severity=entry.severity,
+                    title=f"{title_prefix}: {entry.drug_a.title()} + {entry.drug_b.title()} [{entry.ddinter_id}]",
+                    description=(
+                        f"Cơ chế: {entry.mechanism}\n"
+                        f"Xử trí lâm sàng: {entry.management}\n"
+                        f"(Nguồn: DDInter v{entry.dataset_version} - ID: {entry.ddinter_id})"
+                    ),
+                    recommendation=entry.recommendation or entry.management,
                 ))
 
         return alerts

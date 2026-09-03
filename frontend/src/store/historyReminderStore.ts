@@ -1,85 +1,116 @@
 /**
  * Zustand store cho Scan History, Medication Reminders & Treatment Adherence (Stage 10).
+ * Quản lý bộ nhớ tạm client-side; Backend REST APIs là Single Source of Truth.
  */
 
 import { create } from 'zustand';
 import {
   IScanHistoryItem,
-  IScanHistoryCreate,
   IReminderItem,
   IReminderCreate,
   IReminderUpdate,
   IAdherenceStats,
+  IUserMedication,
+  IUserMedicationCreate,
+  IUserMedicationUpdate,
 } from '@/types/history_reminder';
 import { historyReminderService } from '@/services/historyReminderService';
 
 interface HistoryReminderState {
   histories: IScanHistoryItem[];
+  totalHistories: number;
   reminders: IReminderItem[];
+  totalReminders: number;
   stats: IAdherenceStats;
+  medications: IUserMedication[];
+  totalMedications: number;
 
   isLoadingHistories: boolean;
   isLoadingReminders: boolean;
+  isLoadingMedications: boolean;
   error: string | null;
 
-  fetchHistories: () => Promise<void>;
-  saveHistory: (payload: IScanHistoryCreate) => Promise<IScanHistoryItem>;
+  fetchHistories: (params?: { limit?: number; offset?: number; severity?: string }) => Promise<void>;
+  deleteHistory: (id: string) => Promise<void>;
 
-  fetchReminders: () => Promise<void>;
+  fetchReminders: (params?: { limit?: number; offset?: number; activeOnly?: boolean }) => Promise<void>;
   createReminder: (payload: IReminderCreate) => Promise<IReminderItem>;
   updateReminder: (id: string, payload: IReminderUpdate) => Promise<void>;
   deleteReminder: (id: string) => Promise<void>;
   logReminderStatus: (id: string, status: 'taken' | 'skipped', notes?: string) => Promise<void>;
+
+  fetchMedications: (params?: { limit?: number; offset?: number; activeOnly?: boolean }) => Promise<void>;
+  createMedication: (payload: IUserMedicationCreate) => Promise<IUserMedication>;
+  updateMedication: (id: string, payload: IUserMedicationUpdate) => Promise<void>;
+  deleteMedication: (id: string) => Promise<void>;
+
+  clearStore: () => void;
 }
+
+const initialStats: IAdherenceStats = {
+  totalReminders: 0,
+  todayTakenCount: 0,
+  todaySkippedCount: 0,
+  todayTotalScheduled: 0,
+  todayAdherenceRate: 0,
+  takenCount: 0,
+  skippedCount: 0,
+  adherenceRate: 0,
+};
 
 export const useHistoryReminderStore = create<HistoryReminderState>((set, get) => ({
   histories: [],
+  totalHistories: 0,
   reminders: [],
-  stats: {
-    totalReminders: 0,
-    takenCount: 0,
-    skippedCount: 0,
-    adherenceRate: 0,
-  },
+  totalReminders: 0,
+  stats: initialStats,
+  medications: [],
+  totalMedications: 0,
 
   isLoadingHistories: false,
   isLoadingReminders: false,
+  isLoadingMedications: false,
   error: null,
 
-  fetchHistories: async () => {
+  fetchHistories: async (params) => {
     set({ isLoadingHistories: true, error: null });
     try {
-      const items = await historyReminderService.getHistories();
-      set({ histories: items, isLoadingHistories: false });
-    } catch {
-      set({ isLoadingHistories: false });
+      const res = await historyReminderService.getHistories(params);
+      set({
+        histories: res.items,
+        totalHistories: res.total,
+        isLoadingHistories: false,
+      });
+    } catch (err) {
+      set({ isLoadingHistories: false, error: 'Không thể tải lịch sử đánh giá.' });
     }
   },
 
-  saveHistory: async (payload: IScanHistoryCreate) => {
+  deleteHistory: async (id: string) => {
     try {
-      const newItem = await historyReminderService.saveHistory(payload);
+      await historyReminderService.deleteHistory(id);
       set((state) => ({
-        histories: [newItem, ...state.histories],
+        histories: state.histories.filter((h) => h.id !== id),
+        totalHistories: Math.max(0, state.totalHistories - 1),
       }));
-      return newItem;
-    } catch (err: unknown) {
-      console.warn('Lỗi khi lưu lịch sử quét:', err);
+    } catch (err) {
+      console.warn('Lỗi khi xóa lịch sử:', err);
       throw err;
     }
   },
 
-  fetchReminders: async () => {
+  fetchReminders: async (params) => {
     set({ isLoadingReminders: true, error: null });
     try {
-      const overview = await historyReminderService.getRemindersOverview();
+      const res = await historyReminderService.getRemindersOverview(params);
       set({
-        reminders: overview.reminders,
-        stats: overview.stats,
+        reminders: res.items,
+        totalReminders: res.total,
+        stats: res.stats || initialStats,
         isLoadingReminders: false,
       });
     } catch {
-      set({ isLoadingReminders: false });
+      set({ isLoadingReminders: false, error: 'Không thể tải danh sách nhắc nhở.' });
     }
   },
 
@@ -87,7 +118,7 @@ export const useHistoryReminderStore = create<HistoryReminderState>((set, get) =
     set({ isLoadingReminders: true });
     try {
       const created = await historyReminderService.createReminder(payload);
-      await get().fetchReminders(); // Re-fetch to get updated stats
+      await get().fetchReminders();
       return created;
     } catch (err: unknown) {
       set({ isLoadingReminders: false });
@@ -108,9 +139,6 @@ export const useHistoryReminderStore = create<HistoryReminderState>((set, get) =
   deleteReminder: async (id: string) => {
     try {
       await historyReminderService.deleteReminder(id);
-      set((state) => ({
-        reminders: state.reminders.filter((r) => r.id !== id),
-      }));
       await get().fetchReminders();
     } catch (err: unknown) {
       console.warn('Lỗi khi xóa nhắc nhở:', err);
@@ -126,5 +154,68 @@ export const useHistoryReminderStore = create<HistoryReminderState>((set, get) =
       console.warn('Lỗi khi ghi nhật ký uống thuốc:', err);
       throw err;
     }
+  },
+
+  fetchMedications: async (params) => {
+    set({ isLoadingMedications: true, error: null });
+    try {
+      const res = await historyReminderService.getMedications(params);
+      set({
+        medications: res.items,
+        totalMedications: res.total,
+        isLoadingMedications: false,
+      });
+    } catch {
+      set({ isLoadingMedications: false, error: 'Không thể tải danh sách thuốc trong tủ.' });
+    }
+  },
+
+  createMedication: async (payload: IUserMedicationCreate) => {
+    set({ isLoadingMedications: true });
+    try {
+      const created = await historyReminderService.createMedication(payload);
+      await get().fetchMedications();
+      return created;
+    } catch (err: unknown) {
+      set({ isLoadingMedications: false });
+      throw err;
+    }
+  },
+
+  updateMedication: async (id: string, payload: IUserMedicationUpdate) => {
+    try {
+      await historyReminderService.updateMedication(id, payload);
+      await get().fetchMedications();
+    } catch (err: unknown) {
+      console.warn('Lỗi khi cập nhật thuốc:', err);
+      throw err;
+    }
+  },
+
+  deleteMedication: async (id: string) => {
+    try {
+      await historyReminderService.deleteMedication(id);
+      await get().fetchMedications();
+      await get().fetchReminders();
+    } catch (err: unknown) {
+      console.warn('Lỗi khi xóa thuốc:', err);
+      throw err;
+    }
+  },
+
+  clearStore: () => {
+    set({
+      histories: [],
+      totalHistories: 0,
+      reminders: [],
+      totalReminders: 0,
+      stats: initialStats,
+      medications: [],
+      totalMedications: 0,
+      isLoadingHistories: false,
+      isLoadingReminders: false,
+      isLoadingMedications: false,
+      error: null,
+    });
   },
 }));

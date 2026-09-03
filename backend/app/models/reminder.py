@@ -11,6 +11,7 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.user import User
+    from app.models.medication import UserMedicationModel
 
 
 class ReminderModel(Base):
@@ -28,6 +29,12 @@ class ReminderModel(Base):
         index=True,
         nullable=False,
     )
+    medication_id: Mapped[Optional[str]] = mapped_column(
+        String(36),
+        ForeignKey("user_medications.id", ondelete="CASCADE"),
+        index=True,
+        nullable=True,
+    )
     drug_name: Mapped[str] = mapped_column(String(255), nullable=False)
     dosage_instruction: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     time_of_day: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -42,3 +49,7 @@ class ReminderModel(Base):
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="reminders")
+    medication: Mapped[Optional["UserMedicationModel"]] = relationship(
+        "UserMedicationModel", back_populates="reminders"
+    )
+

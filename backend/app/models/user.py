@@ -11,6 +11,7 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.profile import UserProfileModel
+    from app.models.medication import UserMedicationModel
     from app.models.history import ScanHistoryModel
     from app.models.reminder import ReminderModel
 
@@ -73,6 +74,11 @@ class User(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
+    medications: Mapped[List["UserMedicationModel"]] = relationship(
+        "UserMedicationModel",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
     scan_histories: Mapped[List["ScanHistoryModel"]] = relationship(
         "ScanHistoryModel",
         back_populates="user",
@@ -83,3 +89,4 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+

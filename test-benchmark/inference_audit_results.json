@@ -1,0 +1,151 @@
+[
+  {
+    "image": "hop-thuoc-31.jpg",
+    "size_kb": 28.3,
+    "dimensions": "640x640",
+    "stream": "packaging",
+    "latency_ms": 5180,
+    "raw_lines_count": 8,
+    "raw_lines": [
+      "Oricox®120",
+      "10 tablers",
+      "Etoricoxib Tablet 120 mg",
+      "Munalatured by",
+      "Incepa Pharmacecals",
+      "Dewan Id Road, Zirabo, Saar",
+      "Dhaka, Bangladesh",
+      "川"
+    ],
+    "matches": [
+      {
+        "raw_text": "Oricox®120",
+        "matched_brand": "Oricox 120mg",
+        "active_ingredient": "Etoricoxib",
+        "strength": "",
+        "variants": [
+          "60mg",
+          "90mg",
+          "120mg"
+        ],
+        "confidence": 0.875,
+        "match_method": "fuzzy"
+      }
+    ]
+  },
+  {
+    "image": "hop-thuoc.jpg",
+    "size_kb": 1308.3,
+    "dimensions": "3225x1814",
+    "stream": "packaging",
+    "latency_ms": 3875,
+    "raw_lines_count": 6,
+    "raw_lines": [
+      "Derma",
+      "Jamjoom Pharma",
+      "ACRETIN0.05%",
+      "FOR ACNE TREATMENT",
+      "Tretinoin 0.05% w/w",
+      "TOPICAL CREAM 30 GM"
+    ],
+    "matches": [
+      {
+        "raw_text": "Derma",
+        "matched_brand": "Dexa 0.5mg",
+        "active_ingredient": "Dexamethasone",
+        "strength": "",
+        "variants": [
+          "0.5mg"
+        ],
+        "confidence": 0.8333,
+        "match_method": "fuzzy"
+      }
+    ]
+  },
+  {
+    "image": "lo-thuoc.png",
+    "size_kb": 40.1,
+    "dimensions": "300x300",
+    "stream": "packaging",
+    "latency_ms": 910,
+    "raw_lines_count": 6,
+    "raw_lines": [
+      "TOWARDS DIABETES",
+      "AND PRE-DIABETES",
+      "79.0イ*",
+      "S-ALA",
+      "ALA-Bio",
+      "Good for diabetes"
+    ],
+    "matches": []
+  },
+  {
+    "image": "toa-thuoc.jpg",
+    "size_kb": 147.1,
+    "dimensions": "768x1024",
+    "stream": "prescription",
+    "latency_ms": 10520,
+    "raw_lines_count": 39,
+    "raw_lines": [
+      "TOA THUC",
+      "PRESCRIPTION",
+      "Ho và tên (Full name):",
+      "Tui (Age):",
+      "Đia chi (Address):",
+      "Chn đoán (Diagnosis):",
+      "1. Tên thuôc (Drug): ......Augmentin 625mg.",
+      "Sô lung (Dosage): ...20v.",
+      "Sáng (Morning): .......1v........",
+      "Trra (Afternoon):",
+      "1v",
+      "Tôi (Night): ......1v..",
+      "2. Tên thuôc (Drug): .......Medrol 16mg.",
+      "Sô lung (Dosage): ...5v.",
+      "Sáng (Morning): .......1v......... Trra (Afternoon):",
+      "Tôi (Night):",
+      "3. Tên thuôc (Drug): ......Ibuprofen 400mg.",
+      "Sô lung (Dosage): ...15v.",
+      "Sáng (Morning): .......1v........ Trra (Afternoon): ..",
+      "..1v.",
+      "Tôi (Night): ....1v.",
+      "4. Tên thuôc (Drug): ...Alphachymotrysin....4,2mg..",
+      "Sô lung (Dosage): ..30v..",
+      "Sáng (Morning): .....2v......... Trra (Afternoon): ......2v.",
+      "Tôi (Night): ......2v.",
+      "5. Tên thuôc (Drug): ...Paracetamol 500mg.",
+      "Sô lung (Dosage): ....15v.",
+      "Sáng (Morning): ....1v.......",
+      "Trua (Afternoon): ..... 1v.",
+      "Tôi (Night): .....1v.",
+      "6. Tên thuôc (Drug): ....Omeprazol 20mg.",
+      "Só lung (Dosage): ....10v.",
+      "Sáng (Morning): 1v (trróc ān 30 phút).",
+      "....Tôi (Night): 1v (truóc ān 30 phút)",
+      "Uông thuc sau khi ān no",
+      "Ngày (Date) ...... Tháng (Month) ..... Năm (Year) 20...",
+      "Take medicine after eating",
+      "Bác sì điu tri (Doctor)",
+      "Ký tên (Sign)"
+    ],
+    "matches": []
+  },
+  {
+    "image": "vi-thuoc.jpg",
+    "size_kb": 19.2,
+    "dimensions": "600x600",
+    "stream": "packaging",
+    "latency_ms": 1988,
+    "raw_lines_count": 9,
+    "raw_lines": [
+      "COMPLEMENTO ALIMENTICIO",
+      "BIOIBERICA",
+      "tendoactive",
+      "TENDON",
+      "atamina Cy manameso que cobe aaromaltomio",
+      "Conene calágena hidrolade spe L mpesararidos.",
+      "de tajido conectivo camo tedines y liganeton",
+      "60CÁPSULAS",
+      "CN:2392960"
+    ],
+    "matches": []
+  }
+]

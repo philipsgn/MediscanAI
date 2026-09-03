@@ -6,10 +6,13 @@
 import { create } from 'zustand';
 import { IUser, ILoginRequest, IRegisterRequest, ITokenResponse } from '@/types/auth';
 import { authService } from '@/services/authService';
+import { useUserProfileStore } from '@/store/userProfileStore';
+import { useHistoryReminderStore } from '@/store/historyReminderStore';
 
 const TOKEN_KEY = 'mediscan_access_token';
 const REFRESH_TOKEN_KEY = 'mediscan_refresh_token';
 const USER_KEY = 'mediscan_auth_user';
+const PROFILE_KEY = 'mediscan_user_profile';
 const COOKIE_KEY = 'mediscan_auth_token';
 
 interface AuthState {
@@ -81,6 +84,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
         error: null,
       });
+
+      // Tải hồ sơ y tế của user mới từ Backend
+      useUserProfileStore.getState().fetchProfile();
+
       return res;
     } catch (err: unknown) {
       const errorMsg =
@@ -115,6 +122,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
         error: null,
       });
+
+      // Xóa profile cũ nếu có
+      useUserProfileStore.getState().clearProfile();
+
       return res;
     } catch (err: unknown) {
       const errorMsg =
@@ -132,8 +143,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(REFRESH_TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
+      localStorage.removeItem(PROFILE_KEY);
       removeAuthCookie();
     }
+    useUserProfileStore.getState().clearProfile();
+    useHistoryReminderStore.getState().clearStore();
     set({
       user: null,
       accessToken: null,
@@ -149,6 +163,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const storedUserRaw = localStorage.getItem(USER_KEY);
 
     if (!storedToken) {
+      useUserProfileStore.getState().clearProfile();
+      useHistoryReminderStore.getState().clearStore();
       set({ isHydrated: true, isAuthenticated: false });
       return;
     }
@@ -171,12 +187,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isAuthenticated: true,
         isHydrated: true,
       });
-    } catch {
-      // Token hết hạn hoặc không hợp lệ -> xóa kho lưu trữ
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(USER_KEY);
-      removeAuthCookie();
 
+      // Đồng bộ profile từ Backend
+      useUserProfileStore.getState().fetchProfile();
+    } catch {
+      // Token hết hạn hoặc không hợp lệ -> xóa toàn bộ kho lưu trữ
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+      localStorage.removeItem(PROFILE_KEY);
+      removeAuthCookie();
+      useUserProfileStore.getState().clearProfile();
+      useHistoryReminderStore.getState().clearStore();
       set({
         user: null,
         accessToken: null,

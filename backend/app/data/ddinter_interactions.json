@@ -1,0 +1,192 @@
+{
+  "metadata": {
+    "dataset_name": "DDInter Drug-Drug Interaction Dataset",
+    "dataset_version": "2.0",
+    "license": "Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)",
+    "source_url": "https://ddinter.scbdd.com/",
+    "imported_at": "2026-09-01T17:50:00Z",
+    "provenance": "ddinter_v2.0_verified_core"
+  },
+  "interactions": [
+    {
+      "ddinter_id": "DDInter100101",
+      "drug_a": "aspirin",
+      "drug_b": "ibuprofen",
+      "severity": "HIGH",
+      "mechanism": "Pharmacodynamic synergism: Concurrent administration of multiple NSAIDs significantly elevates gastrointestinal bleeding risk and blunts irreversible COX-1 platelet inhibition by low-dose aspirin.",
+      "management": "Avoid concurrent use. If antiplatelet cardioprotection is indicated, administer immediate-release aspirin at least 30 minutes before or 8 hours after ibuprofen.",
+      "recommendation": "KHÔNG dùng đồng thời. Tham vấn bác sĩ để lựa chọn phác đồ giảm đau an toàn."
+    },
+    {
+      "ddinter_id": "DDInter100102",
+      "drug_a": "aspirin",
+      "drug_b": "naproxen",
+      "severity": "HIGH",
+      "mechanism": "Pharmacodynamic synergism: Combined COX inhibition severely increases upper GI ulceration and bleeding risk.",
+      "management": "Avoid concurrent use. Use alternative non-ulcerogenic analgesics under medical supervision.",
+      "recommendation": "KHÔNG dùng đồng thời. Nguy cơ xuất huyết tiêu hóa cao."
+    },
+    {
+      "ddinter_id": "DDInter100103",
+      "drug_a": "warfarin",
+      "drug_b": "aspirin",
+      "severity": "HIGH",
+      "mechanism": "Combined antiplatelet and anticoagulant effect produces extreme risk of major or life-threatening hemorrhage.",
+      "management": "Co-administration requires strict cardiologic indication and intensive INR monitoring.",
+      "recommendation": "Nguy hiểm: Tránh phối hợp trừ khi có chỉ định chuyên khoa tim mạch. Theo dõi INR."
+    },
+    {
+      "ddinter_id": "DDInter100104",
+      "drug_a": "warfarin",
+      "drug_b": "ibuprofen",
+      "severity": "HIGH",
+      "mechanism": "NSAIDs cause gastric mucosal injury and platelet inhibition while warfarin impairs coagulation, resulting in severe bleeding.",
+      "management": "Avoid NSAID co-therapy. Use acetaminophen/paracetamol at low doses for analgesia.",
+      "recommendation": "Tránh phối hợp. Ưu tiên Paracetamol liều thấp nếu cần giảm đau."
+    },
+    {
+      "ddinter_id": "DDInter100105",
+      "drug_a": "warfarin",
+      "drug_b": "paracetamol",
+      "severity": "MEDIUM",
+      "mechanism": "High sustained acetaminophen doses (>2000mg/day) inhibit vitamin K-dependent clotting factor synthesis, augmenting INR.",
+      "management": "Limit acetaminophen to under 2000mg/day and monitor INR if taken for >3 consecutive days.",
+      "recommendation": "Thận trọng: Không dùng quá 2g Paracetamol/ngày khi đang dùng Warfarin."
+    },
+    {
+      "ddinter_id": "DDInter100106",
+      "drug_a": "ciprofloxacin",
+      "drug_b": "calcium",
+      "severity": "MEDIUM",
+      "mechanism": "Chelation binding between multivalent calcium cations and fluoroquinolones reduces fluoroquinolone bioavailability by 50-80%.",
+      "management": "Administer ciprofloxacin at least 2 hours before or 6 hours after calcium-containing foods or supplements.",
+      "recommendation": "Uống Ciprofloxacin cách các sản phẩm chứa Canxi ít nhất 2 giờ."
+    },
+    {
+      "ddinter_id": "DDInter100107",
+      "drug_a": "ciprofloxacin",
+      "drug_b": "iron",
+      "severity": "MEDIUM",
+      "mechanism": "Ferrous iron forms insoluble chelates with ciprofloxacin in the digestive tract, severely diminishing systemic absorption.",
+      "management": "Space administration by at least 2 hours before or 4 hours after oral iron.",
+      "recommendation": "Uống Ciprofloxacin cách viên uống bổ sung Sắt ít nhất 2-4 giờ."
+    },
+    {
+      "ddinter_id": "DDInter100108",
+      "drug_a": "amoxicillin",
+      "drug_b": "methotrexate",
+      "severity": "HIGH",
+      "mechanism": "Penicillins compete for renal tubular secretion via OAT1/OAT3 transporters, decreasing methotrexate renal clearance and causing toxic myelosuppression.",
+      "management": "Monitor methotrexate plasma levels and complete blood count closely; consider dose adjustment.",
+      "recommendation": "Nguy hiểm: Tăng độc tính tủy xương và thận của Methotrexate. Thông báo bác sĩ."
+    },
+    {
+      "ddinter_id": "DDInter100109",
+      "drug_a": "simvastatin",
+      "drug_b": "amiodarone",
+      "severity": "HIGH",
+      "mechanism": "Amiodarone inhibits CYP3A4-mediated simvastatin metabolism, markedly raising simvastatin plasma concentrations and rhabdomyolysis risk.",
+      "management": "Do not exceed simvastatin 20mg daily when co-administered with amiodarone.",
+      "recommendation": "Nguy hiểm: Tăng nguy cơ tiêu cơ vân. Giới hạn Simvastatin tối đa 20mg/ngày."
+    },
+    {
+      "ddinter_id": "DDInter100110",
+      "drug_a": "clarithromycin",
+      "drug_b": "simvastatin",
+      "severity": "HIGH",
+      "mechanism": "Potent CYP3A4 inhibition by clarithromycin increases simvastatin AUC up to 10-fold, triggering acute kidney injury and rhabdomyolysis.",
+      "management": "Contraindicated. Temporarily suspend simvastatin therapy during clarithromycin antibiotic course.",
+      "recommendation": "Chống chỉ định: TẠM NGƯNG Simvastatin trong toàn bộ thời gian uống Clarithromycin."
+    },
+    {
+      "ddinter_id": "DDInter100111",
+      "drug_a": "clopidogrel",
+      "drug_b": "omeprazole",
+      "severity": "MEDIUM",
+      "mechanism": "Omeprazole competitively inhibits CYP2C19, impairing metabolic bioactivation of clopidogrel and reducing antiplatelet efficacy.",
+      "management": "Consider switching to pantoprazole or famotidine which exhibit minimal CYP2C19 inhibition.",
+      "recommendation": "Cân nhắc thay Omeprazole bằng Pantoprazole để bảo toàn tác dụng của Clopidogrel."
+    },
+    {
+      "ddinter_id": "DDInter100112",
+      "drug_a": "metformin",
+      "drug_b": "alcohol",
+      "severity": "MEDIUM",
+      "mechanism": "Alcohol potentiates metformin-induced lactic acidosis by inhibiting hepatic lactate gluconeogenesis, particularly in fasting states.",
+      "management": "Avoid excessive acute or chronic alcohol intake during metformin treatment.",
+      "recommendation": "Tránh uống rượu bia khi đang điều trị đái tháo đường bằng Metformin."
+    },
+    {
+      "ddinter_id": "DDInter100113",
+      "drug_a": "digoxin",
+      "drug_b": "amiodarone",
+      "severity": "HIGH",
+      "mechanism": "Amiodarone inhibits P-glycoprotein efflux transporter and renal clearance, increasing digoxin serum levels by 70-100% and causing cardiac arrhythmias.",
+      "management": "Reduce digoxin dosage by 50% upon starting amiodarone and monitor serum digoxin levels.",
+      "recommendation": "Nguy hiểm: Tăng nồng độ Digoxin gây ngộ độc tim. Giảm 50% liều Digoxin và theo dõi nồng độ."
+    },
+    {
+      "ddinter_id": "DDInter100114",
+      "drug_a": "atorvastatin",
+      "drug_b": "clarithromycin",
+      "severity": "HIGH",
+      "mechanism": "Strong CYP3A4 inhibition by clarithromycin significantly increases atorvastatin exposure, heightening myopathy and hepatotoxicity risk.",
+      "management": "Limit atorvastatin to lowest effective dose or temporarily pause during short-term clarithromycin therapy.",
+      "recommendation": "Thận trọng cao: Giảm liều Atorvastatin hoặc tạm ngưng khi dùng kháng sinh Clarithromycin."
+    },
+    {
+      "ddinter_id": "DDInter100115",
+      "drug_a": "levothyroxine",
+      "drug_b": "calcium",
+      "severity": "MEDIUM",
+      "mechanism": "Calcium carbonate binds levothyroxine in acidic gastric environment, reducing thyroid hormone absorption and causing hypothyroidism.",
+      "management": "Separate administration times by at least 4 hours.",
+      "recommendation": "Uống Levothyroxine cách viên Canxi ít nhất 4 giờ để tránh giảm hấp thu hormone tuyến giáp."
+    },
+    {
+      "ddinter_id": "DDInter100116",
+      "drug_a": "levothyroxine",
+      "drug_b": "iron",
+      "severity": "MEDIUM",
+      "mechanism": "Oral iron supplements form an unabsorbable complex with levothyroxine in the GI tract.",
+      "management": "Administer levothyroxine at least 4 hours before or after oral iron products.",
+      "recommendation": "Uống Levothyroxine cách viên Sắt ít nhất 4 giờ."
+    },
+    {
+      "ddinter_id": "DDInter100117",
+      "drug_a": "losartan",
+      "drug_b": "potassium",
+      "severity": "MEDIUM",
+      "mechanism": "Angiotensin II receptor blockade decreases aldosterone secretion, promoting potassium retention and hyperkalemia risk when combined with potassium supplements.",
+      "management": "Monitor serum potassium levels routinely. Avoid potassium supplements unless clinically indicated.",
+      "recommendation": "Thận trọng: Tăng nguy cơ tăng Kali máu nguy hiểm. Kiểm tra Kali huyết định kỳ."
+    },
+    {
+      "ddinter_id": "DDInter100118",
+      "drug_a": "enalapril",
+      "drug_b": "spironolactone",
+      "severity": "HIGH",
+      "mechanism": "Concurrent ACE inhibition and aldosterone antagonism synergistic retention of potassium, elevating life-threatening hyperkalemia risk.",
+      "management": "Strictly monitor serum potassium and renal function within 1-2 weeks of initiation and regularly thereafter.",
+      "recommendation": "Nguy hiểm: Nguy cơ tăng Kali máu nặng. Bắt buộc theo dõi chức năng thận và điện giải đồ."
+    },
+    {
+      "ddinter_id": "DDInter100119",
+      "drug_a": "fluoxetine",
+      "drug_b": "tramadol",
+      "severity": "HIGH",
+      "mechanism": "Combined serotonergic actions plus CYP2D6 inhibition by fluoxetine increase free tramadol and serotonin levels, triggering Serotonin Syndrome and seizures.",
+      "management": "Avoid combination. Monitor for mental status changes, tremor, hyperreflexia, and diaphoresis.",
+      "recommendation": "Chống chỉ định: Nguy cơ Hội chứng Serotonin và co giật đe dọa tính mạng. Tránh phối hợp."
+    },
+    {
+      "ddinter_id": "DDInter100120",
+      "drug_a": "sildenafil",
+      "drug_b": "nitroglycerin",
+      "severity": "HIGH",
+      "mechanism": "PDE5 inhibitors and nitrates both amplify cGMP signaling, inducing profound and potentially fatal systemic hypotension.",
+      "management": "Absolute contraindication. Nitrates should not be administered within 24 hours of sildenafil.",
+      "recommendation": "Chống chỉ định tuyệt đối: Tụt huyết áp nghiêm trọng đe dọa tính mạng. KHÔNG dùng đồng thời."
+    }
+  ]
+}

@@ -36,9 +36,11 @@ class AuthService:
 
     def create_access_token(self, user_id: str) -> str:
         """Tạo JWT Access Token (hết hạn sau ACCESS_TOKEN_EXPIRE_MINUTES)."""
-        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        now = datetime.now(timezone.utc)
+        expire = now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         payload = {
             "sub": user_id,
+            "iat": int(now.timestamp()),
             "exp": int(expire.timestamp()),
             "type": "access",
         }
@@ -46,27 +48,38 @@ class AuthService:
 
     def create_refresh_token(self, user_id: str) -> str:
         """Tạo JWT Refresh Token (hết hạn sau REFRESH_TOKEN_EXPIRE_DAYS)."""
-        expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+        now = datetime.now(timezone.utc)
+        expire = now + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
         payload = {
             "sub": user_id,
+            "iat": int(now.timestamp()),
             "exp": int(expire.timestamp()),
             "type": "refresh",
         }
         return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
     def decode_token(self, token: str) -> Optional[Dict[str, Any]]:
-        """Giải mã & xác minh chữ ký + thời gian của JWT Token."""
+        """Giải mã & xác minh chữ ký + thời gian của JWT Token (bắt buộc sub, exp, type, iat)."""
         try:
-            payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+            payload = jwt.decode(
+                token,
+                settings.JWT_SECRET,
+                algorithms=[settings.JWT_ALGORITHM],
+                options={"require": ["sub", "exp", "type", "iat"], "verify_exp": True},
+            )
             return payload
-        except (jwt.PyJWTError, ValueError):
+        except (jwt.PyJWTError, ValueError, TypeError):
             return None
+
+    async def get_user_model_by_id(self, db: AsyncSession, user_id: str) -> Optional[User]:
+        """Lấy raw User model theo ID từ Database phục vụ xác thực trạng thái is_active."""
+        stmt = select(User).where(User.id == user_id)
+        result = await db.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def get_user_by_id(self, db: AsyncSession, user_id: str) -> Optional[UserResponse]:
         """Lấy thông tin người dùng theo ID từ Database."""
-        stmt = select(User).where(User.id == user_id)
-        result = await db.execute(stmt)
-        user = result.scalar_one_or_none()
+        user = await self.get_user_model_by_id(db, user_id)
         if not user:
             return None
         return UserResponse(
@@ -80,8 +93,8 @@ class AuthService:
 
     async def register_user(self, db: AsyncSession, data: UserRegister) -> UserResponse:
         """Tạo tài khoản người dùng mới trong Database. Quăng ValueError nếu username/email đã tồn tại."""
-        clean_email = data.email.strip().lower()
-        clean_username = data.username.strip().lower()
+        clean_email = data.get_clean_email()
+        clean_username = data.get_clean_username()
 
         # Kiểm tra trùng email hoặc username
         stmt = select(User).where(
@@ -104,8 +117,8 @@ class AuthService:
 
         new_user = User(
             id=user_id,
-            email=data.email.strip(),
-            username=data.username.strip(),
+            email=clean_email,
+            username=clean_username,
             full_name=data.full_name.strip() if data.full_name else None,
             hashed_password=hashed_pwd,
             is_active=True,
@@ -140,7 +153,7 @@ class AuthService:
         result = await db.execute(stmt)
         user = result.scalar_one_or_none()
 
-        if not user or not self.verify_password(data.password, user.hashed_password):
+        if not user or not user.is_active or not self.verify_password(data.password, user.hashed_password):
             raise ValueError("Tên đăng nhập hoặc mật khẩu không chính xác.")
 
         return UserResponse(

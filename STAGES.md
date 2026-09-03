@@ -1,18 +1,15 @@
 # 🚀 MEDISCAN AI - DỰ ÁN LỘ TRÌNH PHÁT TRIỂN CHI TIẾT (STAGES & VIBE-CODING ROADMAP)
 
 Tài liệu này là **Single Source of Truth** cho tiến độ phát triển dự án **Mediscan AI**. Cấu trúc mỗi Task được chia nhỏ thành các gói công việc cụ thể (Context, Files, Dependencies, Prompt Mẫu) giúp **AI Coding Agent** và Developer triển khai mã nguồn tức thì (*Vibe-Coding Ready*).
-# 🚀 MEDISCAN AI - DỰ ÁN LỘ TRÌNH PHÁT TRIỂN CHI TIẾT (STAGES & VIBE-CODING ROADMAP)
-
-Tài liệu này là **Single Source of Truth** cho tiến độ phát triển dự án **Mediscan AI**. Cấu trúc mỗi Task được chia nhỏ thành các gói công việc cụ thể (Context, Files, Dependencies, Prompt Mẫu) giúp **AI Coding Agent** và Developer triển khai mã nguồn tức thì (*Vibe-Coding Ready*).
 
 ---
 
 ## 📌 TỔNG QUAN HỆ THỐNG GIAI ĐOẠN (STAGES OVERVIEW)
 [Stage 1: Base & Setup] ➔ [Stage 2: Pure Dual OCR Engine] ➔ [Stage 3: Local LLM Clinical & API] ➔ [Stage 4: Web UI & Smart Crop]
 │
-[Stage 7: Production]  ➔ [Stage 8: Auth System] ➔ [Stage 9: Personalized Onboarding] ➔ [Stage 10: History & Reminders]
+[Stage 7: Production] ➔ [Stage 7.5: Inference Hardening] ➔ [Stage 8: Auth System] ➔ [Stage 9: Personalized Onboarding] ➔ [Stage 10: History & Reminders] ➔ [Stage 11: OCR Model Lifecycle]
 
-### 🟡 STAGE 8, 9, 10 MỚI BỔ SUNG — CÁC STAGE 1-7 ĐÃ HOÀN THÀNH
+### 🟢 TOÀN BỘ CÁC STAGE 1 ĐẾN 11 ĐÃ HOÀN THÀNH VÀ KIỂM THỬ 100% PASS
 
 | Stage | Tên Giai Đoạn | Trọng Tâm Kiến Trúc | Trạng Thái |
 | :--- | :--- | :--- | :--- |
@@ -23,9 +20,12 @@ Tài liệu này là **Single Source of Truth** cho tiến độ phát triển d
 | **Stage 5** | **Centralized Cross-Evaluation Engine** | Multi-Layer Analysis Engine (Drug-Drug, Overdose, Condition) + Layer 4 Dosage Check (Task 5.5) | 🟢 Completed |
 | **Stage 6** | **Polish, Medical Safety & Testing** | Medical Disclaimer Interceptor, E2E Flow Testing, UX Polish | 🟢 Completed |
 | **Stage 7** | **Production & Docker Deployment** | Docker Compose, Backend Optimization, Web Desktop Launch | 🟢 Completed |
-| **Stage 8** | **Authentication System** | Đăng ký/Đăng nhập username+password, JWT session, bảo vệ route | 🔴 Not Started |
-| **Stage 9** | **Personalized Health Onboarding** | Wizard khai hồ sơ y tế (ngày sinh/bệnh nền/dị ứng) gắn với tài khoản thật | 🔴 Not Started |
-| **Stage 10** | **Medication History & Reminders** | Giữ nguyên nội dung cũ, chuyển từ "ẩn danh" sang "gắn với user_id thật" | 🔴 Not Started |
+| **Stage 7.5** | **Production Inference Hardening** | Model Warmup, Thread-safety, Privacy Validation, Error Contracts | 🟢 Completed |
+| **Stage 8** | **Authentication System** | Đăng ký/Đăng nhập username+password, JWT session, bảo vệ route | 🟢 Completed |
+| **Stage 9** | **Personalized Health Onboarding** | Wizard khai hồ sơ y tế (ngày sinh/bệnh nền/dị ứng) gắn với tài khoản thật | 🟢 Completed |
+| **Stage 10** | **Medication History & Reminders** | Tủ thuốc cá nhân (Cabinet), Lịch sử scan & Lịch nhắc nhở gắn user_id thật | 🟢 Completed |
+| **Stage 11** | **OCR Model Lifecycle & Versioning** | On-Premise ONNX Model Registry, Manifest Contract, Fail-Fast Resolution & Rollback | 🟢 Completed |
+| **Stage 12** | **Clinical Dataset Governance & DDI Coverage** | Clinical Safety Invariants (INV-12-01..04), DDInter v2.0 Dataset Governance, Coverage State Machine, Manifest Checksum | 🟢 Completed |
 
 ---
 
@@ -217,15 +217,62 @@ Tài liệu này là **Single Source of Truth** cho tiến độ phát triển d
 
 ---
 
-### 🔹 STAGE 8: AUTHENTICATION SYSTEM
-> **Mục tiêu:** Xây dựng hệ thống Đăng ký/Đăng nhập bằng tài khoản thật (Username + Password). Sử dụng JWT session, mã hóa mật khẩu, và bảo vệ các route người dùng (như Hồ sơ, Lịch sử, Nhắc nhở).
+### 🔹 STAGE 7.5: PRODUCTION INFERENCE HARDENING & PRIVACY VALIDATION
+> **Mục tiêu:** Đảm bảo Pipeline PP-OCRv6 chạy ổn định, thread-safe, không lưu ảnh xuống đĩa (Privacy RAM-Only) và xử lý lỗi đồng nhất trước khi chuyển sang các hệ thống phân quyền (Auth).
 
 * **File tác động chính:**
-  - Backend: `auth_service.py`, `user_schema.py`, `auth_router.py`
-  - Frontend: `authStore.ts`, `LoginPage.tsx`, `RegisterPage.tsx`, Middleware bảo vệ route
+  - `backend/app/services/ocr_engine.py`
+  - `backend/app/api/v1/endpoints/ocr.py`
+  - `backend/app/main.py`
+  - `ARCHITECTURE.md`
 
-- [ ] **Task 8.1: Backend — JWT Authentication & User Model**
-- [ ] **Task 8.2: Frontend — Auth Pages & Zustand Store**
+- [x] **Task 7.5.1: Thread-Safety & True Model Warmup**
+  - **Mô tả:** Thêm `threading.Lock` bảo vệ khởi tạo lazy của PaddleOCR. Chạy ảnh dummy qua `predict()` trong hàm `warmup` để nạp kernels ONNX vào RAM ở lần đầu khởi động server.
+- [x] **Task 7.5.2: Inference Error Isolation**
+  - **Mô tả:** Bắt lỗi OCR Inference (exception từ `predict()`) để tránh lỗi 500 chung chung. Trả về Error Contract chuẩn có chứa `OCR_INFERENCE_FAILED`.
+- [x] **Task 7.5.3: Zero Image Persistence Verification**
+  - **Mô tả:** Audit và test đảm bảo tuyệt đối không có bytes ảnh nào rò rỉ ra ổ cứng ở bất kỳ bước nào trong quy trình.
+
+---
+
+### 🔹 STAGE 8: AUTHENTICATION SYSTEM
+> **Mục tiêu:** Xây dựng hệ thống Đăng ký/Đăng nhập bằng tài khoản thật (Username + Password). Sử dụng JWT session, mã hóa mật khẩu bằng Bcrypt, Rate Limiting chống brute-force, và chuẩn hóa Error Contract 6-key cho toàn bộ Auth layer.
+
+* **File tác động chính:**
+  - Backend: `app/core/config.py`, `app/services/auth_service.py`, `app/schemas/user_schema.py`, `app/api/v1/endpoints/auth.py`, `app/models/user.py`
+  - Frontend: `src/types/auth.ts`, `src/services/authApi.ts`, `src/stores/authStore.ts`, `src/app/login/page.tsx`, `src/app/register/page.tsx`
+
+* **Entry Criteria:**
+  - Stage 7.5 Production Inference Hardening & Privacy Validation: PASS (155/155 tests passed).
+  - Database schema migration cho bảng `users` đã tồn tại và sẵn sàng.
+
+* **Security Acceptance Criteria:**
+  - Mật khẩu bắt buộc băm bằng `bcrypt` trước khi lưu vào DB; không bao giờ log hoặc trả về plaintext password / hash.
+  - JWT Access Token (HS256) ký bằng `JWT_SECRET` bắt buộc từ môi trường (validator chặn hardcoded/empty secret).
+  - Refresh Token hỗ trợ cấp mới Access Token mà không yêu cầu user login lại.
+  - Rate limiting (5 req/min) bảo vệ các endpoint nhạy cảm (`/auth/login`, `/auth/register`).
+  - Error Response tuân thủ 100% unified contract 6-key (`error_code`, `message`, `service`, `stage`, `request_id`, `retryable=False`).
+  - Privacy Invariant: Tuyệt đối không log credentials, raw tokens hoặc Authorization header.
+
+* **Detailed Tasks:**
+  - [x] **Task 8.1: Backend Auth Core & Unified Error Contract**
+    - **Mô tả:** Chuẩn hóa `AuthService` và `auth.py` router tích hợp 6-key error contract, `X-Request-ID` propagation, validate password strength (min 6 chars), sanitize inputs. Đã hoàn tất và đạt 157/157 tests PASS.
+  - [x] **Task 8.2: Backend Token Lifecycle & Security Hardening**
+    - [x] **Task 8.2.1 — Access Token Validation Hardening:** Bắt buộc `algorithms=["HS256"]` explicit, kiểm tra đầy đủ claims (`sub`, `exp`, `iat`, `type="access"`), đối soát `user.is_active == True`, trả lỗi `UNAUTHORIZED` / `INVALID_TOKEN` chuẩn 6-key.
+    - [x] **Task 8.2.2 — Refresh Token Lifecycle & Replay Hardening:** Enforce strict `type == "refresh"`, chặn triệt để access token lọt vào `/auth/refresh`, kiểm tra expiration, và giữ semantic cấp mới access token ổn định.
+    - [x] **Task 8.2.3 — Protected Route Security & State Isolation:** Kiểm tra `get_current_user` và `get_optional_current_user` trên toàn bộ protected routes (OCR, Profile, History, Reminders); chặn tài khoản bị vô hiệu hóa (`is_active=False`).
+    - [x] **Task 8.2.4 — Logout & Revocation Boundary Definition:** Xác định kiến trúc Stateless Client-Side Token Discard cho Stage 8 (xóa token ở client state, không lưu state session server-side), ghi nhận ranh giới bảo mật và khả năng mở rộng denylist trong tương lai.
+    - [x] **Task 8.2.5 — Comprehensive Token Security Test Suite:** Bổ sung các bài test chuyên biệt: chữ ký bị sửa đổi, thuật toán giả mạo (`alg:none`), token hết hạn, user bị khóa (`is_active=False`), token type confusion, và request tracing. Đã đạt 164/164 tests PASS.
+  - [x] **Task 8.3: Frontend Auth State & UI Integration**
+    - [x] **Task 8.3.1 — Token Storage Architecture & Session Lifecycle:** Quản lý an toàn Access Token và Refresh Token trong Web Storage & Session Cookie đồng bộ với Next.js Middleware.
+    - [x] **Task 8.3.2 — Axios Auto-Refresh Interceptor & Request Queue Hardening:** Khóa `isRefreshing` và hàng đợi `failedQueue` ngăn chặn race condition khi nhiều request 401 đồng thời; xử lý triệt để loop refresh.
+    - [x] **Task 8.3.3 — Zustand Auth State Machine & Hydration Protection:** State machine quản lý `APP_BOOT ➔ AUTH_LOADING ➔ AUTHENTICATED / UNAUTHENTICATED`, đồng bộ trạng thái khi logout hoặc hết hạn session.
+    - [x] **Task 8.3.4 — Next.js Route Protection & Anti-Flash Guard:** Middleware & AuthGuard ngăn ngừa flash dữ liệu trước khi hydrate; điều hướng theo `isProfileCompleted` (`/onboarding` vs `/cabinet`).
+    - [x] **Task 8.3.5 — Unified Error Contract UI Normalization:** Chuẩn hóa parser bóc tách 6-key error (`detail.error_code`, `detail.message`) hiển thị Toast và Form Alert thân thiện. Đã verify Next.js build PASS và Full Backend Regression 164/164 PASS.
+
+* **Definition of Done (DoD):**
+  - 100% Unit & Integration test cho Auth pass xanh (Register, Duplicate Check, Login, Wrong Password, Refresh Token, Rate Limit, Protected Route Rejection).
+  - Full backend regression suite không bị ảnh hưởng (155+ tests pass).
 
 ---
 
@@ -236,39 +283,128 @@ Tài liệu này là **Single Source of Truth** cho tiến độ phát triển d
   - Backend: Liên kết UserProfile với tài khoản người dùng (`user_id`).
   - Frontend: Chỉnh sửa lại `userProfileStore.ts` để đọc/ghi từ Backend API thay vì chỉ lưu `localStorage`. Cập nhật `OnboardingWizard`.
 
-- [ ] **Task 9.1: Backend — UserProfile CRUD APIs**
-- [ ] **Task 9.2: Frontend — Sync Onboarding Flow with Auth**
+- [x] **Task 9.1: Backend — UserProfile CRUD APIs & Error Contract Hardening**
+  - Chuẩn hóa endpoints: `GET/POST/PUT /profile/me` và giữ tương thích `POST/PUT /profile`.
+  - Enforce `current_user.id` từ JWT, loại bỏ hoàn toàn nguy cơ IDOR.
+  - Chuẩn hóa phản hồi 404 sang Unified 6-Key Error Contract (`PROFILE_NOT_FOUND`).
+  - Thắt chặt validation schemas (`age >= 1`, `height_cm > 0`, `weight_kg > 0`).
+  - Tự động tính BMI an toàn và kích hoạt transaction cập nhật `is_profile_completed = True`.
+- [x] **Task 9.2: Frontend — Sync Onboarding Flow with Auth**
+  - Chuyển `userProfileStore.ts` sang Zustand memory, Backend REST API là Single Source of Truth duy nhất (loại bỏ localStorage fallback).
+  - Đồng bộ `logout()` và 401 session expiration xóa sạch Profile state và legacy cache.
+  - Loại bỏ hoàn toàn bypass client-side fake completion trong `ClinicalOnboardingWizard.tsx`.
+  - Đã verify Next.js build PASS và Full Backend Regression đạt 169/169 PASS.
 
 ---
 
-### 🔹 STAGE 10: MEDICATION HISTORY & REMINDERS (TRANG 3 — QUẢN LÝ USER)
-> **Mục tiêu:** Bổ sung Trang 3 hoàn chỉnh cho việc quản lý User: Lịch sử các lần quét/đánh giá và Nhắc nhở uống thuốc. Thay vì lưu trữ cho "User ẩn danh", mọi dữ liệu nay phải gắn với `user_id` thật từ JWT session.
+### 🔹 STAGE 10: MEDICATION HISTORY & REMINDERS (TRANG 3 — QUẢN LÝ USER) `🟢 Completed`
+> **Mục tiêu:** Bổ sung Trang 3 hoàn chỉnh cho việc quản lý User: Lịch sử các lần quét/đánh giá, Tủ thuốc cá nhân (Cabinet) và Nhắc nhở uống thuốc. Dữ liệu gắn trực tiếp với `user_id` thật từ JWT session với phân trang, bảo vệ IDOR và Zero Image Persistence.
 
 * **File tác động chính:**
-  - `backend/app/schemas/history_schema.py`, `backend/app/schemas/reminder_schema.py`
-  - `backend/app/api/v1/endpoints/history.py`, `backend/app/api/v1/endpoints/reminders.py`
-  - `backend/app/services/history_service.py`, `backend/app/services/reminder_service.py`
-  - `frontend/src/app/account/history/page.tsx`, `frontend/src/app/account/reminders/page.tsx`
-  - `frontend/src/components/history/HistoryTimeline.tsx`, `frontend/src/components/reminders/ReminderScheduler.tsx`
+  - `backend/app/models/medication.py`, `backend/app/models/reminder.py`, `backend/app/models/history.py`
+  - `backend/alembic/versions/b2c3d4e5f6g7_003_user_medications_and_reminder_link.py`
+  - `backend/app/schemas/history_reminder_schema.py`
+  - `backend/app/api/v1/endpoints/history.py`, `backend/app/api/v1/endpoints/reminders.py`, `backend/app/api/v1/endpoints/medications.py`
+  - `backend/app/services/history_service.py`, `backend/app/services/reminder_service.py`, `backend/app/services/medication_service.py`
+  - `frontend/src/app/history/page.tsx`, `frontend/src/components/management/HistoryTimeline.tsx`, `frontend/src/components/management/ReminderSchedule.tsx`
+  - `frontend/src/store/historyReminderStore.ts`, `frontend/src/store/authStore.ts`
 
-- [ ] **Task 10.1: Backend — Lưu & Truy Vấn Lịch Sử Quét Thuốc Gắn Với User ID**
-  - **Mô tả:** Mỗi lần gọi thành công `POST /api/v1/evaluate` phải ghi lại một `MedicationHistoryEntry` gắn với `user_id` hiện tại.
-  - **Agent Action:** Viết `history_service.py` với endpoint GET hỗ trợ phân trang.
+- [x] **Task 10.1: Backend — Lưu & Truy Vấn Lịch Sử Quét Thuốc Gắn Với User ID (Internal Write Only)**
+  - Tự động ghi Lịch sử phiên quét (Zero Image) nội bộ sau khi `POST /evaluate` thành công; loại bỏ hoàn toàn Public Write API.
+  - Phân trang `PaginatedScanHistoryResponse` (`items`, `total`, `limit`, `offset`, `has_more`), lọc severity (`HIGH`, `MEDIUM`, `LOW`, `ALL`).
+  - Hỗ trợ `GET /history/{id}` tái dựng báo cáo chi tiết và `DELETE /history/{id}` bảo vệ IDOR tuyệt đối.
 
-- [ ] **Task 10.2: Backend — Quản Lý Nhắc Nhở Uống Thuốc Cho Tài Khoản**
-  - **Mô tả:** CRUD cho `MedicationReminder`, gắn với thuốc đang có trong Tủ thuốc và `user_id`.
-  - **Agent Action:** Viết `reminder_service.py` + endpoint `POST/GET/PATCH/DELETE /api/v1/reminders`.
+- [x] **Task 10.2: Backend — Tủ Thuốc (Cabinet) & Quản Lý Nhắc Nhở Uống Thuốc Cho Tài Khoản**
+  - Khởi tạo bảng `user_medications` trong PostgreSQL; liên kết FK `reminders.medication_id` với cascade delete.
+  - Chống IDOR/Cross-user linking: Kiểm tra đồng thời `reminder.user_id == current_user.id` và `medication.user_id == current_user.id`.
+  - Validate định dạng giờ `reminder_time` chuẩn `HH:MM` 24h; tính toán chính xác Adherence Stats (`taken` / `skipped`).
+  - Toàn bộ lỗi 404 tuân thủ Unified 6-Key Error Contract (`HISTORY_NOT_FOUND`, `REMINDER_NOT_FOUND`, `MEDICATION_NOT_FOUND`).
 
-- [ ] **Task 10.3: Frontend — Trang 3 Quản Lý User Hoàn Chỉnh**
-  - **Mô tả:** Dựng `frontend/src/app/account/` gồm 3 tab: Tủ thuốc (đã có ở Stage 4), Lịch sử, Nhắc nhở (nay yêu cầu đăng nhập).
-  - **Agent Action:**
-    - `HistoryTimeline.tsx`: hiển thị timeline các lần quét, click vào để xem lại báo cáo chi tiết đã lưu.
-    - `ReminderScheduler.tsx`: UI chọn buổi uống (Sáng/Trưa/Chiều/Tối) theo từng thuốc, toggle bật/tắt.
-    - Tích hợp TanStack Query cho cả 2 màn hình, đồng bộ với Axios client tại `src/services/`.
+- [x] **Task 10.3: Frontend — Trang Quản Lý User Hoàn Chỉnh (Tủ Thuốc, Lịch Sử & Nhắc Nhở)**
+  - `HistoryTimeline.tsx`: Phân trang, lọc mức độ cảnh báo, tái dựng báo cáo lâm sàng chi tiết không cần ảnh gốc, hỗ trợ khôi phục vào Tủ thuốc.
+  - `ReminderSchedule.tsx`: Quản lý thời gian biểu uống thuốc theo 4 khung giờ, toggle active/inactive, ghi nhật ký tuân thủ điều trị.
+  - Đồng bộ `authStore.logout()` dọn sạch 100% dữ liệu lịch sử, nhắc nhở và tủ thuốc trên client memory.
 
-- [ ] **Task 10.4: Thông Báo Nhắc Nhở (Notification Delivery)**
-  - **Mô tả:** Quyết định cơ chế nhắc nhở khả thi cho Web Desktop (Browser Notification API / in-app toast).
-  - **Agent Action:** Ghi rõ giới hạn kỹ thuật trong tài liệu, đề xuất giải pháp nâng cấp khi có Mobile App (Flutter/React Native) ở giai đoạn mở rộng.
+- [x] **Task 10.4: Thông Báo Nhắc Nhở (Notification Delivery)**
+  - Cơ chế Web Desktop: In-app background timer (polling định kỳ) + Browser Notification API (khi được cấp quyền).
+  - Ranh giới kỹ thuật đã công bố: Không cam kết gửi notification khi tắt hoàn toàn trình duyệt hoặc OS deep sleep (sẽ hỗ trợ Push Notifications APNs/FCM trên Mobile App).
+  - Toàn bộ 176/176 Backend Tests PASS và Next.js production build PASS 100%.
+
+---
+
+### 🔹 STAGE 11: OCR MODEL LIFECYCLE, FINE-TUNING & DEPLOYMENT GATE `🟢 Completed`
+> **Mục tiêu:** Chuẩn hóa toàn bộ vòng đời OCR Model từ Training Checkpoint (Kaggle GPU) → Inference ONNX Export → Versioned Registry → Deterministic Loading → Benchmark & Fail-Fast Rollback.
+
+* **File tác động chính:**
+  - `backend/app/services/ocr_model_registry.py` (Model Registry & Manifest Schema)
+  - `backend/app/services/ocr_engine.py` (Deterministic Model Resolution)
+  - `backend/app/core/config.py` (`OCR_ACTIVE_MODEL_VERSION`, `OCR_CUSTOM_*`)
+  - `docs/OCR_MODEL_TRAINING_AND_DEPLOYMENT.md` (Hướng dẫn huấn luyện, export và triển khai)
+  - `backend/tests/test_ocr_model_lifecycle.py` (Kiểm thử phân giải mô hình và Fail-Fast)
+
+- [x] **Task 11.1: OCR Model Registry & Deterministic Resolution**
+  - Định nghĩa Pydantic `ModelArtifactManifest` chứa đầy đủ metadata (version, base_model, runtime, metrics, artifact paths).
+  - Khởi tạo `OCRModelRegistry` phân giải trọng số theo release version rõ ràng, loại bỏ hoàn toàn việc nạp ngầm từ cache directory.
+- [x] **Task 11.2: Fail-Fast Artifact Validation & Zero Silent Fallback**
+  - Tự động kiểm tra tính tồn tại và hợp lệ của `inference.onnx` + `inference.yml` trước khi nạp vào Runtime.
+  - Ngăn chặn triệt để Silent Fallback: ném lỗi dừng lại ngay lập tức nếu artifact của custom model được cấu hình bị thiếu hoặc hỏng.
+- [x] **Task 11.3: Dual Stream Inference Tuning Isolation**
+  - Tách biệt rõ ràng tham số nhạy của Stream A (Prescription: det_thresh=0.3) và Stream B (Packaging: det_thresh=0.4, unclip_ratio=1.8).
+  - Cung cấp phương thức `get_active_model_info()` phục vụ giám sát và kiểm tra tình trạng mô hình.
+- [x] **Task 11.4: Production Training & Deployment Operational Guide**
+  - Hoàn thiện tài liệu `docs/OCR_MODEL_TRAINING_AND_DEPLOYMENT.md` với đầy đủ quy trình từ Kaggle Training, ONNX Export đến Benchmark và Rollback.
+  - Toàn bộ 183/183 Backend Tests PASS (bao gồm 7 test suites mới cho Model Lifecycle).
+
+---
+
+### 🔹 STAGE 12: CLINICAL DATASET GOVERNANCE & DDI COVERAGE GATE `🟢 Completed`
+> **Mục tiêu:** Thiết lập hệ thống quản trị dữ liệu tri thức lâm sàng, kiểm soát độ bao phủ DDI thực tế, bảo vệ các Bất biến An toàn Y tế (INV-12-01..04), chống ngụy tạo bằng chứng và loại bỏ hoàn toàn lỗi logic "Không tìm thấy tương tác = An toàn".
+
+* **File tác động chính:**
+  - `backend/app/schemas/ocr_schema.py` (`DrugCoverageStatus`, `DrugCoverageItem`, `DatasetProvenanceInfo`)
+  - `backend/app/services/ddinter_service.py` (Coverage universe & dynamic checksum calculation)
+  - `backend/app/data/manifest.json` (Active dataset version 2.0 manifest & rollback status)
+  - `backend/app/governance/dataset_validator.py` (Integrity, schema & rollback validator)
+  - `backend/app/services/evaluation_service.py` (Coverage evaluation & hardened final summary)
+  - `backend/tests/test_clinical_governance_coverage.py` (14 new tests for safety invariants & governance)
+
+- [x] **Task 12.1: Clinical Coverage State Machine & Invariants (INV-12-01..04)**
+  - Phân loại rõ 5 trạng thái thuốc (`COVERED`, `NOT_COVERED`, `AMBIGUOUS`, `UNRESOLVED`, `SOURCE_UNAVAILABLE`).
+  - Xóa bỏ triệt để kết luận ngầm "An toàn" khi dữ liệu thiếu hoặc thuốc chưa được định danh.
+- [x] **Task 12.2: Response Schema Extension & Backward Compatibility**
+  - Mở rộng `EvaluationResponse` với `coverage_status`, `drug_coverage_details`, `provenance_metadata` sử dụng default factories, bảo toàn 100% History Raw Payload và Frontend Contract.
+- [x] **Task 12.3: Dataset Manifest & Integrity Validator**
+  - Xây dựng `DatasetValidator` kiểm tra tính toàn vẹn của dataset, tính duy nhất của ID, không trùng cặp đối xứng và không có self-pairs.
+  - Khởi tạo `manifest.json` với mã băm SHA256 động, minh bạch trạng thái rollback `rollback_available: false`.
+- [x] **Task 12.4: Comprehensive Verification & Zero-Trust Safety Re-Audit**
+  - Thực hiện Zero-Trust Red-Team Audit toàn diện: giải quyết dứt điểm 3 rủi ro release-blocking (main.py API wire contract mapping, ddinter_service fail-closed integrity lockdown khi checksum mismatch / empty, và case-insensitive external match gating ADV-O2).
+  - Toàn bộ 216/216 Backend Tests PASS (bao gồm 28 test suites cho Stage 12 Governance & Adversarial Re-Audit), 16/16 AI OCR Tests PASS, và Next.js production build PASS 100% (0 errors).
+
+---
+
+## 🚀 GIAI ĐOẠN 13 (STAGE 13): PACKAGING STRENGTH GOVERNANCE & GRACEFUL CLINICAL EVALUATION
+
+> **Mục tiêu cốt lõi:** Giải quyết triệt để vấn đề thực tế khi bao bì/lọ thuốc tại Việt Nam không ghi hàm lượng (mg) ở mặt trước hoặc là thuốc đa thành phần, phi-mg. Xây dựng cơ chế hạ cấp an toàn (Graceful Degradation) cho phép hệ thống vẫn phân tích trơn tru Layer 1–3 (Trùng lặp hoạt chất, Tương tác Thuốc - Thuốc, Chống chỉ định Bệnh nền) mà không bị crash/block khi khuyết hàm lượng, đồng thời cung cấp UX 1-chạm (Variant Pills) và hỗ trợ quét 2 mặt vỏ hộp.
+
+- [x] **Task 13.1: Graceful Degradation in Clinical Evaluation (Backend Layer 4 Safety Gating)**
+  - Cho phép `DrugItem.strength` nhận giá trị rỗng/None hoặc `"Không xác định"` mà không gây lỗi validation 422 hay crash logic.
+  - Bảo đảm Layer 1 (Trùng lặp), Layer 2 (Thuốc-Thuốc), Layer 3 (Thuốc-Bệnh nền) hoạt động 100% dựa trên hoạt chất gốc đã chuẩn hoá, hoàn toàn độc lập với việc có hay không có `strength`.
+  - Layer 4 (Đối chiếu Liều Dùng): Sử dụng chính xác hàm public `check_dosage_appropriateness()` (không có gạch dưới). Khi thiếu thông tin hàm lượng hoặc liều dùng, ghi nhận `DosageCheckResult` với `is_appropriate=None`, đưa khuyến cáo y khoa rõ ràng vào `final_summary` thay vì đưa ra kết luận thiếu căn cứ hoặc crash pipeline.
+- [x] **Task 13.2: Drug Catalog Unique-Strength Auto-Default & Variant Catalog Engine**
+  - Mở rộng CSDL `vietnam_drugs_db.json` bổ sung trường `common_strengths: list[str]`, `is_unique_strength: bool` và trường bắt buộc `_strength_source: str` trích dẫn Dược thư Quốc gia VN, Cục Quản lý Dược (DAV), hoặc SmPC/HDSD chính hãng. Tuyệt đối KHÔNG tự suy diễn/bịa theo trí nhớ.
+  - Cung cấp helper tra cứu danh sách biến thể hàm lượng chuẩn từ CSDL theo tên biệt dược hoặc hoạt chất.
+  - Tự động điền hàm lượng mặc định khi thuốc chỉ có 1 quy cách lưu hành duy nhất trên thị trường.
+- [x] **Task 13.3: Frontend HITL Quick-Select Variant Pills & Non-Blocking Strength Form**
+  - Nâng cấp `DrugVerificationForm`: Khi người dùng nhận diện hoặc gõ tên thuốc có nhiều biến thể trong CSDL, tự động hiển thị hàng nút bấm chọn nhanh (Pills: `[ 500mg ] [ 650mg ] [ Khác ]`) giúp người dùng chọn 1-chạm không cần gõ phím.
+  - Cho phép người dùng lưu xác nhận khi bao bì không có hàm lượng mà không bị chặn form (Non-blocking).
+  - Cập nhật `InteractionAlertCards`: Chống False Reassurance — trạng thái `isAppropriate === null` (thiếu dữ liệu hàm lượng) hiển thị badge xám/amber trung tính với icon `HelpCircle` hoặc `AlertCircle`, tuyệt đối KHÔNG dùng màu xanh lục `emerald` hay icon tick `CheckCircle2`.
+- [x] **Task 13.4: Multi-Shot Packaging Back-Panel Scan (Zero Image Persistence)**
+  - Bổ sung tùy chọn trên giao diện quét vỏ hộp (Pipeline 1): *"Chụp thêm mặt sau / bảng thành phần"* khi ảnh mặt trước thiếu thông tin hàm lượng chi tiết.
+  - Tuân thủ tuyệt đối nguyên tắc Zero Image Persistence (`ARCHITECTURE.md §7.1`): Cả 2 ảnh (mặt trước + mặt sau) đều xử lý 100% in-memory, tuyệt đối không lưu file xuống đĩa (disk) hay database.
+- [x] **Task 13.5: End-to-End Test Suite, Safety Verification & Production Gate**
+  - Viết unit tests và integration tests bao phủ 100% các ca: thiếu hàm lượng, thuốc 1 hàm lượng tự động điền, thuốc nhiều hàm lượng chọn pill, đánh giá 4 Layer chạy an toàn không crash khi strength rỗng.
+  - Bảo toàn 100% Regression Tests cho Task 5.5 cũ (Metformin + suy thận, Paracetamol quá ngưỡng...).
+  - Kiểm tra toàn bộ 223/223 backend tests, 16 AI tests và Next.js production build đạt 100% PASS.
 
 ---
 

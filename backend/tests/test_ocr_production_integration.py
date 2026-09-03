@@ -41,7 +41,12 @@ async def test_ocr_scan_unauthenticated_rejects_with_401(run_clinical: str):
             res = await client.post("/api/v1/ocr/scan", files=files, data=data)
 
         assert res.status_code == 401
-        assert "Thiếu Token" in res.json().get("detail", "") or "hết hạn" in res.json().get("detail", "")
+        detail = res.json()["detail"]
+        assert isinstance(detail, dict)
+        assert detail["error_code"] == "UNAUTHORIZED"
+        assert "Thiếu Token" in detail["message"] or "hết hạn" in detail["message"]
+        assert detail["service"] == "auth"
+        assert detail["stage"] == "authentication"
 
 
 @pytest.mark.asyncio

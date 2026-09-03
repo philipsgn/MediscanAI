@@ -1,7 +1,49 @@
 /**
- * TypeScript DTOs cho Medication History & Smart Reminders (Stage 10).
+ * TypeScript DTOs cho Medication History, Cabinet & Smart Reminders (Stage 10).
  * Khớp 100% camelCase wire format với Pydantic Schemas Backend.
  */
+
+export interface IPaginatedResponse<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+}
+
+export interface IUserMedication {
+  id: string;
+  userId: string;
+  brandName: string;
+  activeIngredient?: string;
+  strength?: string;
+  dosageInstruction?: string;
+  durationDays?: number;
+  isActive: boolean;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IUserMedicationCreate {
+  brandName: string;
+  activeIngredient?: string;
+  strength?: string;
+  dosageInstruction?: string;
+  durationDays?: number;
+  isActive?: boolean;
+  notes?: string;
+}
+
+export interface IUserMedicationUpdate {
+  brandName?: string;
+  activeIngredient?: string;
+  strength?: string;
+  dosageInstruction?: string;
+  durationDays?: number;
+  isActive?: boolean;
+  notes?: string;
+}
 
 export interface IScanHistoryCreate {
   sourceType: 'prescription' | 'packaging' | 'manual';
@@ -23,6 +65,7 @@ export interface IScanHistoryItem {
 }
 
 export interface IReminderCreate {
+  medicationId?: string;
   drugName: string;
   dosageInstruction?: string;
   timeOfDay: 'morning' | 'noon' | 'afternoon' | 'evening';
@@ -31,6 +74,8 @@ export interface IReminderCreate {
 }
 
 export interface IReminderUpdate {
+  medicationId?: string;
+  drugName?: string;
   dosageInstruction?: string;
   timeOfDay?: string;
   reminderTime?: string;
@@ -52,6 +97,7 @@ export interface IReminderLogItem {
 export interface IReminderItem {
   id: string;
   userId: string;
+  medicationId?: string;
   drugName: string;
   dosageInstruction?: string;
   timeOfDay: 'morning' | 'noon' | 'afternoon' | 'evening';
@@ -63,12 +109,15 @@ export interface IReminderItem {
 
 export interface IAdherenceStats {
   totalReminders: number;
+  todayTakenCount: number;
+  todaySkippedCount: number;
+  todayTotalScheduled: number;
+  todayAdherenceRate: number;
   takenCount: number;
   skippedCount: number;
   adherenceRate: number;
 }
 
-export interface IRemindersOverview {
-  reminders: IReminderItem[];
+export interface IRemindersOverview extends IPaginatedResponse<IReminderItem> {
   stats: IAdherenceStats;
 }

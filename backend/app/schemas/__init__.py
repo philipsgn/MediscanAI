@@ -11,8 +11,11 @@ from app.schemas.ocr_schema import (  # noqa: E402
     clamp_severity,
     ClinicalAlertSummary,
     ClinicalAssessmentResponse,
+    DatasetProvenanceInfo,
     DosageCheckResult,
     DrugConditionAlert,
+    DrugCoverageItem,
+    DrugCoverageStatus,
     DrugInteractionAlert,
     EvaluationResponse,
     ExtractedDrugItem,
@@ -41,10 +44,11 @@ class UserProfile(BaseModel):
 class DrugItem(BaseModel):
     brand_name: str = Field(..., description="Tên thương mại trích xuất được")
     active_ingredient: Optional[str] = Field(None, description="Tên hoạt chất sau khi chuẩn hóa")
-    strength: str = Field(..., description="Hàm lượng (Ví dụ: 500mg, 10ml)")
+    strength: Optional[str] = Field(default="", description="Hàm lượng (Ví dụ: 500mg, 10ml, hoặc để trống)")
     dosage_instruction: Optional[str] = Field(None, description="Hướng dẫn liều dùng")
     confidence_score: float = Field(1.0, ge=0.0, le=1.0, description="Độ tin cậy trích xuất của AI (0.0 -> 1.0)")
     is_verified: bool = Field(False, description="Người dùng đã xác nhận tính chính xác chưa")
+    variants: List[str] = Field(default=[], description="Danh sách biến thể hàm lượng chuẩn từ CSDL")
     # Extended fields from Drug Database
     drug_id: Optional[str] = Field(None, description="ID thuốc trong Database chuẩn")
     category: Optional[str] = Field(None, description="Nhóm điều trị (VD: Kháng sinh, Giảm đau...)")
@@ -117,19 +121,6 @@ from app.schemas.history_reminder_schema import (
     ReminderResponse,
     AdherenceStats,
 )
-from app.schemas.data_platform_schema import (
-    ScanRecordStatus,
-    HumanCorrectedDrug,
-    HumanCorrectionRequest,
-    HumanCorrectionResponse,
-    ScanReviewSummaryItem,
-    ScanReviewListResponse,
-    ScanReviewDetailResponse,
-    DatasetCandidateRequest,
-    DatasetCandidateResponse,
-    DatasetExportItem,
-    DatasetExportResponse,
-)
 
 __all__ = [
     "UserProfile",
@@ -165,15 +156,4 @@ __all__ = [
     "ReminderLogItem",
     "ReminderResponse",
     "AdherenceStats",
-    "ScanRecordStatus",
-    "HumanCorrectedDrug",
-    "HumanCorrectionRequest",
-    "HumanCorrectionResponse",
-    "ScanReviewSummaryItem",
-    "ScanReviewListResponse",
-    "ScanReviewDetailResponse",
-    "DatasetCandidateRequest",
-    "DatasetCandidateResponse",
-    "DatasetExportItem",
-    "DatasetExportResponse",
 ]

@@ -6,7 +6,10 @@
     "strength": "500mg / 65mg",
     "max_daily_dosage": "4000mg Paracetamol",
     "category": "Giảm đau - Hạ sốt",
-    "warnings_contraindications": ["Suy gan nặng", "Dùng cùng sản phẩm chứa Paracetamol khác"]
+    "warnings_contraindications": ["Suy gan nặng", "Dùng cùng sản phẩm chứa Paracetamol khác"],
+    "is_unique_strength": true,
+    "common_strengths": ["500mg / 65mg"],
+    "_strength_source": "Dược thư Quốc gia Việt Nam & Quyết định cấp phép lưu hành Cục Quản lý Dược (DAV VN-18234-14)"
   },
   {
     "id": "DRUG_002",
@@ -15,7 +18,10 @@
     "strength": "500mg",
     "max_daily_dosage": "4000mg",
     "category": "Giảm đau - Hạ sốt",
-    "warnings_contraindications": ["Suy gan nặng", "Suy thận nặng"]
+    "warnings_contraindications": ["Suy gan nặng", "Suy thận nặng"],
+    "is_unique_strength": false,
+    "common_strengths": ["80mg", "150mg", "250mg", "500mg", "1000mg"],
+    "_strength_source": "Dược thư Quốc gia Việt Nam & Tờ HDSD UPSA SAS (Pháp/Việt Nam)"
   },
   {
     "id": "DRUG_003",
@@ -24,7 +30,10 @@
     "strength": "650mg",
     "max_daily_dosage": "4000mg",
     "category": "Giảm đau - Hạ sốt",
-    "warnings_contraindications": ["Suy gan nặng"]
+    "warnings_contraindications": ["Suy gan nặng"],
+    "is_unique_strength": false,
+    "common_strengths": ["150mg", "250mg", "500mg", "650mg"],
+    "_strength_source": "Dược thư Quốc gia Việt Nam & Tờ HDSD Công ty Cổ phần Dược Hậu Giang (DHG Pharma)"
   },
   {
     "id": "DRUG_004",
@@ -60,7 +69,10 @@
     "strength": "875mg / 125mg",
     "max_daily_dosage": "3000mg Amoxicillin",
     "category": "Kháng sinh Beta-lactam",
-    "warnings_contraindications": ["Dị ứng Penicillin", "Tiền sử vàng da do Augmentin"]
+    "warnings_contraindications": ["Dị ứng Penicillin", "Tiền sử vàng da do Augmentin"],
+    "is_unique_strength": false,
+    "common_strengths": ["250mg", "500mg", "625mg", "1000mg"],
+    "_strength_source": "Dược thư Quốc gia Việt Nam & Tờ HDSD GlaxoSmithKline (GSK)"
   },
   {
     "id": "DRUG_008",
@@ -69,7 +81,10 @@
     "strength": "500mg / 125mg",
     "max_daily_dosage": "3000mg Amoxicillin",
     "category": "Kháng sinh Beta-lactam",
-    "warnings_contraindications": ["Dị ứng Penicillin"]
+    "warnings_contraindications": ["Dị ứng Penicillin"],
+    "is_unique_strength": false,
+    "common_strengths": ["250mg", "500mg", "625mg", "1000mg"],
+    "_strength_source": "Dược thư Quốc gia Việt Nam & Tờ HDSD GlaxoSmithKline (GSK)"
   },
   {
     "id": "DRUG_009",
@@ -789,7 +804,10 @@
     "strength": "3g",
     "max_daily_dosage": "6 gói",
     "category": "Thuốc cầm tiêu chảy",
-    "warnings_contraindications": ["Uống cách xa các thuốc khác 2 giờ để tránh hấp phụ thuốc"]
+    "warnings_contraindications": ["Uống cách xa các thuốc khác 2 giờ để tránh hấp phụ thuốc"],
+    "is_unique_strength": true,
+    "common_strengths": ["3g"],
+    "_strength_source": "Dược thư Quốc gia Việt Nam & Tờ HDSD Ipsen Pharma (Pháp/Việt Nam)"
   },
   {
     "id": "DRUG_089",
@@ -897,6 +915,91 @@
     "strength": "50mg",
     "max_daily_dosage": "500mg",
     "category": "Thuốc trị tiêu chảy thảo dược",
-    "warnings_contraindications": ["Phụ nữ mang thai (kích thích co bóp tử cung)"]
+    "warnings_contraindications": ["Phụ nữ mang thai (kích thích co bóp tử cung)"],
+    "is_unique_strength": true,
+    "common_strengths": ["50mg"],
+    "_strength_source": "Dược thư Quốc gia Việt Nam (Bộ Y Tế) chuyên luận Berberin"
+  },
+  {
+    "id": "DRUG_101",
+    "brand_name": "Oricox 120mg",
+    "active_ingredient": "Etoricoxib",
+    "strength": "120mg",
+    "max_daily_dosage": "120mg",
+    "category": "Kháng viêm NSAID (Ức chế chọn lọc COX-2)",
+    "warnings_contraindications": [
+      "Tăng huyết áp chưa kiểm soát (>140/90 mmHg)",
+      "Bệnh tim thiếu máu cục bộ",
+      "Tiền sử loét dạ dày - tá tràng tiến triển"
+    ],
+    "is_unique_strength": false,
+    "common_strengths": ["60mg", "90mg", "120mg"],
+    "_strength_source": "Quyết định cấp phép lưu hành Cục Quản lý Dược (DAV) & Tờ HDSD SPM Pharma"
+  },
+  {
+    "id": "DRUG_102",
+    "brand_name": "Oricox 90mg",
+    "active_ingredient": "Etoricoxib",
+    "strength": "90mg",
+    "max_daily_dosage": "120mg",
+    "category": "Kháng viêm NSAID (Ức chế chọn lọc COX-2)",
+    "warnings_contraindications": [
+      "Tăng huyết áp chưa kiểm soát (>140/90 mmHg)",
+      "Bệnh tim thiếu máu cục bộ",
+      "Tiền sử loét dạ dày - tá tràng tiến triển"
+    ],
+    "is_unique_strength": false,
+    "common_strengths": ["60mg", "90mg", "120mg"],
+    "_strength_source": "Quyết định cấp phép lưu hành Cục Quản lý Dược (DAV) & Tờ HDSD SPM Pharma"
+  },
+  {
+    "id": "DRUG_103",
+    "brand_name": "Oricox 60mg",
+    "active_ingredient": "Etoricoxib",
+    "strength": "60mg",
+    "max_daily_dosage": "120mg",
+    "category": "Kháng viêm NSAID (Ức chế chọn lọc COX-2)",
+    "warnings_contraindications": [
+      "Tăng huyết áp chưa kiểm soát (>140/90 mmHg)",
+      "Bệnh tim thiếu máu cục bộ",
+      "Tiền sử loét dạ dày - tá tràng tiến triển"
+    ],
+    "is_unique_strength": false,
+    "common_strengths": ["60mg", "90mg", "120mg"],
+    "_strength_source": "Quyết định cấp phép lưu hành Cục Quản lý Dược (DAV) & Tờ HDSD SPM Pharma"
+  },
+  {
+    "id": "DRUG_104",
+    "brand_name": "Alpha Choay 4.2mg",
+    "active_ingredient": "Chymotrypsin",
+    "strength": "4.2mg",
+    "max_daily_dosage": "25.2mg",
+    "category": "Kháng viêm dạng men (Enzyme)",
+    "warnings_contraindications": [
+      "Bệnh phổi tắc nghẽn mạn tính (COPD)",
+      "Khí phế thũng",
+      "Hội chứng thận hư",
+      "Tiền sử dị ứng protein"
+    ],
+    "is_unique_strength": true,
+    "common_strengths": ["4.2mg"],
+    "_strength_source": "Dược thư Quốc gia Việt Nam (Bộ Y Tế) & Tờ HDSD Sanofi-Aventis VN"
+  },
+  {
+    "id": "DRUG_105",
+    "brand_name": "Alphachymotrypsin 4.2mg",
+    "active_ingredient": "Chymotrypsin",
+    "strength": "4.2mg",
+    "max_daily_dosage": "25.2mg",
+    "category": "Kháng viêm dạng men (Enzyme)",
+    "warnings_contraindications": [
+      "Bệnh phổi tắc nghẽn mạn tính (COPD)",
+      "Khí phế thũng",
+      "Hội chứng thận hư",
+      "Tiền sử dị ứng protein"
+    ],
+    "is_unique_strength": true,
+    "common_strengths": ["4.2mg"],
+    "_strength_source": "Dược thư Quốc gia Việt Nam (Bộ Y Tế)"
   }
 ]

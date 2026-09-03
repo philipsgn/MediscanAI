@@ -2,14 +2,14 @@
 
 /**
  * HistoryTimeline — Dòng Thời Gian Lịch Sử Quét (Sky Blue & Borderless Minimalism).
- * Rebranding: MediScan.
+ * Tái dựng chi tiết báo cáo lâm sàng từ rawPayload không cần ảnh gốc (Privacy Invariant).
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Clock, AlertTriangle, AlertCircle, CheckCircle2, FileText, RotateCcw,
-  Calendar, ChevronRight, X, Filter, Pill, Search
+  Calendar, ChevronRight, X, Filter, Pill, Search, Trash2
 } from 'lucide-react';
 import { useHistoryReminderStore } from '@/store/historyReminderStore';
 import { useCabinetStore } from '@/store/cabinetStore';
@@ -18,24 +18,27 @@ import { toast } from '@/components/common/Toast';
 
 export function HistoryTimeline() {
   const router = useRouter();
-  const { histories, fetchHistories, isLoadingHistories } = useHistoryReminderStore();
+  const { histories, fetchHistories, deleteHistory, isLoadingHistories } = useHistoryReminderStore();
   const { addDrugs } = useCabinetStore();
 
   const [selectedItem, setSelectedItem] = useState<IScanHistoryItem | null>(null);
   const [filterSeverity, setFilterSeverity] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
+  const loadData = useCallback(() => {
+    fetchHistories({ severity: filterSeverity });
+  }, [fetchHistories, filterSeverity]);
+
   useEffect(() => {
-    fetchHistories();
-  }, [fetchHistories]);
+    loadData();
+  }, [loadData]);
 
   const filteredHistories = histories.filter((item) => {
-    const matchesSev = filterSeverity === 'ALL' || item.highestSeverity === filterSeverity;
     const matchesSearch =
       !searchTerm ||
       item.drugNames.some((d) => d.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (item.summary && item.summary.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchesSev && matchesSearch;
+    return matchesSearch;
   });
 
   const getSeverityBadge = (severity: string) => {
@@ -84,6 +87,16 @@ export function HistoryTimeline() {
     addDrugs(newCabinetItems);
     toast.success(`Đã khôi phục ${newCabinetItems.length} thuốc vào Tủ thuốc!`);
     router.push('/cabinet');
+  };
+
+  const handleDeleteHistory = async (id: string) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa bản ghi lịch sử này?')) return;
+    try {
+      await deleteHistory(id);
+      toast.success('Đã xóa phiên lịch sử quét.');
+    } catch {
+      toast.error('Không thể xóa lịch sử quét. Vui lòng thử lại.');
+    }
   };
 
   return (
@@ -186,14 +199,24 @@ export function HistoryTimeline() {
 
                 {/* Actions */}
                 <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedItem(item)}
-                    className="text-sky-600 hover:text-sky-700 font-semibold flex items-center gap-1"
-                  >
-                    <span>Xem chi tiết</span>
-                    <ChevronRight size={14} />
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedItem(item)}
+                      className="text-sky-600 hover:text-sky-700 font-semibold flex items-center gap-1"
+                    >
+                      <span>Xem chi tiết</span>
+                      <ChevronRight size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteHistory(item.id)}
+                      className="text-rose-500 hover:text-rose-700 font-medium flex items-center gap-1"
+                    >
+                      <Trash2 size={13} />
+                      <span>Xóa</span>
+                    </button>
+                  </div>
 
                   <button
                     type="button"
@@ -216,7 +239,7 @@ export function HistoryTimeline() {
           <div className="bg-white rounded-2xl border border-slate-100 w-full max-w-lg p-6 space-y-4 shadow-xl max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <span className="font-bold text-sm text-slate-900">
-                Chi tiết phiên quét
+                Chi tiết phiên quét & Báo cáo lâm sàng
               </span>
               <button
                 type="button"
@@ -252,7 +275,19 @@ export function HistoryTimeline() {
               )}
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+            <div className="flex justify-between items-center pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  handleDeleteHistory(selectedItem.id);
+                  setSelectedItem(null);
+                }}
+                className="px-3 py-1.5 text-rose-600 hover:bg-rose-50 rounded-lg font-medium flex items-center gap-1"
+              >
+                <Trash2 size={13} />
+                <span>Xóa lịch sử</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => {

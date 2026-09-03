@@ -62,7 +62,13 @@ async def test_refresh_token_invalid():
             json={"refreshToken": "invalid.jwt.token.here"},
         )
         assert res.status_code == 401
-        assert "Refresh Token không hợp lệ" in res.json().get("detail", "")
+        detail = res.json()["detail"]
+        assert isinstance(detail, dict)
+        assert detail["error_code"] == "INVALID_REFRESH_TOKEN"
+        assert "Refresh Token không hợp lệ" in detail["message"]
+        assert detail["service"] == "auth"
+        assert detail["stage"] == "authentication"
+        assert detail["retryable"] is False
 
 
 @pytest.mark.asyncio
@@ -89,4 +95,7 @@ async def test_refresh_token_rejects_access_token():
             json={"refreshToken": access_token},
         )
         assert res.status_code == 401
-        assert "Refresh Token không hợp lệ" in res.json().get("detail", "")
+        detail = res.json()["detail"]
+        assert isinstance(detail, dict)
+        assert detail["error_code"] == "INVALID_REFRESH_TOKEN"
+        assert "Refresh Token không hợp lệ" in detail["message"]
