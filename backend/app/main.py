@@ -16,6 +16,7 @@ from app.api.v1.endpoints.medications import router as medications_router
 from app.api.v1.endpoints.ocr import router as ocr_router
 from app.api.v1.endpoints.profile import router as profile_router
 from app.api.v1.endpoints.reminders import router as reminders_router
+from app.api.v1.endpoints.metrics import router as metrics_router
 from app.core.config import settings
 from app.core.limiter import custom_rate_limit_exceeded_handler, limiter
 from app.schemas import (
@@ -38,6 +39,12 @@ logger = logging.getLogger(__name__)
 async def lifespan(_: FastAPI):
     # Khởi tạo Database schema nếu cần
     await init_db()
+    # Nạp learned drugs từ database vào L1 RAM (Stage 18)
+    try:
+        from app.services.drug_database import drug_database
+        await drug_database.load_learned_from_db()
+    except Exception as e:
+        logger.warning("Could not load learned drugs from DB on startup: %s", e)
     # Khởi tạo chậm: OCR engine được load lazy tại request scan đầu tiên.
     yield
     from app.services.ocr_engine import ocr_engine
@@ -93,6 +100,9 @@ app.include_router(ocr_router, prefix=settings.API_V1_STR)
 
 # Route Drug Lookup (autocomplete) [S4-Closeout/F4.3]
 app.include_router(drugs_router, prefix=settings.API_V1_STR)
+
+# Route AI & System Metrics (Stage 18)
+app.include_router(metrics_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/", tags=["Health Check"])

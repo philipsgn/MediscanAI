@@ -182,6 +182,9 @@ async def test_ocr_scan_regression_4_benchmark_images():
         assert reg_res.status_code == 201
         token = reg_res.json()["accessToken"]
         headers = {"Authorization": f"Bearer {token}"}
+        # Warmup OCR engine để tránh tính thời gian cold-start nạp ONNX session lần đầu
+        from app.services.ocr_engine import ocr_engine
+        _ = ocr_engine.paddle_ocr
 
         for img_name, source_type in benchmark_samples:
             img_path = SAMPLE_DIR / img_name

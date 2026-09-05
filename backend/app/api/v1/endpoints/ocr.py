@@ -215,12 +215,12 @@ PRESCRIPTION_IGNORE_PATTERNS = [
 ]
 
 DOSAGE_INSTRUCTION_PATTERNS = [
-    re.compile(r"(?:S[oó]\s*l[uưr][oợơ]ng|Dosage|SL)", re.IGNORECASE),
+    re.compile(r"(?:S[oóô]\s*l[uưro]+ng|s[oó]\s*Irong|Dosage|SL)", re.IGNORECASE),
     re.compile(r"(?:C[aá]ch\s*d[uù]ng|H[uư][oớ]ng\s*d[aẫâ]n|Usage|Directions|Hdsd)", re.IGNORECASE),
-    re.compile(r"(?:S[aá]ng|Morning|Tr[uưưa]+|Afternoon|T[oôó]i|Night|Chi[eề]u|[ĐD][eê]m)", re.IGNORECASE),
+    re.compile(r"(?:S[aá]ng|Morning|Tr[uưưa]+|Afternoon|T[oôóò]i|Night|Chi[eề]u|[ĐD][eê]m)", re.IGNORECASE),
     re.compile(r"(?:tr[uưr][oóớ]c\s*[aāă]n|sau\s*[aāă]n|khi\s*[đd]au|khi\s*s[oôó]t)", re.IGNORECASE),
     re.compile(r"(?:U[oôố]ng|Ng[aậ]m|Nhai|B[oôi]|Ti[eê]m|Nh[oọ]|Uong)\b", re.IGNORECASE),
-    re.compile(r"(?:l[aà]n\s*/\s*ng[aà]y|ng[aà]y\s*\d+\s*l[aà]n|vi[eê]n\s*/\s*l[aà]n|\d+\s*vi[eê]n)", re.IGNORECASE),
+    re.compile(r"(?:l[aà]n\s*/\s*ng[aà]y|ng[aà]y\s*\d+\s*l[aà]n|vi[eê]n\s*/\s*l[aà]n|\d+\s*vi[eê]n|\d+(?:[,\.]\d+)?\s*v\b)", re.IGNORECASE),
 ]
 
 PACKAGING_IGNORE_PATTERNS = [
@@ -271,24 +271,89 @@ def _extract_brand_and_strength(raw_text: str) -> tuple[str, str]:
 
 
 def _clean_prescription_dosage(dosage_text: Optional[str]) -> Optional[str]:
-    """Làm sạch rác định dạng (dấu chấm lửng ......., buổi uống rỗng) trong hướng dẫn liều dùng."""
+    """
+    Chuẩn hóa hướng dẫn liều dùng từ OCR đơn thuốc thành cấu trúc liều dùng y tế chuyên nghiệp:
+    Ví dụ: 'só Irong (Dosage): 20v | Sáng (Morning): .1v | Tôi (Night): 1v'
+    -> 'Sáng: 1 viên, Trưa: 1 viên, Tối: 1 viên | (SL: 20 viên)'
+    """
     if not dosage_text:
         return None
-    # Chuyển chuỗi 2 chấm trở lên thành khoảng trắng
-    cleaned = re.sub(r"\.{2,}", " ", dosage_text)
-    # Loại bỏ các slot buổi trống (VD: "Trưa (Afternoon): |" hoặc "| Trưa:")
-    parts = [p.strip() for p in cleaned.split("|")]
-    filtered_parts = []
-    for p in parts:
-        # Giữ lại nếu chứa số (số viên) hoặc các từ chỉ định dùng thuốc
-        has_val = bool(re.search(r"\d", p)) or any(
-            w in p.lower() for w in ["uống", "viên", "gói", "trước", "sau", "khi", "lần", "ngậm", "nhai", "bôi", "tiêm", "nhỏ", "morning", "night", "noon"]
-        )
-        if has_val:
-            filtered_parts.append(p)
-    res = " | ".join(filtered_parts) if filtered_parts else cleaned
-    res = re.sub(r"\s+", " ", res).strip(" -|:.")
-    return res or None
+
+    full_text = re.sub(r"\.{2,}", " ", dosage_text)
+    full_text = re.sub(r"Trra\b", "Trưa", full_text, flags=re.IGNORECASE)
+    full_text = re.sub(r"Trua\b", "Trưa", full_text, flags=re.IGNORECASE)
+    full_text = re.sub(r"trr[oó]c\s*[aāă]n", "trước ăn", full_text, flags=re.IGNORECASE)
+    full_text = re.sub(r"tru[oó]c\s*[aāă]n", "trước ăn", full_text, flags=re.IGNORECASE)
+    full_text = re.sub(r"[aāă]n\s*no\b", "ăn no", full_text, flags=re.IGNORECASE)
+    full_text = re.sub(r"\s+", " ", full_text).strip()
+
+    # Bóc tách số lượng (SL / Quantity / Dosage)
+    quantity = ""
+    qty_m = re.search(r"(?:S[oóô]\s*l[uưro]+ng|s[oó]\s*Irong|Dosage|SL)[^\d\n]*?(\d+)\s*(?:vi[eê]n|v|g[oó]i|chai|l[oọ]|tab|tabs)?", full_text, re.IGNORECASE)
+    if qty_m:
+        quantity = f"{qty_m.group(1)} viên"
+
+    # Bóc tách các buổi uống: Sáng, Trưa, Chiều, Tối
+    slots = []
+
+    # Sáng (Morning)
+    m_sang = re.search(r"S[aá]ng\b[^\d\n]*?(\d+(?:[,\.]\d+)?(?:/\d+)?)\s*(?:vi[eê]n|v)?(?:\s*\(([^\)]+)\))?", full_text, re.IGNORECASE)
+    if m_sang:
+        dose = m_sang.group(1).replace(",", ".")
+        note = f" ({m_sang.group(2).strip()})" if m_sang.group(2) else ""
+        slots.append(f"Sáng: {dose} viên{note}")
+
+    # Trưa (Noon / Afternoon)
+    m_trua = re.search(r"Tr[uưưa]+\b[^\d\n]*?(\d+(?:[,\.]\d+)?(?:/\d+)?)\s*(?:vi[eê]n|v)?(?:\s*\(([^\)]+)\))?", full_text, re.IGNORECASE)
+    if m_trua:
+        dose = m_trua.group(1).replace(",", ".")
+        note = f" ({m_trua.group(2).strip()})" if m_trua.group(2) else ""
+        slots.append(f"Trưa: {dose} viên{note}")
+
+    # Chiều
+    m_chieu = re.search(r"Chi[eề]u\b[^\d\n]*?(\d+(?:[,\.]\d+)?(?:/\d+)?)\s*(?:vi[eê]n|v)?(?:\s*\(([^\)]+)\))?", full_text, re.IGNORECASE)
+    if m_chieu:
+        dose = m_chieu.group(1).replace(",", ".")
+        note = f" ({m_chieu.group(2).strip()})" if m_chieu.group(2) else ""
+        slots.append(f"Chiều: {dose} viên{note}")
+
+    # Tối (Night) - Chú ý OCR nhận diện nhầm Tối thành Tôi hoặc Tòi
+    m_toi = re.search(r"(?:T[oôóò]i|Night)\b[^\d\n]*?(\d+(?:[,\.]\d+)?(?:/\d+)?)\s*(?:vi[eê]n|v)?(?:\s*\(([^\)]+)\))?", full_text, re.IGNORECASE)
+    if m_toi:
+        dose = m_toi.group(1).replace(",", ".")
+        note = f" ({m_toi.group(2).strip()})" if m_toi.group(2) else ""
+        slots.append(f"Tối: {dose} viên{note}")
+
+    # Lời dặn chung (trước/sau ăn) nếu chưa có trong note từng buổi
+    general_notes = []
+    if re.search(r"sau\s*khi\s*[aāă]n\s*no|sau\s*[aāă]n\s*no", full_text, re.IGNORECASE):
+        general_notes.append("Uống sau khi ăn no")
+    elif re.search(r"tr[uư]ớc\s*[aāă]n\s*30\s*phút", full_text, re.IGNORECASE):
+        if not any("trước ăn 30 phút" in s for s in slots):
+            general_notes.append("Uống trước ăn 30 phút")
+
+    result_parts = []
+    if slots:
+        result_parts.append(", ".join(slots))
+    else:
+        # Fallback lấy các phần có ý nghĩa không phải slot buổi chuẩn
+        parts = [p.strip() for p in full_text.split("|")]
+        filtered_parts = []
+        for p in parts:
+            clean_p = re.sub(r"^(?:S[oóô]\s*l[uưro]+ng|s[oó]\s*Irong|Dosage|SL)[^\d\n]*?\d+\s*(?:vi[eê]n|v)?", "", p, flags=re.IGNORECASE).strip(" -:.")
+            if clean_p and (bool(re.search(r"\d", clean_p)) or any(w in clean_p.lower() for w in ["uống", "viên", "gói", "trước", "sau", "khi", "lần", "ngậm", "nhai"])):
+                filtered_parts.append(clean_p)
+        if filtered_parts:
+            result_parts.append(" | ".join(filtered_parts))
+
+    if general_notes:
+        result_parts.append("; ".join(general_notes))
+
+    if quantity:
+        result_parts.append(f"(SL: {quantity})")
+
+    res = " | ".join(result_parts) if result_parts else full_text
+    return re.sub(r"\s+", " ", res).strip(" -|:.") or None
 
 
 def _ocr_items_to_drug_items(raw_items: list[OCRItem], source_type: str) -> list:

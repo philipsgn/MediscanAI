@@ -24,6 +24,7 @@ class NormalizationStatus(str, Enum):
     """Trạng thái chuẩn hóa danh tính thuốc theo State Machine."""
     RESOLVED = "RESOLVED"
     CANDIDATE_REQUIRES_REVIEW = "CANDIDATE_REQUIRES_REVIEW"
+    CONFLICTING_EVIDENCE = "CONFLICTING_EVIDENCE"
     UNRESOLVED = "UNRESOLVED"
     SOURCE_UNAVAILABLE = "SOURCE_UNAVAILABLE"
 
@@ -32,9 +33,10 @@ class RxNormConcept(BaseModel):
     """Thông tin thực thể thuốc / hoạt chất trích xuất từ RxNorm."""
     rxcui: str = Field(..., description="RxNorm Concept Unique Identifier")
     name: str = Field(..., description="Tên canonical từ RxNorm")
-    tty: str = Field(..., description="Term Type: IN (Ingredient), PIN, BN (Brand Name), SCD, SBD")
+    tty: str = Field(..., description="Term Type: IN (Ingredient), PIN, MIN, BN (Brand Name), SCD, SBD")
     synonym: Optional[str] = None
     active_ingredient: Optional[str] = None
+    active_ingredients: List[str] = Field(default_factory=list, description="Danh sách hoạt chất (hỗ trợ thuốc phối hợp)")
     provenance: str = Field("rxnorm", description="Nguồn gốc chuẩn hóa")
     confidence_score: float = Field(1.0, description="Độ tin cậy của concept")
 
@@ -168,6 +170,87 @@ class RxNormService:
             logger.warning("[RxNormService] Error fetching approximateTerm for '%s': %s", clean_term, e)
             return []
 
+    async def get_related_ingredients(
+        self,
+        rxcui: str,
+        client: Optional[httpx.AsyncClient] = None,
+    ) -> List[RxNormConcept]:
+        """
+        [Official RxNav Traversal API]
+        Tra cứu mối quan hệ phân cấp từ Brand/Drug CUI (BN, SBD, SCD) sang Active Ingredient(s) (IN, PIN, MIN).
+        URL: https://rxnav.nlm.nih.gov/REST/rxcui/{rxcui}/allrelated.json
+        """
+        if not rxcui:
+            return []
+
+        url = f"{self.base_url}/rxcui/{rxcui}/allrelated.json"
+        try:
+            if client:
+                resp = await client.get(url, timeout=self.timeout)
+            else:
+                async with httpx.AsyncClient() as http_client:
+                    resp = await http_client.get(url, timeout=self.timeout)
+
+            if resp.status_code != 200:
+                return []
+
+            data = resp.json()
+            groups = data.get("allRelatedGroup", {}).get("conceptGroup", [])
+            ingredients: List[RxNormConcept] = []
+
+            for g in groups:
+                tty = g.get("tty", "")
+                if tty in ("IN", "PIN", "MIN"):
+                    concepts = g.get("conceptProperties", [])
+                    for c in concepts:
+                        c_rxcui = str(c.get("rxcui", ""))
+                        c_name = str(c.get("name", ""))
+                        if c_rxcui and c_name:
+                            ingredients.append(
+                                RxNormConcept(
+                                    rxcui=c_rxcui,
+                                    name=c_name,
+                                    tty=tty,
+                                    synonym=c.get("synonym"),
+                                    active_ingredient=c_name,
+                                    active_ingredients=[c_name],
+                                    provenance="rxnorm_traversal",
+                                    confidence_score=1.0 if tty in ("IN", "PIN") else 0.9,
+                                )
+                            )
+            return ingredients
+        except (httpx.TimeoutException, httpx.NetworkError, httpx.ConnectError):
+            raise
+        except Exception as e:
+            logger.warning("[RxNormService] Error fetching related ingredients for rxcui '%s': %s", rxcui, e)
+            return []
+
+    async def resolve_multi_rxcui(
+        self,
+        rxcuis: List[str],
+        client: Optional[httpx.AsyncClient] = None,
+    ) -> List[str]:
+        """
+        [Multi-RxCUI Resolution]
+        Khi OpenFDA hoặc RxNav trả về nhiều RxCUIs khác nhau (ví dụ các SBD của các hàm lượng khác nhau),
+        hàm này duyệt traversal về các IN (Canonical Ingredient) chung nhất và loại bỏ trùng lặp.
+        """
+        if not rxcuis:
+            return []
+
+        unique_ingredients: set[str] = set()
+        for rc in rxcuis[:4]:  # Giới hạn 4 CUI đại diện
+            try:
+                ings = await self.get_related_ingredients(str(rc), client=client)
+                for ing in ings:
+                    if ing.name:
+                        unique_ingredients.add(ing.name.lower())
+            except Exception as e:
+                logger.debug("[RxNormService] Error in multi-rxcui resolution for %s: %s", rc, e)
+                continue
+
+        return sorted(list(unique_ingredients))
+
     async def resolve_drug(
         self,
         query: str,
@@ -175,12 +258,12 @@ class RxNormService:
     ) -> RxNormResolutionResult:
         """
         Phân giải danh tính thuốc theo chuẩn Primary Normalization Authority:
-        1. Exact Match -> RESOLVED
+        1. Exact Match -> Tự động duyệt allrelated.json lấy active_ingredient -> RESOLVED
         2. Approximate Match:
-           - 1 candidate vượt ngưỡng tin cậy -> RESOLVED
+           - 1 candidate vượt ngưỡng tin cậy -> Tự động duyệt allrelated.json -> RESOLVED
            - Nhiều candidate hoặc điểm trung bình -> CANDIDATE_REQUIRES_REVIEW
-        3. Không tìm thấy -> UNRESOLVED
-        4. Mạng lỗi / Timeout -> SOURCE_UNAVAILABLE
+        3. Không tìm thấy -> UNRESOLVED (data absent)
+        4. Mạng lỗi / Timeout -> SOURCE_UNAVAILABLE (infrastructure issue)
         """
         raw_query = (query or "").strip()
         if not raw_query:
@@ -201,6 +284,13 @@ class RxNormService:
             if exact_rxcui:
                 props = await self.get_concept_properties(exact_rxcui, client=client)
                 if props:
+                    # Nếu là Brand (BN) hoặc SBD/SCD, tra cứu quan hệ để lấy Active Ingredient
+                    if not props.active_ingredient and props.tty in ("BN", "SBD", "SCD"):
+                        rel_ings = await self.get_related_ingredients(props.rxcui, client=client)
+                        if rel_ings:
+                            props.active_ingredients = [ing.name for ing in rel_ings]
+                            props.active_ingredient = " / ".join(props.active_ingredients)
+
                     res = RxNormResolutionResult(
                         status=NormalizationStatus.RESOLVED,
                         query_term=raw_query,
@@ -228,13 +318,18 @@ class RxNormService:
                         )
 
                 if parsed_candidates:
-                    # Nếu chỉ có 1 candidate hoặc candidate đầu tiên có score cao
                     first_score = float(approx_candidates[0].get("score", 0.0))
                     if len(parsed_candidates) == 1 or first_score >= 8.0:
-                        # Fetch full properties cho candidate tốt nhất
                         best_props = await self.get_concept_properties(parsed_candidates[0].rxcui, client=client)
                         if best_props:
                             best_props.confidence_score = 0.85
+                            best_props.provenance = "rxnorm_approximate"
+                            if not best_props.active_ingredient and best_props.tty in ("BN", "SBD", "SCD"):
+                                rel_ings = await self.get_related_ingredients(best_props.rxcui, client=client)
+                                if rel_ings:
+                                    best_props.active_ingredients = [ing.name for ing in rel_ings]
+                                    best_props.active_ingredient = " / ".join(best_props.active_ingredients)
+
                             res = RxNormResolutionResult(
                                 status=NormalizationStatus.RESOLVED,
                                 query_term=raw_query,
@@ -254,7 +349,7 @@ class RxNormService:
                     self._cache[cache_key] = res
                     return res
 
-            # 3. Không tìm thấy
+            # 3. Không tìm thấy (HTTP 200 nhưng 0 candidate)
             res = RxNormResolutionResult(
                 status=NormalizationStatus.UNRESOLVED,
                 query_term=raw_query,

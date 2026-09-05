@@ -5,11 +5,14 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import time
 import threading
 from pathlib import Path
 from typing import Any, Optional
+
+logger = logging.getLogger(__name__)
 
 # Tắt connectivity check tới Baidu hosters để chạy offline mượt mà
 os.environ["PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK"] = "True"
@@ -257,7 +260,8 @@ class OcrEngine:
     def extract_prescription_receipt(self, image_bytes: bytes) -> MedicineScanResult:
         """Stream A: OCR cho Toa thuốc / Hóa đơn in nhiệt (thermal receipt).
         - Tự động enhance contrast, sharpness cho text dot-matrix mờ
-        - Tắt doc orientation/unwarping vì receipt thường thẳng đứng"""
+        - Tắt doc orientation/unwarping vì receipt thường thẳng đứng
+        - [Stage 15] Tích hợp Hybrid Recognition: PP-OCR Detection + VietOCR Transformer tiếng Việt"""
         image = self._load_array(image_bytes, "prescription")
         height, width = image.shape[:2]
 
@@ -266,11 +270,61 @@ class OcrEngine:
             result = self.paddle_ocr.predict(image)
         except Exception as exc:
             raise RuntimeError("OCR_INFERENCE_FAILED") from exc
-        latency_ms = int(round((time.perf_counter() - start) * 1000))
 
         items = self._extract_items(result)
+
+        # [Stage 15] VietOCR Hybrid Recognition cho đơn thuốc tiếng Việt
+        used_vietocr = False
+        try:
+            from ai.pipelines.vietocr_engine import default_vietocr_recognizer
+            if default_vietocr_recognizer.is_available and items and Image is not None:
+                pil_img = Image.fromarray(image[:, :, ::-1] if image.ndim == 3 else image)
+
+                # SLA Time-Budget Protection:
+                # Giới hạn tối đa 8.0s và tối đa 6 crops cho VietOCR để tổng thời gian luôn < 10s (SLA < 15s)
+                time_budget_sec = 8.0
+                vietocr_start = time.perf_counter()
+                processed_count = 0
+                max_crops = 6
+
+                def _needs_vietocr(t: str, c: float) -> bool:
+                    lower = t.lower()
+                    diacritic_typos = ("trra", "trua", "tôi", "tòi", "sô lung", "lrong", "trróc", "truóc", "ān no")
+                    return any(typo in lower for typo in diacritic_typos)
+
+                for item in items:
+                    if processed_count >= max_crops or (time.perf_counter() - vietocr_start) > time_budget_sec:
+                        break
+
+                    if not _needs_vietocr(item.text, item.confidence):
+                        continue
+
+                    box = item.box
+                    if box and len(box) == 4:
+                        x_min, y_min, x_max, y_max = int(box[0]), int(box[1]), int(box[2]), int(box[3])
+                        pad_x = max(2, int((x_max - x_min) * 0.02))
+                        pad_y = max(2, int((y_max - y_min) * 0.05))
+                        crop_x1 = max(0, x_min - pad_x)
+                        crop_y1 = max(0, y_min - pad_y)
+                        crop_x2 = min(width, x_max + pad_x)
+                        crop_y2 = min(height, y_max + pad_y)
+
+                        if crop_x2 > crop_x1 + 5 and crop_y2 > crop_y1 + 5:
+                            crop = pil_img.crop((crop_x1, crop_y1, crop_x2, crop_y2))
+                            v_text, v_conf = default_vietocr_recognizer.predict(crop)
+                            if v_text and len(v_text.strip()) >= 2:
+                                item.text = v_text.strip()
+                                item.confidence = round(max(item.confidence, v_conf), 4)
+                                used_vietocr = True
+                                processed_count += 1
+        except Exception as v_err:
+            logger.warning("VietOCR hybrid recognition gặp sự cố, tiếp tục với PP-OCR: %s", v_err)
+
+        latency_ms = int(round((time.perf_counter() - start) * 1000))
+        engine_name = "PP-OCRv6+VietOCR_Transformer-Hybrid" if used_vietocr else "PP-OCRv6_tiny-ONNX"
+
         return MedicineScanResult(
-            engine="PP-OCRv6_tiny-ONNX",
+            engine=engine_name,
             source_type="prescription",
             items=items,
             latency_ms=latency_ms,

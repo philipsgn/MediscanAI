@@ -5,7 +5,7 @@ import { IDrugItem, IDrugSearchResult } from '@/types/medication';
 import { AlertCircle, CheckCircle2, Sun, Sunset, Moon, Coffee } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useRef, useState } from 'react';
-import { searchDrugs } from '@/services/drugService';
+import { searchDrugs, verifyLearnedDrug } from '@/services/drugService';
 
 interface DrugVerificationFormProps {
   initialData: IDrugItem;
@@ -132,6 +132,25 @@ export function DrugVerificationForm({ initialData, onSave, onCancel, sourceType
     setDosageState(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const handleFormSubmit = async (data: IDrugItem) => {
+    // [Task 18.3] Active Learning Loop & Anti-Poisoning Feedback
+    if (initialData.matchMethod === 'ai_llm_inference' || initialData.matchMethod === 'hitl_user_verification') {
+      try {
+        await verifyLearnedDrug({
+          brand_name: data.brandName,
+          confirmed_active_ingredient: data.activeIngredient || data.brandName,
+          strength: data.strength || undefined,
+          category: data.category || undefined,
+          is_supplement: initialData.isSupplement ?? false,
+          user_notes: initialData.notes || undefined,
+        });
+      } catch (err) {
+        console.warn('Could not submit active learning feedback:', err);
+      }
+    }
+    onSave({ ...data, isVerified: true });
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden w-full max-w-2xl">
       <div className={cn(
@@ -147,9 +166,16 @@ export function DrugVerificationForm({ initialData, onSave, onCancel, sourceType
             <CheckCircle2 className="text-emerald-500" size={24} />
           )}
           <div>
-            <h3 className={cn("font-semibold text-lg", isHighRisk ? "text-red-700" : isLowConfidence ? "text-amber-700" : "text-emerald-700")}>
-              {isHighRisk ? 'Rủi ro cao — phải kiểm tra kỹ' : isLowConfidence ? 'Cần xác nhận lại thông tin' : 'AI Nhận diện mức độ tin cậy cao'}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className={cn("font-semibold text-lg", isHighRisk ? "text-red-700" : isLowConfidence ? "text-amber-700" : "text-emerald-700")}>
+                {isHighRisk ? 'Rủi ro cao — phải kiểm tra kỹ' : isLowConfidence ? 'Cần xác nhận lại thông tin' : 'AI Nhận diện mức độ tin cậy cao'}
+              </h3>
+              {initialData.matchMethod === 'ai_llm_inference' && (
+                <span className="text-[11px] font-medium bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  ✨ Chờ kiểm chứng HITL
+                </span>
+              )}
+            </div>
             <p className={cn("text-sm", isHighRisk ? "text-red-600" : isLowConfidence ? "text-amber-600" : "text-emerald-600")}>
               Độ tin cậy: {Math.round(initialData.confidenceScore * 100)}%
             </p>
@@ -157,7 +183,7 @@ export function DrugVerificationForm({ initialData, onSave, onCancel, sourceType
         </div>
       </div>
 
-      <form onSubmit={handleSubmit((data) => onSave({ ...data, isVerified: true }))} className="p-6 space-y-5">
+      <form onSubmit={handleSubmit(handleFormSubmit)} className="p-6 space-y-5">
         
         <div className="grid grid-cols-2 gap-5">
           <div className="space-y-1.5 relative">
@@ -227,12 +253,62 @@ export function DrugVerificationForm({ initialData, onSave, onCancel, sourceType
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-gray-700">Hoạt chất gốc (Chuẩn hóa)</label>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Hoạt chất gốc (Chuẩn hóa)</label>
+              {initialData.matchMethod === 'ai_llm_inference' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-700 border border-purple-200">
+                  ✨ AI Gợi ý
+                </span>
+              )}
+              {initialData.isSupplement && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                  🌿 Thực phẩm bảo vệ sức khỏe
+                </span>
+              )}
+            </div>
+            <span className="text-[11px] text-gray-400">Dùng cho kiểm tra tương tác thuốc 4 Layer</span>
+          </div>
           <input 
             {...register('activeIngredient')}
-            className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none"
-            placeholder="AI sẽ tự động điền nếu trống"
+            className={`w-full px-4 py-2.5 rounded-lg border outline-none transition-shadow ${
+              initialData.matchMethod === 'ai_llm_inference'
+                ? 'border-purple-300 bg-purple-50/20 focus:ring-2 focus:ring-purple-500 focus:border-purple-500'
+                : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+            }`}
+            placeholder="VD: Paracetamol, Omeprazole (AI tự động điền)..."
           />
+          {initialData.matchMethod === 'ai_llm_inference' && (
+            <p className="text-[11px] text-purple-700 mt-1 flex items-start gap-1">
+              <span className="text-xs">💡</span>
+              <span>
+                Thành phần được AI phân tích từ tri thức y dược mở rộng cho sản phẩm đặc thù/TPCN. Bạn vui lòng đối chiếu lại với bao bì trước khi xác nhận.
+              </span>
+            </p>
+          )}
+          {initialData.notes && (
+            <p className="text-[11px] text-slate-500 italic mt-0.5">
+              Ghi chú: {initialData.notes}
+            </p>
+          )}
+          {/* Quick Active Ingredient Pills nếu trường đang trống */}
+          {!watch('activeIngredient') && (
+            <div className="pt-1">
+              <span className="text-[11px] text-slate-500 font-medium block mb-1">Gợi ý hoạt chất phổ biến:</span>
+              <div className="flex flex-wrap gap-1.5">
+                {['Paracetamol', 'Ibuprofen', 'Omeprazole', 'Esomeprazole', 'Amoxicillin', 'Ranitidine', 'Pantoprazole', 'Cetirizine'].map((ing) => (
+                  <button
+                    key={ing}
+                    type="button"
+                    onClick={() => setValue('activeIngredient', ing, { shouldValidate: true })}
+                    className="px-2 py-0.5 text-xs rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors"
+                  >
+                    {ing}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* [F3.7] Cảnh báo nhẹ hàm lượng khác DB chuẩn — hiển thị, KHÔNG chặn submit */}

@@ -57,3 +57,58 @@ async def search_drugs(
         )
         for drug in raw_results
     ]
+
+
+from typing import Any, Dict, Optional
+from pydantic import BaseModel, Field
+
+
+class VerifyLearnedDrugRequest(BaseModel):
+    brand_name: str = Field(..., min_length=1, max_length=255)
+    confirmed_active_ingredient: str = Field(..., min_length=1, max_length=500)
+    strength: Optional[str] = Field(None, max_length=255)
+    category: Optional[str] = Field(None, max_length=255)
+    is_supplement: bool = False
+    user_notes: Optional[str] = Field(None, max_length=1000)
+
+
+class VerifyLearnedDrugResponse(BaseModel):
+    success: bool
+    message: str
+    data: Dict[str, Any]
+
+
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.session import get_db
+
+
+@router.post(
+    "/verify-learned",
+    response_model=VerifyLearnedDrugResponse,
+    summary="Active Learning: Xác thực hoặc chỉnh sửa hoạt chất của thuốc tự học (Anti-Poisoning)",
+)
+async def verify_learned_drug(
+    payload: VerifyLearnedDrugRequest,
+    db: AsyncSession = Depends(get_db),
+) -> VerifyLearnedDrugResponse:
+    """
+    Nhận phản hồi từ người dùng tại giao diện Human-in-the-Loop (HITL) (Stage 18).
+    - Nếu người dùng xác nhận đúng: Chuyển verification_status = "VERIFIED", tăng verified_count.
+    - Nếu người dùng sửa hoạt chất khác: Chuyển verification_status = "USER_CORRECTED", cập nhật lại hoạt chất chuẩn
+      vào RAM, File, và Database để chống ngộ độc cache vĩnh viễn (Anti-Poisoning).
+    """
+    updated = await drug_database.verify_and_update_learned_drug(
+        brand_name=payload.brand_name,
+        confirmed_active_ingredient=payload.confirmed_active_ingredient,
+        strength=payload.strength,
+        category=payload.category,
+        is_supplement=payload.is_supplement,
+        user_notes=payload.user_notes,
+        session=db,
+    )
+    return VerifyLearnedDrugResponse(
+        success=True,
+        message=f"Đã cập nhật trạng thái {updated.get('verification_status')} cho '{payload.brand_name}'",
+        data=updated,
+    )

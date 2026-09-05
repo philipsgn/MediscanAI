@@ -19,13 +19,18 @@ class Settings(BaseSettings):
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 8000
 
-    # API Keys & External Services
-    OPENAI_API_KEY: str = ""  # Fallback LLM text-only (không phải Vision), theo Task 3.3
-    OPENAI_FALLBACK_MODEL: str = "gpt-4o-mini"  # [P3/F3.9] Model fallback qua env, không hardcode
+    # API Keys & External Services (LLM text-only, không phải Vision)
+    OPENAI_API_KEY: str = ""  # Tùy chọn nếu có OpenAI
+    OPENAI_FALLBACK_MODEL: str = "gpt-4o-mini"
+    GEMINI_API_KEY: str = ""  # Google Gemini Text API Key (Ưu tiên số 1 - Miễn phí)
+    GEMINI_MODEL: str = "gemini-flash-lite-latest"  # Gemini model cho Drug/TPCN resolution
+    GROQ_API_KEY: str = ""  # Groq Cloud API Key (Ưu tiên số 2 - Siêu tốc độ, Miễn phí)
+    GROQ_MODEL: str = "openai/gpt-oss-20b"  # Groq text model
+    ENABLE_LLM_DRUG_RESOLVER: bool = True  # Feature toggle cho Stage 17/18 LLM Drug Resolver
 
-    # Local LLM (for Clinical Assessment) - Ollama or similar
+    # Local LLM (for Clinical Assessment & Offline Drug Resolution) - Ollama
     LOCAL_LLM_BASE_URL: str = "http://localhost:11434"
-    LOCAL_LLM_MODEL: str = "qwen2.5:0.5b"
+    LOCAL_LLM_MODEL: str = "qwen2.5:1.5b"
 
     # OpenFDA Drug Database API
     OPENFDA_API_KEY: str = ""

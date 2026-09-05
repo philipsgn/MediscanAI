@@ -18,6 +18,7 @@ Kiểm tra:
 """
 
 import pytest
+from app.core.config import settings
 from app.services.drug_database import drug_database
 from app.services.normalization_service import normalization_service
 from app.schemas import DrugItem
@@ -45,8 +46,10 @@ def test_openfda_substance_query_gating_rules():
 
 
 @pytest.mark.asyncio
-async def test_s_ala_normalization_blocks_oncology_false_match():
-    """Xác nhận token S-ALA không bị match nhầm sang hoạt chất ung thư Cabozantinib."""
+async def test_s_ala_normalization_blocks_oncology_false_match(monkeypatch):
+    """Xác nhận token S-ALA không bị match nhầm sang hoạt chất ung thư Cabozantinib bởi OpenFDA."""
+    monkeypatch.setattr(settings, "ENABLE_LLM_DRUG_RESOLVER", False)
+    drug_database.learned_brand_to_drug.pop("s-ala", None)
     raw_item = DrugItem(
         brand_name="S-ALA",
         strength="",

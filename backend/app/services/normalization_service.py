@@ -12,8 +12,10 @@ from typing import Optional
 
 from rapidfuzz import process, fuzz
 
+from app.core.config import settings
 from app.schemas import DrugItem
 from app.services.drug_database import drug_database
+from app.services.llm_drug_resolver import llm_drug_resolver
 from app.services.rxnorm_service import NormalizationStatus, rxnorm_service
 
 logger = logging.getLogger(__name__)
@@ -47,18 +49,20 @@ class NormalizationService:
             normalized.append(self.normalize_drug_item(raw_drug))
         return normalized
 
+
     async def normalize_drug_item_full(self, raw_drug: DrugItem) -> DrugItem:
         """
-        [Stage 11/12] Chuẩn hóa phân tầng có thẩm quyền (Authority-Driven Normalization):
-        1. Local Verified DB (Sync) -> 2. RxNorm/RxNav (Primary Authority) -> 3. OpenFDA (Supporting Evidence) -> 4. Unresolved.
+        [Stage 11/12/17] Chuẩn hóa phân tầng có thẩm quyền (Authority-Driven Normalization):
+        1. Local Dual-Tier & Learned DB (Sync O(1)) -> 2. RxNorm/RxNav (Primary) -> 3. OpenFDA (Supporting) -> 4. LLM Fallback (Stage 17) -> 5. Unresolved.
         """
-        # 1. TẦNG 1: Local Verified DB (Exact / Ingredient / Fuzzy)
+        # 1. TẦNG 1: Local Verified DB (Exact / Ingredient / Fuzzy / Learned Cache)
         item = self.normalize_drug_item(raw_drug)
         if item.match_method is not None:
             return item  # Local verified match -> Không cần network call
 
         # 2. TẦNG 2: RxNorm / RxNav (Primary Normalization Authority)
         clean_brand = item.brand_name.strip() if item.brand_name else ""
+        rx_candidate_item = None
         if clean_brand and drug_database.is_valid_openfda_substance_query(clean_brand):
             rx_result = await rxnorm_service.resolve_drug(clean_brand)
             if rx_result.status == NormalizationStatus.RESOLVED and rx_result.concept:
@@ -77,20 +81,19 @@ class NormalizationService:
                 )
                 return item
             elif rx_result.status == NormalizationStatus.CANDIDATE_REQUIRES_REVIEW and rx_result.candidates:
-                # Ambiguous candidate từ RxNav -> Chuyển review, KHÔNG auto-resolve
-                item.drug_id = f"rxnorm_cand:{rx_result.candidates[0].rxcui}"
-                item.match_method = "rxnorm_approximate"
-                item.confidence_score = 0.6
-                item.is_verified = False  # Bắt buộc HITL
+                # Ghi nhận candidate từ RxNav nhưng KHÔNG return sớm, tiếp tục thử OpenFDA & LLM
+                rx_candidate_item = item.model_copy()
+                rx_candidate_item.drug_id = f"rxnorm_cand:{rx_result.candidates[0].rxcui}"
+                rx_candidate_item.match_method = "rxnorm_approximate"
+                rx_candidate_item.confidence_score = 0.6
+                rx_candidate_item.is_verified = False
                 logger.info(
-                    "[normalization] RxNorm CANDIDATE_REQUIRES_REVIEW: %s -> %d candidates",
+                    "[normalization] RxNorm CANDIDATE_REQUIRES_REVIEW: %s -> %d candidates (continuing to Tier 3/4)",
                     item.brand_name,
                     len(rx_result.candidates),
                 )
-                return item
 
         # 3. TẦNG 3: OpenFDA (Secondary Supporting Evidence)
-        # Chỉ kích hoạt khi RxNorm miss hoặc không có kết luận khẳng định
         query_name = item.brand_name
         if item.strength:
             query_name = re.sub(re.escape(item.strength), "", query_name, flags=re.IGNORECASE).strip()
@@ -102,7 +105,6 @@ class NormalizationService:
             info = await drug_database.get_drug_full_info(item.brand_name, None)
 
         if info and str(info.get("source", "")).startswith("openfda"):
-            # KHÔNG ghi đè brand_name gốc bằng brand_name của OpenFDA
             fda_ingredient = info.get("active_ingredient")
             if fda_ingredient:
                 if isinstance(fda_ingredient, list):
@@ -123,8 +125,6 @@ class NormalizationService:
             item.category = None
             item.max_daily_dosage = None
             item.match_method = str(info.get("source"))
-
-            # Confidence trần cứng 0.6 cho nguồn hỗ trợ OpenFDA (Bắt buộc HITL)
             external_conf = 0.5
             item.confidence_score = round(min(0.6, (item.confidence_score + external_conf) / 2), 4)
             item.is_verified = False
@@ -136,8 +136,61 @@ class NormalizationService:
             )
             return item
 
-        # 4. TẦNG 4: UNRESOLVED (Không tìm thấy bằng chứng -> Safety Boundary)
-        return item
+        # 4. TẦNG 4: LLM Medical Knowledge Fallback (Stage 17)
+        # Kích hoạt khi Tầng 1, 2, 2.5 và Tầng 3 đều MISS đối với các thuốc lạ hoặc Thực phẩm chức năng
+        if clean_brand and settings.ENABLE_LLM_DRUG_RESOLVER:
+            try:
+                from app.services.ai_telemetry_service import ai_telemetry_service
+                ai_telemetry_service.record_cache_miss(clean_brand)
+            except Exception:
+                pass
+
+            llm_res = await llm_drug_resolver.resolve_drug_with_llm(clean_brand)
+            if llm_res and llm_res.get("active_ingredient"):
+                item.active_ingredient = llm_res["active_ingredient"]
+                if llm_res.get("category"):
+                    item.category = llm_res["category"]
+                if llm_res.get("strength") and not item.strength:
+                    item.strength = str(llm_res["strength"])
+                item.is_supplement = bool(llm_res.get("is_supplement", False))
+                item.notes = llm_res.get("notes")
+                if llm_res.get("contraindications"):
+                    item.warnings = [str(c) for c in llm_res["contraindications"]]
+                item.match_method = "ai_llm_inference"
+                item.confidence_score = min(0.75, float(llm_res.get("confidence_score", 0.75)))
+                item.is_verified = False
+
+                learned_data = {
+                    "brand_name": clean_brand,
+                    "active_ingredient": item.active_ingredient,
+                    "strength": item.strength,
+                    "category": item.category,
+                    "is_supplement": item.is_supplement,
+                    "confidence_score": item.confidence_score,
+                    "verification_status": "PENDING_REVIEW",
+                    "hit_count": 1,
+                    "verified_count": 0,
+                    "notes": item.notes,
+                    "warnings": item.warnings,
+                    "source": "ai_llm_knowledge",
+                }
+                drug_database.save_learned_drug(learned_data)
+                try:
+                    await drug_database.sync_learned_to_db(learned_data)
+                except Exception:
+                    pass
+
+                logger.info(
+                    "[normalization] Tier-4 LLM Fallback RESOLVED: %s -> %s (is_supplement=%s, conf=%.2f)",
+                    item.brand_name,
+                    item.active_ingredient,
+                    item.is_supplement,
+                    item.confidence_score,
+                )
+                return item
+
+        # 5. TẦNG 5: UNRESOLVED / CANDIDATE_REQUIRES_REVIEW (Safety Boundary)
+        return rx_candidate_item or item
 
     async def normalize_ocr_items_full(self, ocr_items: list[DrugItem]) -> list[DrugItem]:
         """Wrapper async chạy song song toàn bộ items qua pipeline chuẩn hóa phân tầng."""

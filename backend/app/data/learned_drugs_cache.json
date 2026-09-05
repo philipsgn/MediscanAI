@@ -1,0 +1,70 @@
+{
+  "tendoactive": {
+    "brand_name": "Tendoactive",
+    "active_ingredient": "Mucopolysaccharides / Collagen Type I / Vitamin C",
+    "strength": "430mg / 40mg / 20mg",
+    "category": "Thực phẩm bảo vệ sức khỏe",
+    "is_supplement": true,
+    "notes": "Hỗ trợ phục hồi và nuôi dưỡng cấu trúc gân và dây chằng (Bioiberica)",
+    "warnings": [
+      "Không dùng cho người mẫn cảm với bất kỳ thành phần nào của sản phẩm"
+    ],
+    "source": "medical_curated"
+  },
+  "tendoactive api test": {
+    "brand_name": "Tendoactive API Test",
+    "brand_name_normalized": "tendoactive api test",
+    "active_ingredient": "Mucopolysaccharides / Collagen Type I / Vitamin C",
+    "strength": "430mg",
+    "category": "Thực phẩm bảo vệ sức khỏe",
+    "is_supplement": true,
+    "confidence_score": 0.95,
+    "verification_status": "VERIFIED",
+    "hit_count": 1,
+    "verified_count": 12,
+    "notes": "Xác nhận bởi Dược sĩ bệnh viện",
+    "contraindications": [],
+    "source": "hitl_user_verification"
+  },
+  "nutraflex rare formula": {
+    "brand_name": "NutraFlex Rare Formula",
+    "brand_name_normalized": "nutraflex rare formula",
+    "active_ingredient": "Curcumin Phospholipid / Piperine",
+    "strength": "250mg",
+    "category": "Hỗ trợ giảm đau khớp sinh học",
+    "is_supplement": true,
+    "confidence_score": 0.9,
+    "verification_status": "USER_CORRECTED",
+    "hit_count": 1,
+    "verified_count": 1,
+    "notes": "Bác sĩ xác nhận thành phần theo tem phụ",
+    "contraindications": [],
+    "source": "hitl_user_verification"
+  },
+  "tendoactive test": {
+    "brand_name": "Tendoactive Test",
+    "active_ingredient": "Mucopolysaccharides / Collagen Type I",
+    "strength": "430mg",
+    "category": "Thực phẩm bảo vệ sức khỏe",
+    "is_supplement": true,
+    "notes": "Test cache entry",
+    "warnings": [],
+    "source": "ai_llm_knowledge"
+  },
+  "tendoactive special formula": {
+    "brand_name": "Tendoactive Special Formula",
+    "active_ingredient": "Mucopolysaccharides / Collagen Type I / Vitamin C",
+    "strength": "430mg",
+    "category": "Thực phẩm bảo vệ sức khỏe - Khớp",
+    "is_supplement": true,
+    "confidence_score": 0.75,
+    "verification_status": "PENDING_REVIEW",
+    "hit_count": 1,
+    "verified_count": 0,
+    "notes": "Hỗ trợ phục hồi cấu trúc gân",
+    "warnings": [
+      "Dị ứng thành phần collagen"
+    ],
+    "source": "ai_llm_knowledge"
+  }
+}

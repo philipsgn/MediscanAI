@@ -67,6 +67,15 @@ class DrugItem(BaseModel):
         None,
         description="Cảnh báo hàm lượng (strength) nhập vào khác với DB chuẩn",
     )
+    # [Stage 17] Thuộc tính bổ sung cho Thực phẩm chức năng / Suy luận từ LLM
+    is_supplement: Optional[bool] = Field(
+        default=False,
+        description="True nếu sản phẩm là Thực phẩm chức năng / Bảo vệ sức khỏe (Nutraceutical / Supplement)",
+    )
+    notes: Optional[str] = Field(
+        default=None,
+        description="Ghi chú công dụng hoặc nguồn gốc sản phẩm từ AI",
+    )
 
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 

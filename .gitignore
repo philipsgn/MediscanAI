@@ -35,3 +35,9 @@ _v_s3_ctx.txt
 backend/_v_s3_pytest.txt
 backend/data/
 storage/
+
+# ─── AI Models & Weights (Large Binaries) ───
+*.pth
+*.onnx
+ai/models/vietocr/*.pth
+ai/models/vietocr/

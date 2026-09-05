@@ -30,12 +30,15 @@ export interface IDrugItem {
   category?: string;
   maxDailyDosage?: string;
   warnings?: string[];
-  /** [P3/F3.6 đồng bộ §3.A.2] exact | fuzzy | ingredient_fallback | openfda | openfda_ingredient */
-  matchMethod?: 'exact' | 'fuzzy' | 'ingredient_fallback' | 'openfda' | 'openfda_ingredient';
+  /** [P3/F3.6 đồng bộ §3.A.2] exact | fuzzy | ingredient_fallback | openfda | openfda_ingredient | ai_llm_inference | hitl_user_verification */
+  matchMethod?: 'exact' | 'fuzzy' | 'ingredient_fallback' | 'openfda' | 'openfda_ingredient' | 'ai_llm_inference' | 'hitl_user_verification';
   /** [F3.7] Cảnh báo nhẹ hàm lượng nhập khác DB chuẩn — hiển thị UI, không chặn submit. */
   strengthMismatchWarning?: string | null;
   /** [Stage 13] Danh sách biến thể hàm lượng chuẩn từ CSDL */
   variants?: string[];
+  /** [Stage 17] Thuộc tính bổ sung cho Thực phẩm chức năng / Suy luận từ LLM */
+  isSupplement?: boolean;
+  notes?: string | null;
 }
 
 export interface IExtractedDrugItem {

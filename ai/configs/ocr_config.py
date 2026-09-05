@@ -39,8 +39,16 @@ class OCRConfig:
     base_dir: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     data_dir: str = os.path.join(base_dir, "data")
     models_dir: str = os.path.join(base_dir, "models")
+    configs_dir: str = os.path.join(base_dir, "configs")
     drug_dict_path: str = os.path.join(data_dir, "drug_dictionary.json")
     clinical_rules_path: str = os.path.join(data_dir, "clinical_rules.json")
+
+    # VietOCR Hybrid Settings (Prescription Stream)
+    vietocr_enabled: bool = True
+    vietocr_model_name: str = "vgg_transformer"
+    vietocr_weights_path: str = os.path.join(models_dir, "vietocr", "vgg_transformer.pth")
+    vietocr_base_config_path: str = os.path.join(configs_dir, "vietocr", "base.yml")
+    vietocr_model_config_path: str = os.path.join(configs_dir, "vietocr", "vgg-transformer.yml")
 
 
 # Global default configuration instance

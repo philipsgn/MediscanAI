@@ -1,0 +1,17 @@
+# VietOCR VGG-Transformer Configuration (Local Offline)
+backbone: vgg19_bn
+cnn:
+    pretrained: False
+    ss:
+        - [2, 2]
+        - [2, 2]
+        - [2, 1]
+        - [2, 1]
+        - [1, 1]         
+    ks:
+        - [2, 2]
+        - [2, 2]
+        - [2, 1]
+        - [2, 1]
+        - [1, 1]
+    hidden: 256

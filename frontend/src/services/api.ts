@@ -34,6 +34,9 @@ export const API_ENDPOINTS = {
   /** Cabinet / Medications endpoints (Stage 10) */
   medications: '/medications',
   medicationsMe: '/medications/me',
+  /** AI Telemetry & Active Learning endpoints (Stage 18) */
+  verifyLearnedDrug: '/drugs/verify-learned',
+  aiCacheMetrics: '/metrics/ai-cache',
 } as const;
 
 export type ApiEndpointPath = keyof typeof API_ENDPOINTS;

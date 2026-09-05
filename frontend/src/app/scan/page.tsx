@@ -12,11 +12,12 @@ import Link from 'next/link';
 import {
   FileText, Box, Loader2, ShieldCheck, CheckCircle2,
   AlertCircle, ArrowLeft, UploadCloud, Pill,
-  Activity, Check, Layers, Sparkles, Camera
+  Activity, Check, Layers, Sparkles, Camera, Zap
 } from 'lucide-react';
 import { SmartCropModal } from '@/components/scan/SmartCropModal';
 import { DrugVerificationForm } from '@/components/scan/DrugVerificationForm';
 import { AddToCabinetModal } from '@/components/scan/AddToCabinetModal';
+import { AICacheMetricsModal } from '@/components/telemetry/AICacheMetricsModal';
 import { InteractionAlertCards } from '@/components/report/InteractionAlertCards';
 import { openMedicalDisclaimerModal, isDisclaimerAccepted } from '@/components/common/MedicalDisclaimerModal';
 import { toast } from '@/components/common/Toast';
@@ -45,6 +46,7 @@ export default function ScanPage() {
   const [rawImageUrl, setRawImageUrl] = useState<string | null>(null);
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const [isAddToCabinetModalOpen, setIsAddToCabinetModalOpen] = useState(false);
+  const [isTelemetryOpen, setIsTelemetryOpen] = useState(false);
 
   // Danh sách thuốc trích xuất từ phiên scan hiện tại
   const [extractedDrugs, setExtractedDrugs] = useState<IDrugItem[]>([]);
@@ -193,8 +195,17 @@ export default function ScanPage() {
         return;
       }
 
-      toast.success(`Đã trích xuất ${items.length} mục từ ảnh! Vui lòng kiểm tra và xác nhận.`);
-      setVerificationQueue(items);
+      if (type === 'prescription') {
+        // [Toa thuốc - Multi-item Prescription Review]:
+        // Tự động nạp toàn bộ danh sách thuốc trích xuất được (1, 2, 3, 4, 5, 6...) vào extractedDrugs
+        // để người dùng nhìn thấy đầy đủ các vị trí trong đơn thuốc ngay lập tức mà không bị kẹt ở hàng đợi 1 thuốc.
+        setExtractedDrugs(items);
+        setVerificationQueue([]);
+        toast.success(`Đã trích xuất thành công toàn bộ ${items.length} thuốc từ toa thuốc! Vui lòng đối soát lại.`);
+      } else {
+        toast.success(`Đã trích xuất ${items.length} mục từ ảnh! Vui lòng kiểm tra và xác nhận.`);
+        setVerificationQueue(items);
+      }
     } catch (err: unknown) {
       console.error('Lỗi nhận diện ảnh:', err);
       let errorMsg = 'Không thể kết nối đến hệ thống nhận diện. Hãy kiểm tra Backend.';
@@ -218,6 +229,13 @@ export default function ScanPage() {
 
   const handleVerificationCancel = () => {
     setVerificationQueue((prev) => prev.slice(1));
+  };
+
+  // Xác nhận nhanh toàn bộ hàng đợi HITL
+  const handleVerifyAll = () => {
+    setExtractedDrugs((prev) => [...prev, ...verificationQueue]);
+    setVerificationQueue([]);
+    toast.success(`Đã xác nhận toàn bộ ${verificationQueue.length} thuốc!`);
   };
 
   // Chạy đánh giá tương tác 4 lớp
@@ -365,6 +383,16 @@ export default function ScanPage() {
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={() => setIsTelemetryOpen(true)}
+              className="h-9 px-3 border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all shadow-sm"
+              title="Xem thống kê tối ưu chi phí & Telemetry AI"
+            >
+              <Zap size={14} className="text-indigo-600 fill-indigo-500" />
+              <span>AI Telemetry</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => openMedicalDisclaimerModal()}
               className="h-9 px-3 border border-outline-variant bg-white hover:bg-surface-container text-on-surface-variant text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all shadow-sm"
             >
@@ -506,6 +534,15 @@ export default function ScanPage() {
                     Xác nhận kết quả nhận diện (HITL)
                   </span>
                   <div className="flex items-center gap-2">
+                    {verificationQueue.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={handleVerifyAll}
+                        className="px-2.5 py-1 text-[11px] font-bold text-white bg-primary hover:bg-primary/90 rounded-md transition-colors shadow-sm"
+                      >
+                        Xác nhận tất cả ({verificationQueue.length})
+                      </button>
+                    )}
                     {sourceType === 'packaging' && (
                       <>
                         <input
@@ -546,7 +583,8 @@ export default function ScanPage() {
             {/* Thẻ 3: Danh sách thuốc đã nhận diện */}
             <div className="bg-surface rounded-xl border border-outline-variant/30 p-5 space-y-3 shadow-layer-1">
               <div className="flex items-center justify-between border-b border-outline-variant/30 pb-2">
-                <span className="text-xs font-bold text-on-surface">
+                <span className="text-xs font-bold text-on-surface flex items-center gap-1.5">
+                  <FileText size={15} className="text-primary" />
                   Danh mục thuốc đã trích xuất ({extractedDrugs.length})
                 </span>
                 {extractedDrugs.length > 0 && (
@@ -567,8 +605,11 @@ export default function ScanPage() {
               ) : (
                 <div className="space-y-2.5">
                   {extractedDrugs.map((drug, idx) => (
-                    <div key={idx} className="p-3 rounded-lg border border-outline-variant/40 bg-background text-xs space-y-2 relative group shadow-sm">
+                    <div key={idx} className="p-3 rounded-lg border border-outline-variant/40 bg-background text-xs space-y-2 relative group shadow-sm hover:border-primary/50 transition-colors">
                       <div className="flex items-center justify-between gap-2">
+                        <span className="font-extrabold text-primary bg-primary/10 px-2 py-0.5 rounded text-[11px] shrink-0">
+                          #{idx + 1}
+                        </span>
                         <input
                           type="text"
                           value={drug.brandName}
@@ -582,7 +623,7 @@ export default function ScanPage() {
                         <input
                           type="text"
                           value={drug.strength || ''}
-                          placeholder="Hàm lượng (VD: 500mg)"
+                          placeholder="Hàm lượng"
                           onChange={(e) => {
                             const updated = [...extractedDrugs];
                             updated[idx].strength = e.target.value;
@@ -603,9 +644,9 @@ export default function ScanPage() {
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2 text-[11px]">
+                      <div className="space-y-1.5 text-[11px]">
                         <div>
-                          <label className="block text-[10px] text-on-surface-variant font-semibold">Hoạt chất gốc</label>
+                          <label className="block text-[10px] text-on-surface-variant font-semibold">Hoạt chất gốc (Chuẩn hóa)</label>
                           <input
                             type="text"
                             value={drug.activeIngredient || ''}
@@ -614,11 +655,11 @@ export default function ScanPage() {
                               updated[idx].activeIngredient = e.target.value;
                               setExtractedDrugs(updated);
                             }}
-                            className="w-full bg-white border border-outline-variant/30 rounded px-1.5 py-0.5 text-[11px] outline-none"
+                            className="w-full bg-white border border-outline-variant/30 rounded px-2 py-1 text-[11px] outline-none font-medium text-slate-800"
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] text-on-surface-variant font-semibold">Liều dùng</label>
+                          <label className="block text-[10px] text-on-surface-variant font-semibold">Hướng dẫn liều dùng thực tế</label>
                           <input
                             type="text"
                             value={drug.dosageInstruction || ''}
@@ -627,7 +668,7 @@ export default function ScanPage() {
                               updated[idx].dosageInstruction = e.target.value;
                               setExtractedDrugs(updated);
                             }}
-                            className="w-full bg-white border border-outline-variant/30 rounded px-1.5 py-0.5 text-[11px] outline-none"
+                            className="w-full bg-white border border-outline-variant/30 rounded px-2 py-1 text-[11px] outline-none text-slate-700 font-medium"
                           />
                         </div>
                       </div>
@@ -739,6 +780,12 @@ export default function ScanPage() {
           onConfirmAddToCabinetAndReminders={handleConfirmAddToCabinetAndReminders}
         />
       )}
+
+      {/* ── AI Telemetry & Observability Modal (Stage 18) ── */}
+      <AICacheMetricsModal
+        isOpen={isTelemetryOpen}
+        onClose={() => setIsTelemetryOpen(false)}
+      />
 
     </div>
   );
